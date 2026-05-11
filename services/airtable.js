@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Configuration Airtable
-const AIRTABLE_BASE_ID = 'appnvQK108GDiTjiJ'; 
-const AIRTABLE_API_KEY = 'patuTkCmoRxNB9Wsq.63f777915249ad2cdb31695442458449f92b560316f1461181bf2b00fdbe6315';
+const AIRTABLE_BASE_ID = ''; 
+const AIRTABLE_KEY = process.env.AIRTABLE_KEY
 const AIRTABLE_API_URL = 'https://cors-anywhere.herokuapp.com/https://api.airtable.com/v0';
 
 const TABLES = {
