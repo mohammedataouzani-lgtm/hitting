@@ -40,6 +40,9 @@ export default function RegisterScreen({ navigation }) {
   const [numeroLicence, setNumeroLicence] = useState('');
   const [showClubModal, setShowClubModal] = useState(false);
 
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  
+
   // ===== STEP 1: Prénom + Email + Password =====
   const handleStep1Continue = async () => {
     // Validation
@@ -123,53 +126,50 @@ export default function RegisterScreen({ navigation }) {
   };
 
   // ===== STEP 3: Compléter profil =====
-  const handleStep3Complete = async () => {
-    if (!selectedClub || !telephone || !numeroLicence) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+ // ===== STEP 3: Compléter profil =====
+const handleStep3Complete = async () => {
+  if (!selectedClub || !telephone || !numeroLicence) {
+    Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const coachResult = await createCoachFirestore({
+      email: user.email,
+      prenom: prenom,
+      telephone: telephone,
+      numeroLicence: numeroLicence,
+      firebaseUID: user.uid,
+      clubId: selectedClub.id,
+      clubName: selectedClub.name 
+    });
+
+    if (!coachResult.success) {
+      Alert.alert('Erreur', 'Impossible de créer le profil coach');
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
+    // Sauvegarder localement
+    await AsyncStorage.setItem('coachId', coachResult.coachId);
+    await AsyncStorage.setItem('coachEmail', user.email);
+    await AsyncStorage.setItem('firebaseUID', user.uid);
+    await AsyncStorage.setItem('clubId', selectedClub.id);
+    await AsyncStorage.setItem('coachPrenom', prenom);
+    await AsyncStorage.setItem('clubName', selectedClub.name);
 
-    try {
-      // Créer le coach dans Airtable
-      const coachResult = await createCoachFirestore({
-        email: user.email,
-        nom: 'À compléter', // Tu peux ajouter un champ Nom au Step 1 si besoin
-        prenom: prenom,
-        telephone: telephone,
-        numeroLicence: numeroLicence,
-        firebaseUID: user.uid,
-        clubId: selectedClub.id,
-        clubName: selectedClub.name 
-      });
+    // ✨ Aller à l'étape paiement au lieu de Dashboard
+    setStep(4);
 
-      if (!coachResult.success) {
-        Alert.alert('Erreur', 'Impossible de créer le profil coach');
-        setLoading(false);
-        return;
-      }
-
-  
-      // Sauvegarder localement
-      await AsyncStorage.setItem('coachId', coachResult.coachId);
-await AsyncStorage.setItem('coachEmail', user.email);
-await AsyncStorage.setItem('firebaseUID', user.uid);
-await AsyncStorage.setItem('clubId', selectedClub.id);
-await AsyncStorage.setItem('coachPrenom', prenom);
-await AsyncStorage.setItem('clubName', selectedClub.name);
-
-// Rediriger vers Dashboard
-navigation.replace('Dashboard');
-
-    } catch (error) {
-      console.error('Erreur:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  } catch (error) {
+    console.error('Erreur:', error);
+    Alert.alert('Erreur', 'Une erreur est survenue');
+  } finally {
+    setLoading(false);
+  }
+};
   // ===== RENDER STEP 1 =====
   if (step === 1) {
     return (
@@ -291,7 +291,155 @@ navigation.replace('Dashboard');
       </KeyboardAvoidingView>
     );
   }
+// ===== RENDER STEP 4: Paiement =====
+if (step === 4) {
+  const PLANS = [
+    {
+      id: 'mensuel',
+      label: 'Mensuel',
+      badge: 'Populaire',
+      price: '12,50€',
+      priceLabel: 'Payer 12,50€',
+      description: 'Accès complet, sans engagement.',
+      color: {
+        background: '#F2D5D5',
+        title: '#8B1A1A',
+        description: '#8B1A1A',
+        button: '#8B1A1A',
+        buttonText: '#FFFFFF',
+        bullet: '#8B1A1A',
+        badge: '#1A73E8',
+      },
+      features: [
+        '1 mois offert à l\'inscription',
+        'Fiches boxeurs illimitées',
+        'Recherche d\'adversaires',
+        'Historique des combats',
+        'Messagerie inter-clubs',
+      ],
+    },
+    {
+      id: 'annuel',
+      label: 'Annuellement',
+      badge: null,
+      price: '150€',
+      priceLabel: 'Payer 150€',
+      description: 'Économisez 2 mois par rapport au mensuel.',
+      color: {
+        background: '#C9DCF5',
+        title: '#1A4A8B',
+        description: '#1A4A8B',
+        button: '#1A73E8',
+        buttonText: '#FFFFFF',
+        bullet: '#1A4A8B',
+        badge: null,
+      },
+      features: [
+        '1 mois offert à l\'inscription',
+        'Fiches boxeurs illimitées',
+        'Recherche d\'adversaires',
+        'Historique des combats',
+        'Messagerie inter-clubs',
+      ],
+    },
+  ];
 
+  const handlePayment = (plan) => {
+    Alert.alert(
+      'Confirmer votre abonnement',
+      `Vous allez souscrire à l'offre ${plan.label} à ${plan.price}.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Confirmer',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              // TODO: Intégrer Stripe ou Adyen ici
+              console.log(`Payment for ${plan.id} initiated`);
+              
+              // Après paiement réussi, go to Dashboard
+             navigation.replace('Dashboard'); 
+            } catch (error) {
+              Alert.alert('Erreur', 'Le paiement a échoué');
+            } finally {
+              setLoading(false);
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  return (
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Choisissez votre formule</Text>
+          <Text style={styles.subtitle}>Commencez votre abonnement</Text>
+
+          {PLANS.map((plan) => (
+            <View
+              key={plan.id}
+              style={[styles.card, { backgroundColor: plan.color.background }]}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={[styles.planLabel, { color: plan.color.title }]}>
+                  {plan.label}
+                </Text>
+                {plan.badge && (
+                  <View style={[styles.badge, { backgroundColor: plan.color.badge }]}>
+                    <Text style={styles.badgeText}>{plan.badge}</Text>
+                  </View>
+                )}
+              </View>
+
+              <Text style={[styles.price, { color: plan.color.title }]}>
+                {plan.price}
+              </Text>
+
+              <Text style={[styles.description, { color: plan.color.description }]}>
+                {plan.description}
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: plan.color.button }]}
+                onPress={() => handlePayment(plan)}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={plan.color.buttonText} />
+                ) : (
+                  <Text style={[styles.buttonText, { color: plan.color.buttonText }]}>
+                    {plan.priceLabel}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.features}>
+                {plan.features.map((feature, idx) => (
+                  <View key={idx} style={styles.featureRow}>
+                    <Text style={[styles.bullet, { color: plan.color.bullet }]}>•</Text>
+                    <Text style={[styles.featureText, { color: plan.color.bullet }]}>
+                      {feature}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          <TouchableOpacity onPress={() => setStep(3)} disabled={loading}>
+            <Text style={styles.footerText}>← Retour</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
   // ===== RENDER STEP 3 =====
   if (step === 3) {
     return (
@@ -528,4 +676,66 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
   },
+  card: {
+  borderRadius: 16,
+  padding: 20,
+  marginBottom: 20,
+},
+cardHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+  marginBottom: 6,
+},
+planLabel: {
+  fontSize: 14,
+  fontWeight: '500',
+},
+badge: {
+  borderRadius: 20,
+  paddingHorizontal: 10,
+  paddingVertical: 3,
+},
+badgeText: {
+  color: '#FFFFFF',
+  fontSize: 12,
+  fontWeight: '600',
+},
+price: {
+  fontSize: 36,
+  fontWeight: '700',
+  marginBottom: 4,
+},
+description: {
+  fontSize: 13,
+  marginBottom: 16,
+  opacity: 0.85,
+},
+button: {
+  borderRadius: 10,
+  paddingVertical: 15,
+  alignItems: 'center',
+  marginBottom: 20,
+},
+buttonText: {
+  fontSize: 16,
+  fontWeight: '600',
+},
+features: {
+  gap: 10,
+},
+featureRow: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  gap: 8,
+},
+bullet: {
+  fontSize: 16,
+  lineHeight: 22,
+},
+featureText: {
+  fontSize: 14,
+  lineHeight: 22,
+  flex: 1,
+},
 });

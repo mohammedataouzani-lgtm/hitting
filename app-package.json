@@ -1,0 +1,30 @@
+{
+  "name": "hitting-app",
+  "version": "1.0.0",
+  "description": "Hitting - Boxing Match App",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "functions:shell": "cd functions && npm run shell",
+    "functions:deploy": "cd functions && npm run deploy"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-native": "^0.73.0",
+    "expo": "^50.0.0",
+    "expo-router": "^2.0.0",
+    "@react-navigation/native": "^6.1.8",
+    "@react-navigation/native-stack": "^6.9.14",
+    "firebase": "^10.7.0",
+    "react-native-async-storage": "^1.21.0",
+    "@react-native-google-signin/google-signin": "^12.0.0",
+    "expo-auth-session": "^5.4.0",
+    "expo-web-browser": "^12.8.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.0"
+  }
+}
