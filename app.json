@@ -15,7 +15,10 @@
     ],
     "ios": {
       "supportsTabletMode": true,
-      "bundleIdentifier": "com.lawass1864.hitting"
+      "bundleIdentifier": "com.lawass1864.hitting",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -32,13 +35,19 @@
         "expo-build-properties",
         {
           "android": {
-            "enableProguardInReleaseBuilds": true
+            "enableProguardInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ],
       "expo-asset",
       "expo-web-browser"
     ],
-    "scheme": "hitting"
+    "scheme": "hitting",
+    "extra": {
+      "eas": {
+        "projectId": "4f1d9619-78d4-4d69-9620-f6c8e6d196a2"
+      }
+    }
   }
 }
