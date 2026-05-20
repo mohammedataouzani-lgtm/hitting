@@ -40,9 +40,12 @@ export default function LoginScreen({ navigation }) {
   const scrollViewRef = useRef(null);
 
   // Configuration Google Sign-In
+  // ⚠️ IMPORTANT: Remplace androidClientId par ta vraie clé Android depuis Google Cloud Console
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId:
       "380253921077-qoule85g3a3ivi7au1c2jv0r94jqneuh.apps.googleusercontent.com",
+    androidClientId:
+      "380253921077-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.apps.googleusercontent.com", // ← À remplacer!
     webClientId:
       "380253921077-u6bro404ui016onmskqi3fjjv2r5t835.apps.googleusercontent.com",
   });
