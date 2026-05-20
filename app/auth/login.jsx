@@ -351,11 +351,13 @@ const styles = StyleSheet.create({
     color: "#000",
   },
   loginButton: {
-    backgroundColor: "#000",
+      backgroundColor: "#d32f2f",
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
     marginBottom: 20,
+     borderWidth: 2,
+      borderColor: "#d32f2f",
   },
   loginButtonDisabled: {
     opacity: 0.6,
