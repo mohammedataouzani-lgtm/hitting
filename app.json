@@ -35,7 +35,9 @@
             "enableProguardInReleaseBuilds": true
           }
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-web-browser"
     ],
     "scheme": "hitting"
   }
