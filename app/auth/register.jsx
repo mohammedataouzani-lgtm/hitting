@@ -302,7 +302,7 @@ if (step === 4) {
       priceLabel: 'Payer 12,50€',
       description: 'Accès complet, sans engagement.',
       color: {
-        background: '#F2D5D5',
+        background: '#b81c1c',
         title: '#8B1A1A',
         description: '#8B1A1A',
          button: '#d32f2f', 
