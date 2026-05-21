@@ -82,52 +82,37 @@ export const logout = async () => {
 };
 
 export { auth };
-
-
 const db = getFirestore(app);
 
-// Récupérer tous les clubs depuis Firestore
 export const getClubsFromFirestore = async () => {
   try {
-    console.log('Fetching clubs from Firestore...');
-    const clubsRef = collection(db, 'clubs');
-    const snapshot = await getDocs(clubsRef);
+    console.log('🔄 Fetching clubs from Cloud Function...');
+
+    const response = await fetch(
+      'https://us-central1-hitting-23de9.cloudfunctions.net/getClubs'
+    );
+
+    console.log('📦 Response status:', response.status); // ← ADD THIS
+
+    if (!response.ok) {
+      console.error('❌ HTTP error:', response.status);
+      return { success: false, clubs: [] };
+    }
+
+    const data = await response.json();
     
-    const clubs = snapshot.docs.map(doc => ({
-      id: doc.id,
-      name: doc.data().name,
-      ville: doc.data().ville,
-      codePostal: doc.data().codePostal,
-      region: doc.data().region
-    }));
+    console.log('📄 Response data:', data); // ← ADD THIS
+
+    if (data.success) {
+      console.log('✅ Success! Found', data.clubs.length, 'clubs');
+      return { success: true, clubs: data.clubs };
+    }
     
-    console.log('Clubs from Firestore:', clubs);
-    return { success: true, clubs };
+    console.log('❌ API returned success:false', data.error);
+    return { success: false, clubs: [] };
+    
   } catch (error) {
-    console.error('Error fetching clubs from Firestore:', error);
-    return { success: false, error: error.message };
-  }
-};
-
-export { db };
-
-
-
-export const createCoachFirestore = async (coachData) => {
-  try {
-    const coachesRef = collection(db, 'coaches');
-    const docRef = await addDoc(coachesRef, {
-      email: coachData.email,
-      prenom: coachData.prenom,
-      telephone: coachData.telephone || '',
-      numeroLicence: coachData.numeroLicence || '',
-      firebaseUID: coachData.firebaseUID,
-      clubId: coachData.clubId || '',
-      clubName: coachData.clubName || ''  
-    });
-    return { success: true, coachId: docRef.id };
-  } catch (error) {
-    console.error('Error creating coach:', error);
-    return { success: false, error: error.message };
+    console.error('❌ Error fetching clubs:', error.message);
+    return { success: false, clubs: [] };
   }
 };
