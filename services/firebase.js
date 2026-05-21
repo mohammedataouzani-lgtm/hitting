@@ -9,7 +9,7 @@ import {
   FacebookAuthProvider,
   signOut
 } from 'firebase/auth';
-import { getFirestore, collection, getDocs, addDoc } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
@@ -84,6 +84,7 @@ export const logout = async () => {
 export { auth };
 const db = getFirestore(app);
 
+// Cette fonction reste ici car le TÉLÉPHONE appelle l'URL de la fonction Cloud
 export const getClubsFromFirestore = async () => {
   try {
     console.log('🔄 Fetching clubs from Cloud Function...');
@@ -92,7 +93,7 @@ export const getClubsFromFirestore = async () => {
       'https://us-central1-hitting-23de9.cloudfunctions.net/getClubs'
     );
 
-    console.log('📦 Response status:', response.status); // ← ADD THIS
+    console.log('📦 Response status:', response.status);
 
     if (!response.ok) {
       console.error('❌ HTTP error:', response.status);
@@ -101,7 +102,7 @@ export const getClubsFromFirestore = async () => {
 
     const data = await response.json();
     
-    console.log('📄 Response data:', data); // ← ADD THIS
+    console.log('📄 Response data:', data);
 
     if (data.success) {
       console.log('✅ Success! Found', data.clubs.length, 'clubs');

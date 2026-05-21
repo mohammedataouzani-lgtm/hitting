@@ -1,67 +1,47 @@
-import util from 'util';
+const util = require('util');
 global.util = util;
 
-import { onRequest } from "firebase-functions/v2/https";  // ← CHANGE
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import admin from "firebase-admin";
-import axios from "axios";
-import { defineSecret } from 'firebase-functions/params';
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+const axios = require("axios");
 
 admin.initializeApp();
 
-// ===== PARAMS FIREBASE =====
-const AIRTABLE_API_KEY = defineSecret('AIRTABLE_API_KEY');
-const AIRTABLE_BASE_ID = defineSecret('AIRTABLE_BASE_ID');
-
 // ===== CLOUD FUNCTION: getClubs =====
-export const getClubs = onRequest(  // ← CHANGE
-  { secrets: ['AIRTABLE_API_KEY', 'AIRTABLE_BASE_ID'] },
-  async (req, res) => {
-    try {
-      const apiKey = await AIRTABLE_API_KEY.value();
-      const baseId = await AIRTABLE_BASE_ID.value();
-      
-      console.log('🔄 Starting getClubs request...');
-      
-      const response = await axios.get(
-        `https://api.airtable.com/v0/${baseId}/Club`,
-        { headers: { Authorization: `Bearer ${apiKey}` } }
-      );
-      
-      const clubs = response.data.records.map(record => ({
-        id: record.id,
-        name: record.fields['Nom du club'],
-        ville: record.fields['Ville'],
-        codePostal: record.fields['Code postal'],
-        region: record.fields['Région']
-      }));
-      
-      console.log('✅ Found', clubs.length, 'clubs');
-      res.json({ success: true, clubs });
-      
-    } catch (error) {
-      console.error('❌ Error in getClubs:', error.message);
-      res.status(500).json({ success: false, error: error.message });
-    }
-  }
-);
-
-// ===== CLOUD FUNCTION: syncCoachToAirtable =====
-export const syncCoachToAirtable = onDocumentCreated(
-  "coaches/{coachId}",
-  {
-    secrets: ['AIRTABLE_API_KEY', 'AIRTABLE_BASE_ID']
-  },
-  async (event) => {
-    const snap = event.data;
-    const coachId = event.params.coachId;
-    const coachData = snap.data();
+exports.getClubs = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  try {
+    const apiKey = process.env.AIRTABLE_API_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID;
     
+    const response = await axios.get(
+      `https://api.airtable.com/v0/${baseId}/Club`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+    
+    const clubs = response.data.records.map(record => ({
+      id: record.id,
+      name: record.fields['Nom du club'],
+      ville: record.fields['Ville'],
+      codePostal: record.fields['Code postal'],
+      region: record.fields['Région']
+    }));
+    
+    res.json({ success: true, clubs });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== CLOUD FUNCTION: syncCoachToAirtableV2 =====
+exports.syncCoachToAirtableV2 = functions.firestore
+  .document('coaches/{coachId}')
+  .onCreate(async (snap, context) => {
     try {
-      const apiKey = await AIRTABLE_API_KEY.value();
-      const baseId = await AIRTABLE_BASE_ID.value();
-      
-      console.log(`📝 Syncing coach ${coachId} to Airtable...`);
+      const apiKey = process.env.AIRTABLE_API_KEY;
+      const baseId = process.env.AIRTABLE_BASE_ID;
+      const coachData = snap.data();
+      const coachId = context.params.coachId;
       
       const response = await axios.post(
         `https://api.airtable.com/v0/${baseId}/Coach`,
@@ -76,11 +56,8 @@ export const syncCoachToAirtable = onDocumentCreated(
         },
         { headers: { Authorization: `Bearer ${apiKey}` } }
       );
-      
-      console.log(`✅ Coach synced to Airtable: ${response.data.id}`);
-      
+      console.log(`✅ Coach synced: ${response.data.id}`);
     } catch (error) {
-      console.error('❌ Error syncing coach:', error.message);
+      console.error('❌ Error syncing:', error.message);
     }
-  }
-);
+  });
