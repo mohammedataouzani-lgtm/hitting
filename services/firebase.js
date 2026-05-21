@@ -87,10 +87,11 @@ const db = getFirestore(app);
 // Cette fonction reste ici car le TÉLÉPHONE appelle l'URL de la fonction Cloud
 export const getClubsFromFirestore = async () => {
   try {
-    console.log('🔄 Fetching clubs from Cloud Function...');
+    console.log('🔄 Fetching clubs from Cloud Function (Paris)...');
 
+    // La nouvelle URL v2 mise à jour :
     const response = await fetch(
-      'https://us-central1-hitting-23de9.cloudfunctions.net/getClubs'
+      'https://europe-west9-hitting-23de9.cloudfunctions.net/getClubs'
     );
 
     console.log('📦 Response status:', response.status);

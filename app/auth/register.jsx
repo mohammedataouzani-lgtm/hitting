@@ -500,7 +500,7 @@ if (step === 4) {
           </View>
         </ScrollView>
 
-        {/* Club Modal */}
+       {/* Club Modal */}
         <Modal
           visible={showClubModal}
           animationType="slide"
@@ -515,9 +515,11 @@ if (step === 4) {
                 </TouchableOpacity>
               </View>
 
-              <Text>{clubs.length} clubs chargés</Text>
-<FlatList
-  data={clubs}
+              <Text style={{ paddingHorizontal: 24, paddingVertical: 8, color: '#666' }}>
+                {clubs.length} clubs chargés
+              </Text>
+
+              <FlatList
                 data={clubs}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
