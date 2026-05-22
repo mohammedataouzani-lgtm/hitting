@@ -9,11 +9,12 @@ import {
   FacebookAuthProvider,
   signOut
 } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// AJOUT de doc et setDoc ici pour pouvoir écrire dans Firestore
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
-apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
@@ -84,12 +85,35 @@ export const logout = async () => {
 export { auth };
 const db = getFirestore(app);
 
+// ---- AJOUT DE LA FONCTION MANQUANTE POUR TON ÉCRAN ----
+export const createCoachFirestore = async (uid, coachDetails) => {
+  try {
+    console.log(`⏳ Enregistrement du profil coach dans Firestore pour le UID: ${uid}...`);
+    
+    // Crée un document dans la collection "coaches" avec l'UID de l'authentification
+    const coachRef = doc(db, 'coaches', uid);
+    
+    await setDoc(coachRef, {
+      firstName: coachDetails.firstName || '',
+      lastName: coachDetails.lastName || '',
+      email: coachDetails.email || '',
+      clubId: coachDetails.clubId || '', // L'ID de son club sélectionné
+      createdAt: new Date().toISOString()
+    });
+
+    console.log('✅ Profil créé avec succès dans Firestore !');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Erreur dans createCoachFirestore :', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 // Cette fonction reste ici car le TÉLÉPHONE appelle l'URL de la fonction Cloud
 export const getClubsFromFirestore = async () => {
   try {
     console.log('🔄 Fetching clubs from Cloud Function (Paris)...');
 
-    // La nouvelle URL v2 mise à jour :
     const response = await fetch(
       'https://europe-west9-hitting-23de9.cloudfunctions.net/getClubs'
     );

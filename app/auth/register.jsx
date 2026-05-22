@@ -126,50 +126,50 @@ export default function RegisterScreen({ navigation }) {
   };
 
   // ===== STEP 3: Compléter profil =====
- // ===== STEP 3: Compléter profil =====
-const handleStep3Complete = async () => {
-  if (!selectedClub || !telephone || !numeroLicence) {
-    Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const coachResult = await createCoachFirestore({
-      email: user.email,
-      prenom: prenom,
-      telephone: telephone,
-      numeroLicence: numeroLicence,
-      firebaseUID: user.uid,
-      clubId: selectedClub.id,
-      clubName: selectedClub.name 
-    });
-
-    if (!coachResult.success) {
-      Alert.alert('Erreur', 'Impossible de créer le profil coach');
-      setLoading(false);
+// ===== STEP 3: Compléter profil =====
+  const handleStep3Complete = async () => {
+    if (!selectedClub || !telephone || !numeroLicence) {
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
       return;
     }
 
-    // Sauvegarder localement
-    await AsyncStorage.setItem('coachId', coachResult.coachId);
-    await AsyncStorage.setItem('coachEmail', user.email);
-    await AsyncStorage.setItem('firebaseUID', user.uid);
-    await AsyncStorage.setItem('clubId', selectedClub.id);
-    await AsyncStorage.setItem('coachPrenom', prenom);
-    await AsyncStorage.setItem('clubName', selectedClub.name);
+    setLoading(true);
 
-    // ✨ Aller à l'étape paiement au lieu de Dashboard
-    setStep(4);
+    try {
+      // ✅ CORRECT : l'UID en 1er argument, et l'objet avec les données du coach en 2e argument
+      const coachResult = await createCoachFirestore(user.uid, {
+        firstName: prenom,                 // Correspond à coachDetails.firstName
+        lastName: '',                      // Optionnel (tu pourras ajouter un champ Nom plus tard)
+        email: user.email,                 // Correspond à coachDetails.email
+        telephone: telephone,
+        numeroLicence: numeroLicence,
+        clubId: selectedClub.id,           // Correspond à coachDetails.clubId
+        clubName: selectedClub.name 
+      });
 
-  } catch (error) {
-    console.error('Erreur:', error);
-    Alert.alert('Erreur', 'Une erreur est survenue');
-  } finally {
-    setLoading(false);
-  }
-};
+      if (!coachResult.success) {
+        Alert.alert('Erreur', 'Impossible de créer le profil coach');
+        setLoading(false);
+        return;
+      }
+
+      // Sauvegarder localement
+      await AsyncStorage.setItem('coachEmail', user.email);
+      await AsyncStorage.setItem('firebaseUID', user.uid);
+      await AsyncStorage.setItem('clubId', selectedClub.id);
+      await AsyncStorage.setItem('coachPrenom', prenom);
+      await AsyncStorage.setItem('clubName', selectedClub.name);
+
+      // ✨ Aller à l'étape paiement au lieu de Dashboard
+      setStep(4);
+
+    } catch (error) {
+      console.error('Erreur:', error);
+      Alert.alert('Erreur', 'Une erreur est survenue');
+    } finally {
+      setLoading(false);
+    }
+  };
   // ===== RENDER STEP 1 =====
   if (step === 1) {
     return (
