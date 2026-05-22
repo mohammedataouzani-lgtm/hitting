@@ -78,17 +78,33 @@ exports.syncCoachToAirtableV2 = onDocumentCreated('coaches/{coachId}', async (ev
     
     const coachData = event.data.data(); 
     const coachId = event.params.coachId;
+    console.log('👉 DONNÉES RECUES DE FIRESTORE :', JSON.stringify(coachData));
     
     console.log(`📝 Syncing coach ${coachId} to Airtable...`);
+    
+    console.log(`📝 Syncing coach ${coachId} to Airtable...`);
+    
+    // Correction du format pour le champ de liaison 'Club' d'Airtable (doit être un Array [])
+    const clubArray = coachData.clubId ? [String(coachData.clubId)] : [];
+
+    // Tolérance : accepte 'prenom' (français) ou 'firstName' (anglais) pour éviter tout conflit futur
+    const finalFirstName = coachData.prenom || coachData.firstName || '';
+    const finalLastName = coachData.nom || coachData.lastName || '';
+
+    // ✅ Déclaration indispensable des variables Téléphone et Licence manquantes !
+    const finalTelephone = coachData.telephone || coachData.phone || '';
+    const finalLicence = coachData.numeroLicence || '';
     
     const response = await axios.post(
       `https://api.airtable.com/v0/${baseId}/Coach`,
       {
         fields: {
-          'Email': coachData.email,
-          'Nom': coachData.firstName,
-          'Prénom': coachData.lastName,
-          'Club': coachData.clubId,
+        'Email': coachData.email || '',
+          'Nom': finalLastName,
+          'Prénom': finalFirstName,
+          'Téléphone': String(finalTelephone),
+          'Numéro d\'affiliation': String(finalLicence),
+          'Club': clubArray,
           'Firebase UID': coachId
         }
       },
@@ -98,6 +114,7 @@ exports.syncCoachToAirtableV2 = onDocumentCreated('coaches/{coachId}', async (ev
     console.log(`✅ Coach synced successfully: ${response.data.id}`);
     
   } catch (error) {
-    console.error('❌ Error syncing to Airtable:', error.message);
+    // Version enrichie pour voir la réponse exacte d'Airtable en cas de pépin
+    console.error('❌ Error syncing to Airtable:', error.response ? error.response.data : error.message);
   }
 });

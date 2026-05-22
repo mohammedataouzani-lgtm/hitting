@@ -97,7 +97,9 @@ export const createCoachFirestore = async (uid, coachDetails) => {
       firstName: coachDetails.firstName || '',
       lastName: coachDetails.lastName || '',
       email: coachDetails.email || '',
-      clubId: coachDetails.clubId || '', // L'ID de son club sélectionné
+      telephone: coachDetails.telephone || '',  
+      numeroLicence: coachDetails.numeroLicence || '', 
+      clubId: coachDetails.clubId || '', 
       createdAt: new Date().toISOString()
     });
 

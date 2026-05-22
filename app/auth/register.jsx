@@ -465,15 +465,20 @@ if (step === 4) {
 
             {/* Téléphone */}
             <Text style={styles.label}>Téléphone *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Votre numéro de téléphone"
-              placeholderTextColor="#999"
-              value={telephone}
-              onChangeText={setTelephone}
-              keyboardType="phone-pad"
-              editable={!loading}
-            />
+<TextInput
+  style={styles.input}
+  placeholder="Ex: 06 12 34 56 78 ou 01..."
+  placeholderTextColor="#999"
+  value={telephone}
+  onChangeText={(text) => {
+    // Optionnel : Petite logique pour nettoyer ou formater le texte si tu veux
+    setTelephone(text);
+  }}
+  keyboardType="phone-pad"
+  maxLength={14} // Limite la taille pour éviter les numéros infinis
+  editable={!loading}
+/>
+<Text style={styles.helpText}>Fixe ou portable accepté</Text>
 
             {/* Numéro de licence */}
             <Text style={styles.label}>Numéro d'affiliation FFBoxe *</Text>
