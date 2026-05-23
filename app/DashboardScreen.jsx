@@ -1,4 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
+// importation de mon fichier bottom tab bar, j'ai corrigé le chemin d'importation pour qu'il corresponde à la structure de ton projet
+import BottomTabBar from './components/BottomTabBar'; // 👈 Un seul point "." au lieu de deux ".."
+
 import {
   View,
   Text,
@@ -30,7 +33,6 @@ const BILAN_DATA = {
   ko: { count: 11, pct: 31 },
 };
 
-
 // ─── Constantes ──────────────────────────────────────────────────────────────
 const MONTHS_FR = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -45,7 +47,6 @@ const EVENT_STYLE = {
   combat: { bg: '#42A5F5', text: '#fff' },
 };
 
-// Événements du mois (à dynamiser selon tes données)
 const MARCH_EVENTS = [
   { day: 2, type: 'sparring' },
   { day: 11, type: 'gala' },
@@ -68,15 +69,12 @@ function buildCalendarGrid(month, year) {
 
   const cells = [];
 
-  // Jours du mois précédent
   for (let i = firstDay - 1; i >= 0; i--) {
     cells.push({ day: daysInPrev - i, current: false });
   }
-  // Jours du mois courant
   for (let i = 1; i <= daysInMonth; i++) {
     cells.push({ day: i, current: true });
   }
-  // Jours du mois suivant
   let next = 1;
   while (cells.length % 7 !== 0) {
     cells.push({ day: next++, current: false });
@@ -105,7 +103,6 @@ function BilanBottomSheet({ visible, onClose }) {
     }).start(() => onClose());
   }, [translateY, onClose]);
 
-  // Open when visible becomes true
   React.useEffect(() => {
     if (visible) {
       translateY.setValue(BOTTOM_SHEET_MAX_HEIGHT);
@@ -129,7 +126,6 @@ function BilanBottomSheet({ visible, onClose }) {
 
   if (!visible) return null;
 
-  // Concentric rings data
   const rings = [
     { color: '#43A047', pct: BILAN_DATA.victoires.pct, r: 70, stroke: 14 },
     { color: '#EF5350', pct: BILAN_DATA.defaites.pct, r: 52, stroke: 12 },
@@ -160,19 +156,16 @@ function BilanBottomSheet({ visible, onClose }) {
         ]}
         {...panResponder.panHandlers}
       >
-        {/* Handle */}
         <View style={bs.handleRow}>
           <View style={bs.handle} />
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} bounces={false} style={bs.scrollContent}>
-          {/* Titre */}
           <Text style={bs.title}>Bilan saison</Text>
           <Text style={bs.subtitle}>
             {BILAN_DATA.saison} {BILAN_DATA.boxeursActifs} boxeurs actifs
           </Text>
 
-          {/* Graphique en anneaux concentriques */}
           <View style={bs.chartRow}>
             <Svg width={svgSize} height={svgSize}>
               {rings.map(({ color, pct, r, stroke }, idx) => {
@@ -180,7 +173,6 @@ function BilanBottomSheet({ visible, onClose }) {
                 const offset = circumference * (1 - pct / 100);
                 return (
                   <React.Fragment key={idx}>
-                    {/* Fond gris */}
                     <Circle
                       cx={center}
                       cy={center}
@@ -189,7 +181,6 @@ function BilanBottomSheet({ visible, onClose }) {
                       strokeWidth={stroke}
                       fill="none"
                     />
-                    {/* Arc coloré */}
                     <Circle
                       cx={center}
                       cy={center}
@@ -208,7 +199,6 @@ function BilanBottomSheet({ visible, onClose }) {
               })}
             </Svg>
 
-            {/* Légende */}
             <View style={bs.legend}>
               {[
                 { color: '#43A047', label: 'Victoires' },
@@ -224,7 +214,6 @@ function BilanBottomSheet({ visible, onClose }) {
             </View>
           </View>
 
-          {/* Cartes stats 2×2 */}
           <View style={bs.cardsGrid}>
             {statCards.map(({ emoji, label, count, pct, bg, barColor }) => (
               <View key={label} style={[bs.card, { backgroundColor: bg }]}>
@@ -247,14 +236,13 @@ function BilanBottomSheet({ visible, onClose }) {
 }
 
 // ─── Composant principal ─────────────────────────────────────────────────────
-export default function DashboardScreen() {
+export default function DashboardScreen({ navigation }) { // 💡 Ajout de la prop navigation ici
   const [month, setMonth] = useState(2);   // Mars = index 2
   const [year, setYear] = useState(2026);
   const [bilanVisible, setBilanVisible] = useState(false);
 
   const calCells = buildCalendarGrid(month, year);
 
-  // Événements actifs pour le mois affiché (ici on filtre pour Mars 2026)
   const activeEvents =
     month === 2 && year === 2026 ? MARCH_EVENTS : [];
 
@@ -277,7 +265,8 @@ export default function DashboardScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      {/* 💡 Ajout d'un paddingBottom sur la ScrollView pour éviter que la barre ne cache le bas du calendrier */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 70 }}>
 
         {/* ── HEADER GRADIENT ─────────────────────────────────────────── */}
         <LinearGradient
@@ -289,7 +278,6 @@ export default function DashboardScreen() {
           <Text style={styles.greet}>Bonjour Coach, 👋</Text>
           <Text style={styles.clubName}>Red Star Olympique Audonien</Text>
 
-          {/* Carte stats */}
           <View style={styles.statsCard}>
             <View style={styles.statsRow}>
               <View>
@@ -302,7 +290,6 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {/* Barre de progression dégradée */}
             <LinearGradient
               colors={['#F44336', '#FF9800', '#FFC107', '#43A047']}
               start={{ x: 0, y: 0 }}
@@ -331,9 +318,7 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {/* Carte événement */}
             <View style={styles.eventCard}>
-              {/* Badges */}
               <View style={styles.eventBadges}>
                 <View style={styles.badgeGala}>
                   <Text style={styles.badgeGalaTxt}>GALA</Text>
@@ -355,7 +340,6 @@ export default function DashboardScreen() {
                 <Text style={styles.eventMeta}>Gymnase Jacques Duclos , Persan</Text>
               </View>
 
-              {/* Compte à rebours */}
               <View style={styles.countdownRow}>
                 <Text style={styles.countdownLabel}>Dans</Text>
                 {[['Jours', '35'], ['Heures', '04'], ['Min', '00']].map(([lbl, val]) => (
@@ -373,7 +357,6 @@ export default function DashboardScreen() {
 
           {/* ── CALENDRIER ────────────────────────────────────────────── */}
           <View style={styles.calSection}>
-            {/* En-tête + légende */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Calendrier</Text>
               <View style={styles.legendPills}>
@@ -389,9 +372,7 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {/* Widget calendrier */}
             <View style={styles.calWidget}>
-              {/* Navigation mois */}
               <View style={styles.calNav}>
                 <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
                   <Text style={styles.navArrow}>‹</Text>
@@ -400,7 +381,6 @@ export default function DashboardScreen() {
                 <View style={styles.calNavCenter}>
                   <View style={styles.calSelect}>
                     <Text style={styles.calSelectTxt}>{MONTHS_FR[month]}</Text>
-                    {/* Remplacer par un Picker RN si besoin */}
                   </View>
                   <View style={styles.calSelect}>
                     <Text style={styles.calSelectTxt}>{year}</Text>
@@ -412,7 +392,6 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* En-têtes jours */}
               <View style={styles.daysHeader}>
                 {DAYS_SHORT.map(d => (
                   <View key={d} style={styles.dayHeaderCell}>
@@ -421,7 +400,6 @@ export default function DashboardScreen() {
                 ))}
               </View>
 
-              {/* Grille jours */}
               <View style={styles.calGrid}>
                 {calCells.map(({ day, current }, i) => {
                   const evType = current ? getEventType(day) : null;
@@ -451,6 +429,9 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
 
+      {/* 💡 2. TA BARRE EST PLACÉE ICI FIXE, JUSTE AVANT LA FIN DU CONTENEUR */}
+      <BottomTabBar activeTab="dashboard" navigation={navigation} />
+
       {/* Bottom Sheet Bilan saison */}
       <BilanBottomSheet
         visible={bilanVisible}
@@ -466,8 +447,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-
-  // HEADER
   header: {
     paddingTop: Platform.OS === 'ios' ? 56 : (StatusBar.currentHeight ?? 24) + 16,
     paddingHorizontal: 20,
@@ -485,8 +464,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     marginBottom: 20,
   },
-
-  // Carte stats dans le header
   statsCard: {
     backgroundColor: 'rgba(255,255,255,0.97)',
     borderRadius: 18,
@@ -524,8 +501,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     paddingTop: 2,
   },
-
-  // CONTENU
   content: {
     backgroundColor: '#fff',
     paddingBottom: 30,
@@ -547,8 +522,6 @@ const styles = StyleSheet.create({
     color: '#111',
     letterSpacing: -0.4,
   },
-
-  // Voir + avatar
   voirRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -570,8 +543,6 @@ const styles = StyleSheet.create({
   avatarEmoji: {
     fontSize: 22,
   },
-
-  // Carte événement
   eventCard: {
     backgroundColor: '#F2F2F7',
     borderRadius: 16,
@@ -626,8 +597,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555',
   },
-
-  // Compte à rebours
   countdownRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -667,8 +636,6 @@ const styles = StyleSheet.create({
     color: '#999',
     fontWeight: '700',
   },
-
-  // CALENDRIER
   calSection: {
     paddingHorizontal: 18,
     paddingBottom: 16,
@@ -683,8 +650,6 @@ const styles = StyleSheet.create({
   pillSparringTxt: { fontSize: 10, fontWeight: '700', color: '#43A047' },
   pillCombat: { backgroundColor: '#E3F2FD', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
   pillCombatTxt: { fontSize: 10, fontWeight: '700', color: '#1E88E5' },
-
-  // Widget calendrier
   calWidget: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -725,8 +690,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#222',
   },
-
-  // Grille calendrier
   daysHeader: {
     flexDirection: 'row',
     marginBottom: 2,
@@ -767,129 +730,27 @@ const styles = StyleSheet.create({
   },
 });
 
-// ─── Styles Bottom Sheet ─────────────────────────────────────────────────────
+// Styles Bottom Sheet (inchangés)
 const bs = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FAFAFA',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 20,
-  },
-  handleRow: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  handle: {
-    width: 40,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#CCC',
-  },
-  scrollContent: {
-    paddingHorizontal: 22,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#111',
-    marginTop: 10,
-    letterSpacing: -0.4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 4,
-    marginBottom: 20,
-    fontWeight: '500',
-  },
-
-  // Chart row
-  chartRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 28,
-    gap: 20,
-  },
-  legend: {
-    gap: 10,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  legendDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 3,
-    backgroundColor: 'transparent',
-  },
-  legendTxt: {
-    fontSize: 14,
-    color: '#444',
-    fontWeight: '500',
-  },
-
-  // Cards grid
-  cardsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 14,
-  },
-  card: {
-    width: (width - 44 - 14) / 2,
-    borderRadius: 18,
-    padding: 16,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  cardEmoji: {
-    fontSize: 20,
-  },
-  cardPct: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  cardCount: {
-    fontSize: 42,
-    fontWeight: '900',
-    color: '#111',
-    lineHeight: 48,
-  },
-  cardLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 10,
-  },
-  cardBarBg: {
-    height: 6,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-    borderRadius: 3,
-  },
-  cardBarFill: {
-    height: 6,
-    borderRadius: 3,
-  },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FAFAFA', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 20 },
+  handleRow: { alignItems: 'center', paddingTop: 12, paddingBottom: 4 },
+  handle: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#CCC' },
+  scrollContent: { paddingHorizontal: 22, paddingBottom: 40 },
+  title: { fontSize: 26, fontWeight: '900', color: '#111', marginTop: 10, letterSpacing: -0.4 },
+  subtitle: { fontSize: 14, color: '#999', marginTop: 4, marginBottom: 20, fontWeight: '500' },
+  chartRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 28, gap: 20 },
+  legend: { gap: 10 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 3, backgroundColor: 'transparent' },
+  legendTxt: { fontSize: 14, color: '#444', fontWeight: '500' },
+  cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 14 },
+  card: { width: (width - 44 - 14) / 2, borderRadius: 18, padding: 16 },
+  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  cardEmoji: { fontSize: 20 },
+  cardPct: { fontSize: 13, fontWeight: '700' },
+  cardCount: { fontSize: 42, fontWeight: '900', color: '#111', lineHeight: 48 },
+  cardLabel: { fontSize: 14, fontWeight: '700', color: '#333', marginBottom: 10 },
+  cardBarBg: { height: 6, backgroundColor: 'rgba(0,0,0,0.08)', borderRadius: 3 },
+  cardBarFill: { height: 6, borderRadius: 3 },
 });
