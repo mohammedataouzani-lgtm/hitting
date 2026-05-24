@@ -475,6 +475,7 @@ export default function MesBoxeursScreen({ navigation }) {
       </View>
 
       {/* ── FAB (Floating Action Button) ────────────────────────────── */}
+      {/*
       <TouchableOpacity
         style={s.fab}
         activeOpacity={0.8}
@@ -487,6 +488,7 @@ export default function MesBoxeursScreen({ navigation }) {
           <Text style={s.fabIcon}>+</Text>
         </LinearGradient>
       </TouchableOpacity>
+      */}
 
       {/* ── BOTTOM TAB BAR ──────────────────────────────────────────── */}
       <BottomTabBar
