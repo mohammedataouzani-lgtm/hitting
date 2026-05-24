@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import BottomTabBar, { TAB_BAR_HEIGHT } from './components/BottomTabBar';
 import {
   View,
   Text,
@@ -488,41 +489,11 @@ export default function MesBoxeursScreen({ navigation }) {
       </TouchableOpacity>
 
       {/* ── BOTTOM TAB BAR ──────────────────────────────────────────── */}
-      <View style={s.tabBar}>
-        <TouchableOpacity
-          style={s.tabItem}
-          onPress={() => navigation?.navigate('Dashboard')}
-        >
-          <Text style={s.tabIcon}>🏠</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.tabItem}>
-          <Text style={[s.tabIcon, s.tabIconActive]}>👥</Text>
-          <View style={s.tabActiveDot} />
-        </TouchableOpacity>
-
-        {/* Bouton "+" central de la tab bar → ouvre le BottomSheet */}
-        <TouchableOpacity
-          style={s.tabPlusBtn}
-          activeOpacity={0.85}
-          onPress={() => setSheetVisible(true)}
-        >
-          <LinearGradient
-            colors={['#EF5350', '#E53935']}
-            style={s.tabPlusGradient}
-          >
-            <Text style={s.tabPlusIcon}>+</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.tabItem}>
-          <Text style={s.tabIcon}>👤</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.tabItem}>
-          <Text style={s.tabIcon}>🔔</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomTabBar
+        activeTab="boxeurs"
+        navigation={navigation}
+        onPlusPress={() => setSheetVisible(true)}
+      />
 
       {/* ── BOTTOM SHEET ────────────────────────────────────────────── */}
       <AddBoxeurSheet
@@ -536,7 +507,6 @@ export default function MesBoxeursScreen({ navigation }) {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const HEADER_HEIGHT = 220;
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 64;
 const SHEET_HEIGHT = height * 0.9;
 
 const s = StyleSheet.create({
@@ -740,64 +710,7 @@ const s = StyleSheet.create({
     marginTop: -1,
   },
 
-  // TAB BAR
-  tabBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    height: TAB_BAR_HEIGHT,
-    backgroundColor: '#fff',
-    borderTopWidth: 0.5,
-    borderTopColor: '#E5E5E5',
-    paddingBottom: Platform.OS === 'ios' ? 16 : 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 10,
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-  },
-  tabIcon: {
-    fontSize: 24,
-    opacity: 0.4,
-  },
-  tabIconActive: {
-    opacity: 1,
-  },
-  tabActiveDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#E53935',
-    marginTop: 3,
-  },
-  // Bouton "+" de la tab bar
-  tabPlusBtn: {
-    marginBottom: Platform.OS === 'ios' ? 10 : 0,
-    shadowColor: '#E53935',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  tabPlusGradient: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabPlusIcon: {
-    fontSize: 30,
-    color: '#fff',
-    fontWeight: '300',
-    lineHeight: 32,
-    marginTop: -1,
-  },
+  // TAB BAR → géré par le composant BottomTabBar
 
   // ── BOTTOM SHEET ──────────────────────────────────────────────────
 

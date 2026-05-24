@@ -9,19 +9,15 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 
 /**
- * BottomTabBar — Barre de navigation réutilisable
- *
- * Props :
- *   - activeTab : 'dashboard' | 'boxeurs' | 'profil' | 'notifications'
- *   - navigation : objet navigation React Navigation
- *   - onPlusPress : callback optionnel pour le bouton "+" central
+ * BottomTabBar — Barre de navigation réutilisable (Version React Navigation)
  */
 export const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 64;
 
+// On remet les noms de routes classiques (sans le slash "/")
 const TABS = [
-  { key: 'dashboard', icon: '🏠', route: 'Dashboard' },
-  { key: 'boxeurs',   icon: '👥', route: 'MesBoxeurs' },
-  { key: 'plus',      icon: '+',  route: null }, // bouton central spécial
+  { key: 'dashboard', icon: '🏠', route: 'Dashboard' }, 
+  { key: 'boxeurs',   icon: '👥', route: 'MesBoxeurs' }, // Doit correspondre EXACTEMENT au 'name' dans ton App.js
+  { key: 'plus',      icon: '+',  route: null },
   { key: 'profil',    icon: '👤', route: null },
   { key: 'notifs',    icon: '🔔', route: null },
 ];
@@ -36,6 +32,7 @@ export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
               key="plus"
               style={styles.tabPlusBtn}
               activeOpacity={0.85}
+              // Utilisation de la prop navigation classique transmise par le parent
               onPress={onPlusPress ?? (() => navigation?.navigate('MesBoxeurs'))}
             >
               <LinearGradient
@@ -54,6 +51,7 @@ export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
           <TouchableOpacity
             key={tab.key}
             style={styles.tabItem}
+            // Utilisation de la prop navigation classique
             onPress={() => tab.route && navigation?.navigate(tab.route)}
           >
             <Text style={[styles.tabIcon, isActive && styles.tabIconActive]}>
