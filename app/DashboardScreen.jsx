@@ -265,44 +265,43 @@ export default function DashboardScreen({ navigation }) { // 💡 Ajout de la pr
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* 💡 Ajout d'un paddingBottom sur la ScrollView pour éviter que la barre ne cache le bas du calendrier */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 70 }}>
+      {/* ── HEADER GRADIENT (FIXE) ─────────────────────────────────── */}
+      <LinearGradient
+        colors={['#2B5BB8', '#5AA3E8']}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={styles.header}
+      >
+        <Text style={styles.greet}>Bonjour Coach, 👋</Text>
+        <Text style={styles.clubName}>Red Star Olympique Audonien</Text>
 
-        {/* ── HEADER GRADIENT ─────────────────────────────────────────── */}
-        <LinearGradient
-          colors={['#2B5BB8', '#5AA3E8']}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
-          style={styles.header}
-        >
-          <Text style={styles.greet}>Bonjour Coach, 👋</Text>
-          <Text style={styles.clubName}>Red Star Olympique Audonien</Text>
-
-          <View style={styles.statsCard}>
-            <View style={styles.statsRow}>
-              <View>
-                <Text style={styles.statLabel}>Total combats</Text>
-                <Text style={styles.statValue}>35</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.statLabel}>Taux victoire</Text>
-                <Text style={[styles.statValue, styles.statGreen]}>69%</Text>
-              </View>
+        <View style={styles.statsCard}>
+          <View style={styles.statsRow}>
+            <View>
+              <Text style={styles.statLabel}>Total combats</Text>
+              <Text style={styles.statValue}>35</Text>
             </View>
-
-            <LinearGradient
-              colors={['#F44336', '#FF9800', '#FFC107', '#43A047']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.progressBar}
-            />
-
-            <TouchableOpacity onPress={() => setBilanVisible(true)}>
-              <Text style={styles.detailsTxt}>Détails</Text>
-            </TouchableOpacity>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.statLabel}>Taux victoire</Text>
+              <Text style={[styles.statValue, styles.statGreen]}>69%</Text>
+            </View>
           </View>
-        </LinearGradient>
 
+          <LinearGradient
+            colors={['#F44336', '#FF9800', '#FFC107', '#43A047']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.progressBar}
+          />
+
+          <TouchableOpacity onPress={() => setBilanVisible(true)}>
+            <Text style={styles.detailsTxt}>Détails</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      {/* 💡 Début de la zone de défilement pour le reste du contenu */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* ── CONTENU BLANC ───────────────────────────────────────────── */}
         <View style={styles.content}>
 
@@ -310,15 +309,23 @@ export default function DashboardScreen({ navigation }) { // 💡 Ajout de la pr
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Prochain événement</Text>
-              <View style={styles.voirRow}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('Evenements')}
+                style={styles.voirRow}
+              >
                 <Text style={styles.voirTxt}>Voir</Text>
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarEmoji}>🥊</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.eventCard}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('Evenements')}
+              style={styles.eventCard}
+            >
               <View style={styles.eventBadges}>
                 <View style={styles.badgeGala}>
                   <Text style={styles.badgeGalaTxt}>GALA</Text>
@@ -352,7 +359,7 @@ export default function DashboardScreen({ navigation }) { // 💡 Ajout de la pr
                   <Text style={styles.infoTxt}>ℹ</Text>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* ── CALENDRIER ────────────────────────────────────────────── */}
@@ -406,7 +413,13 @@ export default function DashboardScreen({ navigation }) { // 💡 Ajout de la pr
                   const evStyle = evType ? EVENT_STYLE[evType] : null;
 
                   return (
-                    <View key={i} style={styles.calCell}>
+                    <TouchableOpacity
+                      key={i}
+                      activeOpacity={evStyle ? 0.7 : 1}
+                      disabled={!evStyle}
+                      onPress={() => evStyle && navigation.navigate('Evenements')}
+                      style={styles.calCell}
+                    >
                       <View style={[
                         styles.calNum,
                         evStyle && { backgroundColor: evStyle.bg },
@@ -419,7 +432,7 @@ export default function DashboardScreen({ navigation }) { // 💡 Ajout de la pr
                           {day}
                         </Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>

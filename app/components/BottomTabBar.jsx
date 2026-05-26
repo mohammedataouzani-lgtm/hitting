@@ -11,14 +11,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 /**
  * BottomTabBar — Barre de navigation réutilisable (Version React Navigation)
  */
-export const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 64;
+export const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 88;
 
 // On remet les noms de routes classiques (sans le slash "/")
 const TABS = [
   { key: 'dashboard', icon: '🏠', route: 'Dashboard' }, 
   { key: 'boxeurs',   icon: '👥', route: 'MesBoxeurs' }, // Doit correspondre EXACTEMENT au 'name' dans ton App.js
   { key: 'plus',      icon: '+',  route: null },
-  { key: 'profil',    icon: '👤', route: null },
+  { key: 'profil',    icon: '👤', route: 'Profil' },
   { key: 'notifs',    icon: '🔔', route: null },
 ];
 
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopWidth: 0.5,
     borderTopColor: '#E5E5E5',
-    paddingBottom: Platform.OS === 'ios' ? 16 : 0,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,

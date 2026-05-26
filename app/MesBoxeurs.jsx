@@ -86,11 +86,15 @@ const CATEGORIES_POIDS = [
 ];
 
 // ─── Composant carte boxeur ──────────────────────────────────────────────────
-function BoxerCard({ boxer }) {
+function BoxerCard({ boxer, onEdit, onPress }) {
   const borderColor = boxer.sexe === 'F' ? '#E91E63' : '#2196F3';
 
   return (
-    <View style={[s.card, { borderLeftColor: borderColor }]}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => onPress && onPress(boxer)}
+      style={[s.card, { borderLeftColor: borderColor }]}
+    >
       <Image source={{ uri: boxer.avatar }} style={s.avatar} />
 
       <View style={s.cardInfo}>
@@ -114,10 +118,13 @@ function BoxerCard({ boxer }) {
         </View>
       </View>
 
-      <TouchableOpacity style={[s.editBtn, { backgroundColor: borderColor + '18' }]}>
+      <TouchableOpacity
+        style={[s.editBtn, { backgroundColor: borderColor + '18' }]}
+        onPress={(e) => { e.stopPropagation(); onEdit && onEdit(boxer); }}
+      >
         <Text style={[s.editIcon, { color: borderColor }]}>✏️</Text>
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -401,11 +408,317 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
   );
 }
 
+// ─── Composant BottomSheet Modification Boxeur ───────────────────────────────
+function EditBoxeurSheet({ visible, onClose, onSave, boxer }) {
+  const slideAnim = useRef(new Animated.Value(height)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
+
+  // Champs du formulaire
+  const [nom, setNom] = useState('');
+  const [prenom, setPrenom] = useState('');
+  const [dateNaissance, setDateNaissance] = useState('');
+  const [sexe, setSexe] = useState(null);
+  const [niveau, setNiveau] = useState(null);
+  const [poids, setPoids] = useState('');
+  const [categoriePoids, setCategoriePoids] = useState(null);
+  const [errors, setErrors] = useState({});
+
+  // Pré-remplir les champs quand un boxeur est sélectionné
+  React.useEffect(() => {
+    if (visible && boxer) {
+      // Séparer le nom complet en prénom et nom
+      const parts = boxer.nom.split(' ');
+      if (parts.length >= 2) {
+        setPrenom(parts[0]);
+        setNom(parts.slice(1).join(' '));
+      } else {
+        setPrenom(boxer.nom);
+        setNom('');
+      }
+      setSexe(boxer.sexe === 'H' ? 'Homme' : 'Femme');
+      setCategoriePoids(boxer.poids !== 'Non défini' ? boxer.poids : null);
+      setPoids(boxer.kg ? boxer.kg.replace(' kg', '') : '');
+      setDateNaissance(boxer.dateNaissance || '');
+      setNiveau(boxer.niveau || null);
+      setErrors({});
+    }
+  }, [visible, boxer]);
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }),
+        Animated.timing(backdropAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: height,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible]);
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!nom.trim()) e.nom = true;
+    if (!prenom.trim()) e.prenom = true;
+    if (!sexe) e.sexe = true;
+    return e;
+  };
+
+  const handleSubmit = () => {
+    const e = validate();
+    if (Object.keys(e).length > 0) { setErrors(e); return; }
+
+    const updatedBoxeur = {
+      ...boxer,
+      nom: `${prenom} ${nom}`,
+      sexe: sexe === 'Homme' ? 'H' : 'F',
+      categorie: sexe === 'Homme' ? 'Seniors H' : 'Seniors F',
+      poids: categoriePoids || 'Non défini',
+      kg: poids ? `${poids} kg` : '—',
+      dateNaissance: dateNaissance,
+      niveau: niveau,
+    };
+
+    onSave(updatedBoxeur);
+    handleClose();
+  };
+
+  if (!visible || !boxer) return null;
+
+  // Initiales pour l'avatar
+  const initials = (prenom ? prenom[0] : '') + (nom ? nom[0] : '');
+
+  return (
+    <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Backdrop */}
+        <Animated.View
+          style={[s.backdrop, { opacity: backdropAnim }]}
+        >
+          <Pressable style={{ flex: 1 }} onPress={handleClose} />
+        </Animated.View>
+
+        {/* Sheet */}
+        <Animated.View style={[s.sheet, { transform: [{ translateY: slideAnim }] }]}>
+          {/* Handle bar */}
+          <View style={s.handleBar} />
+
+          {/* Header */}
+          <View style={s.sheetHeader}>
+            <TouchableOpacity onPress={handleClose} style={s.closeBtn}>
+              <Text style={s.closeBtnTxt}>✕</Text>
+            </TouchableOpacity>
+            <Text style={s.sheetTitle}>Modifier un boxeur</Text>
+            <View style={{ width: 36 }} />
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={s.sheetBody}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Avatar avec initiales */}
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <View style={s.editAvatarWrap}>
+                <LinearGradient
+                  colors={['#5C6BC0', '#3949AB']}
+                  style={s.editAvatarCircle}
+                >
+                  <Text style={s.editAvatarInitials}>{initials.toUpperCase()}</Text>
+                </LinearGradient>
+                <View style={s.editAvatarBadge}>
+                  <Text style={{ fontSize: 12, color: '#fff' }}>✏️</Text>
+                </View>
+              </View>
+              <Text style={s.editAvatarLabel}>Changer la photo</Text>
+            </View>
+
+            {/* ── Section IDENTITÉ ── */}
+            <Text style={s.sectionLabel}>IDENTITE</Text>
+
+            {/* Nom / Prénom */}
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.fieldLabel}>Nom</Text>
+                <TextInput
+                  style={[s.input, errors.nom && s.inputError]}
+                  placeholder="Dupont"
+                  placeholderTextColor="#C0C0C0"
+                  value={nom}
+                  onChangeText={(v) => { setNom(v); setErrors(p => ({ ...p, nom: false })); }}
+                />
+              </View>
+              <View style={{ width: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.fieldLabel}>Prénom</Text>
+                <TextInput
+                  style={[s.input, errors.prenom && s.inputError]}
+                  placeholder="Jean"
+                  placeholderTextColor="#C0C0C0"
+                  value={prenom}
+                  onChangeText={(v) => { setPrenom(v); setErrors(p => ({ ...p, prenom: false })); }}
+                />
+              </View>
+            </View>
+
+            {/* Date de naissance */}
+            <Text style={s.fieldLabel}>Date de naissance</Text>
+            <View style={s.dateRow}>
+              <TextInput
+                style={[s.input, { flex: 1 }]}
+                placeholder="jj/mm/aaaa"
+                placeholderTextColor="#C0C0C0"
+                value={dateNaissance}
+                onChangeText={setDateNaissance}
+                keyboardType="numeric"
+                maxLength={10}
+              />
+              <TouchableOpacity style={s.calendarBtn}>
+                <Text style={s.calendarIcon}>📅</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Sexe */}
+            <Text style={s.fieldLabel}>Sexe</Text>
+            <View style={[s.row, { marginBottom: 20 }]}>
+              {SEXES.map((s_) => (
+                <TouchableOpacity
+                  key={s_}
+                  style={[
+                    s.toggleBtn,
+                    { flex: 1, marginHorizontal: 4 },
+                    sexe === s_ && s.toggleBtnActive,
+                    errors.sexe && s.toggleBtnError,
+                  ]}
+                  onPress={() => { setSexe(s_); setErrors(p => ({ ...p, sexe: false })); }}
+                >
+                  <Text style={[s.toggleTxt, sexe === s_ && s.toggleTxtActive]}>{s_}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* ── Section DOCUMENT ── */}
+            <Text style={s.sectionLabel}>DOCUMENT</Text>
+
+            {/* Photo de la licence */}
+            <Text style={s.fieldLabel}>Photo de la licence</Text>
+            <TouchableOpacity style={[s.input, { justifyContent: 'center', marginBottom: 20 }]}>
+              <Text style={{ color: '#222', fontSize: 15 }}>Importer un fichier</Text>
+            </TouchableOpacity>
+
+            {/* ── Section COMPÉTITION ── */}
+            <Text style={s.sectionLabel}>COMPETITION</Text>
+
+            {/* Poids */}
+            <Text style={s.fieldLabel}>Poids (kg)</Text>
+            <TextInput
+              style={[s.input, { marginBottom: 16 }]}
+              placeholder="ex : 75"
+              placeholderTextColor="#C0C0C0"
+              value={poids}
+              onChangeText={setPoids}
+              keyboardType="numeric"
+            />
+
+            {/* Catégorie de poids */}
+            <Text style={s.fieldLabel}>Catégorie de poids</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: 16 }}
+              contentContainerStyle={{ paddingRight: 16 }}
+            >
+              {CATEGORIES_POIDS.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    s.chipBtn,
+                    categoriePoids === cat && s.chipBtnActive,
+                  ]}
+                  onPress={() => setCategoriePoids(cat)}
+                >
+                  <Text style={[s.chipTxt, categoriePoids === cat && s.chipTxtActive]}>
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Niveau */}
+            <Text style={s.fieldLabel}>Niveau</Text>
+            <View style={[s.row, { marginBottom: 28 }]}>
+              {NIVEAUX.map((n) => (
+                <TouchableOpacity
+                  key={n}
+                  style={[
+                    s.toggleBtn,
+                    { flex: 1, marginHorizontal: 3 },
+                    niveau === n && s.toggleBtnActive,
+                  ]}
+                  onPress={() => setNiveau(n)}
+                >
+                  <Text style={[s.toggleTxt, niveau === n && s.toggleTxtActive]}>{n}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Bouton Enregistrer */}
+            <TouchableOpacity
+              onPress={handleSubmit}
+              activeOpacity={0.85}
+              style={s.submitBtn}
+            >
+              <LinearGradient
+                colors={['#EF5350', '#E53935']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={s.submitGradient}
+              >
+                <Text style={s.submitTxt}>Enregistrer les modifications</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={{ height: 32 }} />
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 // ─── Composant principal ─────────────────────────────────────────────────────
 export default function MesBoxeursScreen({ navigation }) {
   const [search, setSearch] = useState('');
   const [boxeurs, setBoxeurs] = useState(BOXEURS_INIT);
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [editSheetVisible, setEditSheetVisible] = useState(false);
+  const [boxeurToEdit, setBoxeurToEdit] = useState(null);
 
   const filteredBoxeurs = boxeurs.filter((b) =>
     b.nom.toLowerCase().includes(search.toLowerCase())
@@ -413,6 +726,17 @@ export default function MesBoxeursScreen({ navigation }) {
 
   const handleAddBoxeur = (newBoxeur) => {
     setBoxeurs((prev) => [newBoxeur, ...prev]);
+  };
+
+  const handleEditBoxeur = (boxer) => {
+    setBoxeurToEdit(boxer);
+    setEditSheetVisible(true);
+  };
+
+  const handleSaveBoxeur = (updatedBoxeur) => {
+    setBoxeurs((prev) =>
+      prev.map((b) => (b.id === updatedBoxeur.id ? updatedBoxeur : b))
+    );
   };
 
   return (
@@ -459,7 +783,12 @@ export default function MesBoxeursScreen({ navigation }) {
           contentContainerStyle={s.listContent}
         >
           {filteredBoxeurs.map((boxer) => (
-            <BoxerCard key={boxer.id} boxer={boxer} />
+            <BoxerCard
+              key={boxer.id}
+              boxer={boxer}
+              onEdit={handleEditBoxeur}
+              onPress={(b) => navigation.navigate('FicheBoxeur', { boxer: b })}
+            />
           ))}
 
           {filteredBoxeurs.length === 0 && (
@@ -497,11 +826,19 @@ export default function MesBoxeursScreen({ navigation }) {
         onPlusPress={() => setSheetVisible(true)}
       />
 
-      {/* ── BOTTOM SHEET ────────────────────────────────────────────── */}
+      {/* ── BOTTOM SHEET AJOUT ───────────────────────────────────────── */}
       <AddBoxeurSheet
         visible={sheetVisible}
         onClose={() => setSheetVisible(false)}
         onAdd={handleAddBoxeur}
+      />
+
+      {/* ── BOTTOM SHEET MODIFICATION ────────────────────────────────── */}
+      <EditBoxeurSheet
+        visible={editSheetVisible}
+        onClose={() => { setEditSheetVisible(false); setBoxeurToEdit(null); }}
+        onSave={handleSaveBoxeur}
+        boxer={boxeurToEdit}
       />
     </View>
   );
@@ -940,5 +1277,43 @@ const s = StyleSheet.create({
     fontWeight: '800',
     color: '#fff',
     letterSpacing: 0.3,
+  },
+
+  // Edit Avatar (formulaire modification)
+  editAvatarWrap: {
+    position: 'relative',
+    marginBottom: 6,
+  },
+  editAvatarCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editAvatarInitials: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 1,
+  },
+  editAvatarBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: -4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#555',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  editAvatarLabel: {
+    fontSize: 13,
+    color: '#888',
+    fontWeight: '500',
+    marginTop: 4,
   },
 });
