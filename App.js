@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as SecureStore from 'expo-secure-store';
+import { AuthProvider, useAuth } from './context/AuthContext'; // ← Import du nouveau contexte
+
+// Import de tes écrans
 import LoginScreen from './app/auth/login.jsx';
 import RegisterScreen from './app/auth/register';
 import DashboardScreen from './app/DashboardScreen';
@@ -14,24 +19,61 @@ import ProfilScreen from './app/ProfilScreen';
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+function NavigationLayout() {
+  const { userToken, setUserToken } = useAuth(); // On récupère le token global
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      try {
+        const token = await SecureStore.getItemAsync('userToken');
+        setUserToken(token);
+      } catch (e) {
+        console.error("Erreur lecture token", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkLoginStatus();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#000" />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
-      <Stack.Navigator 
-        initialRouteName="Login"
-        screenOptions={{ headerShown: false }}
-      >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen name="MesBoxeurs" component={MesBoxeursScreen} />
-        <Stack.Screen name="Offres" component={OffresScreen} />
-        <Stack.Screen name="FicheBoxeur" component={FicheBoxeurScreen} />
-        <Stack.Screen name="MatchingBoxeur" component={MatchingBoxeurScreen} />
-        <Stack.Screen name="DemandeCombat" component={DemandeCombatScreen} />
-        <Stack.Screen name="Evenements" component={EvenementsScreen} />
-        <Stack.Screen name="Profil" component={ProfilScreen} />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {userToken == null ? (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            <Stack.Screen name="MesBoxeurs" component={MesBoxeursScreen} />
+            <Stack.Screen name="Offres" component={OffresScreen} />
+            <Stack.Screen name="FicheBoxeur" component={FicheBoxeurScreen} />
+            <Stack.Screen name="MatchingBoxeur" component={MatchingBoxeurScreen} />
+            <Stack.Screen name="DemandeCombat" component={DemandeCombatScreen} />
+            <Stack.Screen name="Evenements" component={EvenementsScreen} />
+            <Stack.Screen name="Profil" component={ProfilScreen} />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <NavigationLayout />
+    </AuthProvider>
   );
 }

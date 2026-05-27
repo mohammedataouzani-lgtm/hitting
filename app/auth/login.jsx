@@ -1,6 +1,7 @@
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import React, { useState, useRef, useEffect } from "react";
+import { useAuth } from '../../context/AuthContext';
 import {
   View,
   Text,
@@ -33,6 +34,7 @@ const { width } = Dimensions.get("window");
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,12 +42,11 @@ export default function LoginScreen({ navigation }) {
   const scrollViewRef = useRef(null);
 
   // Configuration Google Sign-In
-  // ⚠️ IMPORTANT: Remplace androidClientId par ta vraie clé Android depuis Google Cloud Console
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId:
       "380253921077-qoule85g3a3ivi7au1c2jv0r94jqneuh.apps.googleusercontent.com",
     androidClientId:
-      "380253921077-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.apps.googleusercontent.com", // ← À remplacer!
+      "380253921077-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.apps.googleusercontent.com", 
     webClientId:
       "380253921077-u6bro404ui016onmskqi3fjjv2r5t835.apps.googleusercontent.com",
   });
@@ -65,6 +66,7 @@ export default function LoginScreen({ navigation }) {
     "https://images.unsplash.com/photo-1587411768941-671226e4a152?w=800",
   ];
 
+  // VERSION UNIQUE DE HANDLELOGIN
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Erreur", "Veuillez remplir tous les champs");
@@ -96,6 +98,7 @@ export default function LoginScreen({ navigation }) {
 
       const coach = snapshot.docs[0].data();
 
+      // Sauvegardes existantes
       await AsyncStorage.setItem("coachId", snapshot.docs[0].id);
       await AsyncStorage.setItem("coachEmail", email);
       await AsyncStorage.setItem("firebaseUID", user.uid);
@@ -103,7 +106,9 @@ export default function LoginScreen({ navigation }) {
       await AsyncStorage.setItem("clubId", coach.clubId || "");
       await AsyncStorage.setItem("clubName", coach.clubName || "Votre club");
 
-      navigation.replace("Dashboard");
+      // Sauvegarde sécurisée et switch de navigation vers le Dashboard
+      await login(user.uid);
+
     } catch (error) {
       console.error("Erreur:", error);
       Alert.alert("Erreur", "Une erreur est survenue.");
@@ -112,6 +117,7 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  // VERSION UNIQUE DE HANDLEGOOGLELOGIN
   const handleGoogleLogin = async (idToken) => {
     setLoading(true);
     try {
@@ -137,6 +143,7 @@ export default function LoginScreen({ navigation }) {
 
       const coach = snapshot.docs[0].data();
 
+      // Sauvegardes existantes
       await AsyncStorage.setItem("coachId", snapshot.docs[0].id);
       await AsyncStorage.setItem("coachEmail", user.email);
       await AsyncStorage.setItem("firebaseUID", user.uid);
@@ -144,7 +151,9 @@ export default function LoginScreen({ navigation }) {
       await AsyncStorage.setItem("clubId", coach.clubId || "");
       await AsyncStorage.setItem("clubName", coach.clubName || "Votre club");
 
-      navigation.replace("Dashboard");
+      // Connexion via le contexte global
+      await login(user.uid);
+
     } catch (error) {
       console.error("Erreur Google:", error);
       Alert.alert("Erreur", "Une erreur est survenue");
@@ -288,137 +297,30 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  carouselContainer: {
-    height: 300,
-    position: "relative",
-  },
-  slide: {
-    width: width,
-    height: 300,
-  },
-  carouselImage: {
-    width: width - 32,
-    height: 300,
-    marginHorizontal: 16,
-    borderRadius: 20,
-    resizeMode: "cover",
-  },
-  pagination: {
-    flexDirection: "row",
-    position: "absolute",
-    bottom: 16,
-    alignSelf: "center",
-  },
-  paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#ccc",
-    marginHorizontal: 4,
-  },
-  paginationDotActive: {
-    backgroundColor: "#000",
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#000",
-    marginBottom: 24,
-  },
-  form: {
-    width: "100%",
-  },
-  input: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    color: "#000",
-  },
-  loginButton: {
-      backgroundColor: "#d32f2f",
-    borderRadius: 8,
-    padding: 16,
-    alignItems: "center",
-    marginBottom: 20,
-     borderWidth: 2,
-      borderColor: "#d32f2f",
-  },
-  loginButtonDisabled: {
-    opacity: 0.6,
-  },
-  loginButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#ddd",
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: "#666",
-    fontSize: 14,
-  },
-  socialTitle: {
-    textAlign: "center",
-    color: "#000",
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  socialButtons: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-  },
-  socialButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  socialIcon: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#666",
-  },
-  footer: {
-    marginTop: 24,
-    alignItems: "center",
-  },
-  footerText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  footerLink: {
-    color: "#007AFF",
-    fontWeight: "600",
-  },
-  socialButtonDisabled: {
-    opacity: 0.3,
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
+  scrollContent: { flexGrow: 1 },
+  carouselContainer: { height: 300, position: "relative" },
+  slide: { width: width, height: 300 },
+  carouselImage: { width: width - 32, height: 300, marginHorizontal: 16, borderRadius: 20, resizeMode: "cover" },
+  pagination: { flexDirection: "row", position: "absolute", bottom: 16, alignSelf: "center" },
+  paginationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#ccc", marginHorizontal: 4 },
+  paginationDotActive: { backgroundColor: "#000" },
+  content: { flex: 1, padding: 24 },
+  title: { fontSize: 24, fontWeight: "bold", textAlign: "center", color: "#000", marginBottom: 24 },
+  form: { width: "100%" },
+  input: { backgroundColor: "#fff", borderRadius: 8, padding: 16, fontSize: 16, marginBottom: 16, borderWidth: 1, borderColor: "#ddd", color: "#000" },
+  loginButton: { backgroundColor: "#d32f2f", borderRadius: 8, padding: 16, alignItems: "center", marginBottom: 20, borderWidth: 2, borderColor: "#d32f2f" },
+  loginButtonDisabled: { opacity: 0.6 },
+  loginButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  divider: { flexDirection: "row", alignItems: "center", marginVertical: 20 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#ddd" },
+  dividerText: { marginHorizontal: 16, color: "#666", fontSize: 14 },
+  socialTitle: { textAlign: "center", color: "#000", fontSize: 14, marginBottom: 16 },
+  socialButtons: { flexDirection: "row", justifyContent: "center", gap: 16 },
+  socialButton: { width: 56, height: 56, borderRadius: 8, backgroundColor: "#f0f0f0", alignItems: "center", justifyContent: "center" },
+  socialIcon: { fontSize: 24, fontWeight: "bold", color: "#666" },
+  footer: { marginTop: 24, alignItems: "center" },
+  footerText: { fontSize: 14, color: "#666" },
+  footerLink: { color: "#007AFF", fontWeight: "600" },
+  socialButtonDisabled: { opacity: 0.3 },
 });
