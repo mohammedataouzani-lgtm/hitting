@@ -41,11 +41,9 @@ export default function RegisterScreen({ navigation }) {
   const [showClubModal, setShowClubModal] = useState(false);
 
   const [selectedPlan, setSelectedPlan] = useState(null);
-  
 
   // ===== STEP 1: Prénom + Email + Password =====
   const handleStep1Continue = async () => {
-    // Validation
     if (!prenom || !email || !password || !confirmPassword) {
       Alert.alert('Erreur', 'Veuillez remplir tous les champs');
       return;
@@ -64,7 +62,6 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
 
     try {
-      // Créer le compte Firebase
       const firebaseResult = await registerWithEmail(email, password);
       
       if (!firebaseResult.success) {
@@ -76,7 +73,6 @@ export default function RegisterScreen({ navigation }) {
       const currentUser = firebaseResult.user;
       setUser(currentUser);
 
-      // Envoyer email de vérification
       await sendEmailVerification(currentUser);
 
       Alert.alert(
@@ -98,14 +94,12 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
 
     try {
-      // Recharger l'utilisateur pour vérifier emailVerified
       const auth = getAuth();
       const currentUser = auth.currentUser;
       await currentUser.reload();
 
       if (currentUser.emailVerified) {
         setEmailVerified(true);
-        // Charger les clubs pour l'étape 3
         const clubsResult = await getClubsFromFirestore();
         if (clubsResult.success) {
           setClubs(clubsResult.clubs);
@@ -125,8 +119,7 @@ export default function RegisterScreen({ navigation }) {
     }
   };
 
-  // ===== STEP 3: Compléter profil =====
-// ===== STEP 3: Compléter profil =====
+  // ===== STEP 3: Compléter profil + Synchro Airtable Sécurisée =====
   const handleStep3Complete = async () => {
     if (!selectedClub || !telephone || !numeroLicence) {
       Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
@@ -136,14 +129,14 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
 
     try {
-      // ✅ CORRECT : l'UID en 1er argument, et l'objet avec les données du coach en 2e argument
+      // 1. Sauvegarde dans Firestore
       const coachResult = await createCoachFirestore(user.uid, {
-        firstName: prenom,                 // Correspond à coachDetails.firstName
-        lastName: '',                      // Optionnel (tu pourras ajouter un champ Nom plus tard)
-        email: user.email,                 // Correspond à coachDetails.email
+        firstName: prenom,
+        lastName: '',
+        email: user.email,
         telephone: telephone,
         numeroLicence: numeroLicence,
-        clubId: selectedClub.id,           // Correspond à coachDetails.clubId
+        clubId: selectedClub.id,
         clubName: selectedClub.name 
       });
 
@@ -153,23 +146,202 @@ export default function RegisterScreen({ navigation }) {
         return;
       }
 
-      // Sauvegarder localement
+      // 2. Récupération du Token de sécurité Firebase
+      const auth = getAuth();
+      if (!auth.currentUser) throw new Error("Utilisateur non connecté à Firebase");
+      const idToken = await auth.currentUser.getIdToken();
+
+      // 3. Appel à ta Cloud Function pour Airtable
+      console.log("Transmission sécurisée à Airtable via Cloud Functions...");
+      const cloudFunctionUrl = "https://europe-west9-hitting-23de9.cloudfunctions.net/registerCoachAndLockClub";
+      
+      const response = await fetch(cloudFunctionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}` // Le token magique qui prouve l'identité
+        },
+        body: JSON.stringify({
+          clubId: selectedClub.id,
+          email: user.email,
+          prenom: prenom
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Détail de l'erreur Cloud Function :", errorText);
+        throw new Error("Échec de la synchronisation du club sur le serveur.");
+      }
+
+      const functionData = await response.json();
+      console.log("Airtable mis à jour avec succès :", functionData.message);
+
+      // 4. Sauvegarder localement sur le téléphone
       await AsyncStorage.setItem('coachEmail', user.email);
       await AsyncStorage.setItem('firebaseUID', user.uid);
       await AsyncStorage.setItem('clubId', selectedClub.id);
       await AsyncStorage.setItem('coachPrenom', prenom);
       await AsyncStorage.setItem('clubName', selectedClub.name);
 
-      // ✨ Aller à l'étape paiement au lieu de Dashboard
+      // Aller à l'étape paiement
       setStep(4);
 
     } catch (error) {
-      console.error('Erreur:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue');
+      console.error('Erreur détectée à la Step 3:', error);
+      Alert.alert('Erreur', 'Profil créé mais la synchronisation du club a échoué. Veuillez contacter le support.');
     } finally {
       setLoading(false);
     }
   };
+
+  // ===== RENDER STEP 4: Paiement =====
+  if (step === 4) {
+    const PLANS = [
+      {
+        id: 'mensuel',
+        label: 'Mensuel',
+        badge: 'Populaire',
+        price: '12,50€',
+        priceLabel: 'Payer 12,50€',
+        description: 'Accès complet, sans engagement.',
+        color: {
+          background: '#b81c1c',
+          title: '#8B1A1A',
+          description: '#8B1A1A',
+          button: '#d32f2f', 
+          buttonText: '#FFFFFF',
+          bullet: '#8B1A1A',
+          badge: '#1A73E8',
+        },
+        features: [
+          '1 mois offert à l\'inscription',
+          'Fiches boxeurs illimitées',
+          'Recherche d\'adversaires',
+          'Historique des combats',
+          'Messagerie inter-clubs',
+        ],
+      },
+      {
+        id: 'annuel',
+        label: 'Annuellement',
+        badge: null,
+        price: '150€',
+        priceLabel: 'Payer 150€',
+        description: 'Économisez 2 mois par rapport au mensuel.',
+        color: {
+          background: '#C9DCF5',
+          title: '#1A4A8B',
+          description: '#1A4A8B',
+          button: '#1A73E8',
+          buttonText: '#FFFFFF',
+          bullet: '#1A4A8B',
+          badge: null,
+        },
+        features: [
+          '1 mois offert à l\'inscription',
+          'Fiches boxeurs illimitées',
+          'Recherche d\'adversaires',
+          'Historique des combats',
+          'Messagerie inter-clubs',
+        ],
+      },
+    ];
+
+    const handlePayment = (plan) => {
+      Alert.alert(
+        'Confirmer votre abonnement',
+        `Vous allez souscrire à l'offre ${plan.label} à ${plan.price}.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Confirmer',
+            onPress: async () => {
+              setLoading(true);
+              try {
+                console.log(`Payment for ${plan.id} initiated`);
+                navigation.replace('Dashboard'); 
+              } catch (error) {
+                Alert.alert('Erreur', 'Le paiement a échoué');
+              } finally {
+                setLoading(false);
+              }
+            }
+          },
+        ]
+      );
+    };
+
+    return (
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.content}>
+            <Text style={styles.title}>Choisissez votre formule</Text>
+            <Text style={styles.subtitle}>Commencez votre abonnement</Text>
+
+            {PLANS.map((plan) => (
+              <View
+                key={plan.id}
+                style={[styles.card, { backgroundColor: plan.color.background }]}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={[styles.planLabel, { color: plan.color.title }]}>
+                    {plan.label}
+                  </Text>
+                  {plan.badge && (
+                    <View style={[styles.badge, { backgroundColor: plan.color.badge }]}>
+                      <Text style={styles.badgeText}>{plan.badge}</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={[styles.price, { color: plan.color.title }]}>
+                  {plan.price}
+                </Text>
+
+                <Text style={[styles.description, { color: plan.color.description }]}>
+                  {plan.description}
+                </Text>
+
+                <TouchableOpacity
+                  style={[styles.button, { backgroundColor: plan.color.button }]}
+                  onPress={() => handlePayment(plan)}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={plan.color.buttonText} />
+                  ) : (
+                    <Text style={[styles.buttonText, { color: plan.color.buttonText }]}>
+                      {plan.priceLabel}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                <View style={styles.features}>
+                  {plan.features.map((feature, idx) => (
+                    <View key={idx} style={styles.featureRow}>
+                      <Text style={[styles.bullet, { color: plan.color.bullet }]}>•</Text>
+                      <Text style={[styles.featureText, { color: plan.color.bullet }]}>
+                        {feature}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity onPress={() => setStep(3)} disabled={loading}>
+              <Text style={styles.footerText}>← Retour</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
   // ===== RENDER STEP 1 =====
   if (step === 1) {
     return (
@@ -291,155 +463,7 @@ export default function RegisterScreen({ navigation }) {
       </KeyboardAvoidingView>
     );
   }
-// ===== RENDER STEP 4: Paiement =====
-if (step === 4) {
-  const PLANS = [
-    {
-      id: 'mensuel',
-      label: 'Mensuel',
-      badge: 'Populaire',
-      price: '12,50€',
-      priceLabel: 'Payer 12,50€',
-      description: 'Accès complet, sans engagement.',
-      color: {
-        background: '#b81c1c',
-        title: '#8B1A1A',
-        description: '#8B1A1A',
-         button: '#d32f2f', 
-        buttonText: '#FFFFFF',
-        bullet: '#8B1A1A',
-        badge: '#1A73E8',
-      },
-      features: [
-        '1 mois offert à l\'inscription',
-        'Fiches boxeurs illimitées',
-        'Recherche d\'adversaires',
-        'Historique des combats',
-        'Messagerie inter-clubs',
-      ],
-    },
-    {
-      id: 'annuel',
-      label: 'Annuellement',
-      badge: null,
-      price: '150€',
-      priceLabel: 'Payer 150€',
-      description: 'Économisez 2 mois par rapport au mensuel.',
-      color: {
-        background: '#C9DCF5',
-        title: '#1A4A8B',
-        description: '#1A4A8B',
-        button: '#1A73E8',
-        buttonText: '#FFFFFF',
-        bullet: '#1A4A8B',
-        badge: null,
-      },
-      features: [
-        '1 mois offert à l\'inscription',
-        'Fiches boxeurs illimitées',
-        'Recherche d\'adversaires',
-        'Historique des combats',
-        'Messagerie inter-clubs',
-      ],
-    },
-  ];
 
-  const handlePayment = (plan) => {
-    Alert.alert(
-      'Confirmer votre abonnement',
-      `Vous allez souscrire à l'offre ${plan.label} à ${plan.price}.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Confirmer',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              // TODO: Intégrer Stripe ou Adyen ici
-              console.log(`Payment for ${plan.id} initiated`);
-              
-              // Après paiement réussi, go to Dashboard
-             navigation.replace('Dashboard'); 
-            } catch (error) {
-              Alert.alert('Erreur', 'Le paiement a échoué');
-            } finally {
-              setLoading(false);
-            }
-          }
-        },
-      ]
-    );
-  };
-
-  return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Choisissez votre formule</Text>
-          <Text style={styles.subtitle}>Commencez votre abonnement</Text>
-
-          {PLANS.map((plan) => (
-            <View
-              key={plan.id}
-              style={[styles.card, { backgroundColor: plan.color.background }]}
-            >
-              <View style={styles.cardHeader}>
-                <Text style={[styles.planLabel, { color: plan.color.title }]}>
-                  {plan.label}
-                </Text>
-                {plan.badge && (
-                  <View style={[styles.badge, { backgroundColor: plan.color.badge }]}>
-                    <Text style={styles.badgeText}>{plan.badge}</Text>
-                  </View>
-                )}
-              </View>
-
-              <Text style={[styles.price, { color: plan.color.title }]}>
-                {plan.price}
-              </Text>
-
-              <Text style={[styles.description, { color: plan.color.description }]}>
-                {plan.description}
-              </Text>
-
-              <TouchableOpacity
-                style={[styles.button, { backgroundColor: plan.color.button }]}
-                onPress={() => handlePayment(plan)}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color={plan.color.buttonText} />
-                ) : (
-                  <Text style={[styles.buttonText, { color: plan.color.buttonText }]}>
-                    {plan.priceLabel}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              <View style={styles.features}>
-                {plan.features.map((feature, idx) => (
-                  <View key={idx} style={styles.featureRow}>
-                    <Text style={[styles.bullet, { color: plan.color.bullet }]}>•</Text>
-                    <Text style={[styles.featureText, { color: plan.color.bullet }]}>
-                      {feature}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ))}
-
-          <TouchableOpacity onPress={() => setStep(3)} disabled={loading}>
-            <Text style={styles.footerText}>← Retour</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-}
   // ===== RENDER STEP 3 =====
   if (step === 3) {
     return (
@@ -465,20 +489,17 @@ if (step === 4) {
 
             {/* Téléphone */}
             <Text style={styles.label}>Téléphone *</Text>
-<TextInput
-  style={styles.input}
-  placeholder="Ex: 06 12 34 56 78 ou 01..."
-  placeholderTextColor="#999"
-  value={telephone}
-  onChangeText={(text) => {
-    // Optionnel : Petite logique pour nettoyer ou formater le texte si tu veux
-    setTelephone(text);
-  }}
-  keyboardType="phone-pad"
-  maxLength={14} // Limite la taille pour éviter les numéros infinis
-  editable={!loading}
-/>
-<Text style={styles.helpText}>Fixe ou portable accepté</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex: 06 12 34 56 78 ou 01..."
+              placeholderTextColor="#999"
+              value={telephone}
+              onChangeText={setTelephone}
+              keyboardType="phone-pad"
+              maxLength={14}
+              editable={!loading}
+            />
+            <Text style={styles.helpText}>Fixe ou portable accepté</Text>
 
             {/* Numéro de licence */}
             <Text style={styles.label}>Numéro d'affiliation FFBoxe *</Text>
@@ -505,7 +526,7 @@ if (step === 4) {
           </View>
         </ScrollView>
 
-       {/* Club Modal */}
+        {/* Club Modal */}
         <Modal
           visible={showClubModal}
           animationType="slide"
@@ -590,14 +611,14 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   button: {
-     backgroundColor: "#d32f2f",
+    backgroundColor: "#d32f2f",
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
     marginTop: 24,
     marginBottom: 16,
     borderWidth: 2,
-  borderColor: "#d32f2f",
+    borderColor: "#d32f2f",
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -686,65 +707,62 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   card: {
-  borderRadius: 16,
-  padding: 20,
-  marginBottom: 20,
-},
-cardHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 8,
-  marginBottom: 6,
-},
-planLabel: {
-  fontSize: 14,
-  fontWeight: '500',
-},
-badge: {
-  borderRadius: 20,
-  paddingHorizontal: 10,
-  paddingVertical: 3,
-},
-badgeText: {
-  color: '#FFFFFF',
-  fontSize: 12,
-  fontWeight: '600',
-},
-price: {
-  fontSize: 36,
-  fontWeight: '700',
-  marginBottom: 4,
-},
-description: {
-  fontSize: 13,
-  marginBottom: 16,
-  opacity: 0.85,
-},
-button: {
-  borderRadius: 10,
-  paddingVertical: 15,
-  alignItems: 'center',
-  marginBottom: 20,
-},
-buttonText: {
-  fontSize: 16,
-  fontWeight: '600',
-},
-features: {
-  gap: 10,
-},
-featureRow: {
-  flexDirection: 'row',
-  alignItems: 'flex-start',
-  gap: 8,
-},
-bullet: {
-  fontSize: 16,
-  lineHeight: 22,
-},
-featureText: {
-  fontSize: 14,
-  lineHeight: 22,
-  flex: 1,
-},
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  planLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  badge: {
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  price: {
+    fontSize: 36,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  description: {
+    fontSize: 13,
+    marginBottom: 16,
+    opacity: 0.85,
+  },
+  features: {
+    gap: 10,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  bullet: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  featureText: {
+    fontSize: 14,
+    lineHeight: 22,
+    flex: 1,
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 12,
+    marginTop: -8,
+    paddingLeft: 4,
+  }
 });
