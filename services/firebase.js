@@ -100,6 +100,7 @@ export const createCoachFirestore = async (uid, coachDetails) => {
       telephone: coachDetails.telephone || '',  
       numeroLicence: coachDetails.numeroLicence || '', 
       clubId: coachDetails.clubId || '', 
+       clubName: coachDetails.clubName || '',
       createdAt: new Date().toISOString()
     });
 
