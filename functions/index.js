@@ -1,95 +1,104 @@
-// ==========================================
-// 1. IMPORTS & INITIALISATION (Une seule fois)
-// ==========================================
+const util = require('util');
+global.util = util;
+
 const { onRequest } = require("firebase-functions/v2/https");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { setGlobalOptions } = require("firebase-functions/v2");
+
 const admin = require("firebase-admin");
-const Airtable = require("airtable");
+const axios = require("axios");
 
-if (admin.apps.length === 0) {
-  admin.initializeApp();
-}
+admin.initializeApp();
 
-// ==========================================
-// 2. FONCTION : INSCRIPTION & VERROUILLAGE CLUB
-// ==========================================
-exports.registerCoachAndLockClub = onRequest({ 
-  region: "europe-west9", 
-  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"] 
+setGlobalOptions({ region: "europe-west9" });
+
+// ===== CLOUD FUNCTION v2: getClubs =====
+exports.getClubs = onRequest({
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
 }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
   
-  res.set("Access-Control-Allow-Origin", "*");
-  if (req.method === "OPTIONS") {
-    res.set("Access-Control-Allow-Methods", "POST");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    return res.status(204).send("");
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
   }
-
-  const authorizationHeader = req.headers.authorization;
-  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
-    return res.status(401).send("Non autorisé : Token manquant");
-  }
-  const idToken = authorizationHeader.split("Bearer ")[1];
-
+  
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const firebaseUid = decodedToken.uid;
-
-    const { clubId, email, prenom } = req.body;
-
-    if (!clubId || !email) {
-      return res.status(400).send("Données manquantes (clubId ou email)");
-    }
-
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
-      .base(process.env.AIRTABLE_BASE_ID_SECURE);
-
-    await base("Club").update(clubId, {
-      "isTaken": true,
-      "ManagedBy_UID": firebaseUid,
-      "Coach_Email": email,
-      "Coach_Prenom": prenom
+    const apiKey = process.env.AIRTABLE_SECRET_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
+    
+    console.log('🔄 Envoi de la requête à Airtable...');
+    
+    const response = await axios.get(
+      `https://api.airtable.com/v0/${baseId}/Club`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+    
+    const records = response.data.records || [];
+    
+    const clubs = records.map(record => {
+      const f = record.fields || {};
+      let regionRaw = f['Région'] || '';
+      let regionClean = Array.isArray(regionRaw) ? (regionRaw[0] || '') : regionRaw;
+      return {
+        id: record.id,
+        name: f['Nom du club'] ? String(f['Nom du club']) : 'Sans nom',
+        ville: f['Ville'] ? String(f['Ville']) : '',
+        codePostal: f['Code postal'] ? String(f['Code postal']) : '',
+        region: String(regionClean)
+      };
     });
-
-    return res.status(200).json({ success: true, message: "Club verrouillé avec succès !" });
-
+    
+    console.log(`✅ ${clubs.length} clubs prêts.`);
+    return res.status(200).json({ clubs });
+    
   } catch (error) {
-    console.error("Erreur registerCoachAndLockClub :", error);
-    return res.status(500).send("Erreur interne du serveur");
+    console.error('❌ Erreur getClubs :', error.response ? error.response.data : error.message);
+    return res.status(500).json({ error: "Erreur lors de la récupération des clubs" });
   }
 });
 
-// ==========================================
-// 3. FONCTION : RÉCUPÉRATION DES CLUBS
-// ==========================================
-exports.getClubs = onRequest({
-  region: "europe-west9",
-  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"] 
-}, async (req, res) => {
-
-  res.set("Access-Control-Allow-Origin", "*");
-  if (req.method === "OPTIONS") {
-    res.set("Access-Control-Allow-Methods", "GET");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
-    return res.status(204).send("");
-  }
-
+// ===== CLOUD FUNCTION v2: syncCoachToAirtableV2 =====
+exports.syncCoachToAirtableV2 = onDocumentCreated({
+  document: 'coaches/{coachId}',
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (event) => {
   try {
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
-      .base(process.env.AIRTABLE_BASE_ID_SECURE);
-
-    const records = await base("Club").select().all();
-
- const clubs = records.map(record => ({
-  id: record.id,
-  name: record.fields["Nom du club"] || "",
-  ville: record.fields["Ville"] || "",
-  codePostal: record.fields["Code postal"] || ""
-}));
-
-    return res.status(200).json({ clubs });
-
+    const apiKey = process.env.AIRTABLE_SECRET_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
+    
+    const coachData = event.data.data();
+    const coachId = event.params.coachId;
+    console.log('👉 DONNÉES REÇUES DE FIRESTORE :', JSON.stringify(coachData));
+    console.log(`📝 Syncing coach ${coachId} to Airtable...`);
+    
+    const clubArray = coachData.clubId ? [String(coachData.clubId)] : [];
+    const finalFirstName = coachData.prenom || coachData.firstName || '';
+    const finalLastName = coachData.nom || coachData.lastName || '';
+    const finalTelephone = coachData.telephone || coachData.phone || '';
+    const finalLicence = coachData.numeroLicence || '';
+    
+    const response = await axios.post(
+      `https://api.airtable.com/v0/${baseId}/Coach`,
+      {
+        fields: {
+          'Email': coachData.email || '',
+          'Nom': finalLastName,
+          'Prénom': finalFirstName,
+          'Téléphone': String(finalTelephone),
+          'Numéro d\'affiliation': String(finalLicence),
+          'Club': clubArray,
+          'Firebase UID': coachId
+        }
+      },
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+    
+    console.log(`✅ Coach synced successfully: ${response.data.id}`);
+    
   } catch (error) {
-    console.error("Erreur getClubs :", error);
-    return res.status(500).send("Erreur interne du serveur");
+    console.error('❌ Error syncing to Airtable:', error.response ? error.response.data : error.message);
   }
 });

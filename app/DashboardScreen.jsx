@@ -258,10 +258,9 @@ export default function DashboardScreen({ navigation }) {
         const auth = getAuth();
         const user = auth.currentUser;
 
-        if (!user) {
-          navigation.replace('Login');
-          return;
-        }
+      if (!user) {
+  return;  // ✅ App.js gère la redirection automatiquement
+}
 
         const db = getFirestore();
         const docRef = doc(db, 'coaches', user.uid);

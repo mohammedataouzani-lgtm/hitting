@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import React from 'react';
 import {
   View,
@@ -18,21 +19,21 @@ const { width } = Dimensions.get('window');
 
 export default function ProfilScreen({ navigation }) {
   const [avatar, setAvatar] = React.useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face');
-
-  const handleLogout = () => {
-    Alert.alert(
-      "Déconnexion",
-      "Êtes-vous sûr de vouloir vous déconnecter ?",
-      [
-        { text: "Annuler", style: "cancel" },
-        { 
-          text: "Se déconnecter", 
-          style: "destructive",
-          onPress: () => navigation.replace('Login') 
-        }
-      ]
-    );
-  };
+const { logout } = useAuth();
+const handleLogout = () => {
+  Alert.alert(
+    "Déconnexion",
+    "Êtes-vous sûr de vouloir vous déconnecter ?",
+    [
+      { text: "Annuler", style: "cancel" },
+      { 
+        text: "Se déconnecter", 
+        style: "destructive",
+        onPress: () => logout()  // ✅
+      }
+    ]
+  );
+};
 
   const handleNavigateToOffres = () => {
     navigation.navigate('Offres');
