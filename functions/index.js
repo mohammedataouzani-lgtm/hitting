@@ -12,13 +12,11 @@ if (admin.apps.length === 0) {
 // ==========================================
 // 2. FONCTION : INSCRIPTION & VERROUILLAGE CLUB
 // ==========================================
-// CORRECTION ICI : Ajout de la région Europe et des nouveaux noms de secrets
 exports.registerCoachAndLockClub = onRequest({ 
   region: "europe-west9", 
   secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"] 
 }, async (req, res) => {
   
-  // Gestion des CORS pour autoriser ton appli mobile à appeler la fonction
   res.set("Access-Control-Allow-Origin", "*");
   if (req.method === "OPTIONS") {
     res.set("Access-Control-Allow-Methods", "POST");
@@ -26,7 +24,6 @@ exports.registerCoachAndLockClub = onRequest({
     return res.status(204).send("");
   }
 
-  // Vérification de la sécurité (Jeton Firebase Auth)
   const authorizationHeader = req.headers.authorization;
   if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
     return res.status(401).send("Non autorisé : Token manquant");
@@ -34,23 +31,19 @@ exports.registerCoachAndLockClub = onRequest({
   const idToken = authorizationHeader.split("Bearer ")[1];
 
   try {
-    // Validation du token utilisateur auprès de Firebase
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const firebaseUid = decodedToken.uid;
 
-    // Récupération des données envoyées par l'application
     const { clubId, email, prenom } = req.body;
 
     if (!clubId || !email) {
       return res.status(400).send("Données manquantes (clubId ou email)");
     }
 
-    // CORRECTION ICI : Connexion à Airtable avec les variables secrètes d'Europe
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
-    // Mise à jour de la table "Clubs" sur Airtable
-    await base("Clubs").update(clubId, {
+    await base("Club").update(clubId, {
       "isTaken": true,
       "ManagedBy_UID": firebaseUid,
       "Coach_Email": email,
@@ -60,7 +53,43 @@ exports.registerCoachAndLockClub = onRequest({
     return res.status(200).json({ success: true, message: "Club verrouillé avec succès !" });
 
   } catch (error) {
-    console.error("Erreur dans la fonction registerCoachAndLockClub :", error);
+    console.error("Erreur registerCoachAndLockClub :", error);
+    return res.status(500).send("Erreur interne du serveur");
+  }
+});
+
+// ==========================================
+// 3. FONCTION : RÉCUPÉRATION DES CLUBS
+// ==========================================
+exports.getClubs = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"] 
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") {
+    res.set("Access-Control-Allow-Methods", "GET");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    return res.status(204).send("");
+  }
+
+  try {
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    const records = await base("Club").select().all();
+
+ const clubs = records.map(record => ({
+  id: record.id,
+  name: record.fields["Nom du club"] || "",
+  ville: record.fields["Ville"] || "",
+  codePostal: record.fields["Code postal"] || ""
+}));
+
+    return res.status(200).json({ clubs });
+
+  } catch (error) {
+    console.error("Erreur getClubs :", error);
     return res.status(500).send("Erreur interne du serveur");
   }
 });

@@ -131,13 +131,13 @@ export const getClubsFromFirestore = async () => {
     
     console.log('📄 Response data:', data);
 
-    if (data.success) {
-      console.log('✅ Success! Found', data.clubs.length, 'clubs');
-      return { success: true, clubs: data.clubs };
-    }
-    
-    console.log('❌ API returned success:false', data.error);
-    return { success: false, clubs: [] };
+  if (data.clubs && data.clubs.length > 0) {
+  console.log('✅ Success! Found', data.clubs.length, 'clubs');
+  return { success: true, clubs: data.clubs };
+}
+
+console.log('❌ Aucun club retourné', data);
+return { success: false, clubs: [] };
     
   } catch (error) {
     console.error('❌ Error fetching clubs:', error.message);
