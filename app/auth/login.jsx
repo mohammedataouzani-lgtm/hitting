@@ -2,6 +2,7 @@ import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from '../../context/AuthContext';
+
 import {
   View,
   Text,
@@ -21,13 +22,7 @@ import {
   loginWithEmail,
   loginWithGoogleCredential,
 } from "../../services/firebase";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  getFirestore,
-} from "firebase/firestore";
+import { doc, getDoc, getFirestore } from "firebase/firestore";
 
 const { width } = Dimensions.get("window");
 
@@ -85,21 +80,22 @@ export default function LoginScreen({ navigation }) {
       }
 
       const { user } = firebaseResult;
-      const db = getFirestore();
-      const coachesRef = collection(db, "coaches");
-      const q = query(coachesRef, where("email", "==", email));
-      const snapshot = await getDocs(q);
 
-      if (snapshot.empty) {
-        Alert.alert("Accès refusé", "Votre profil n'a pas été trouvé.");
-        setLoading(false);
-        return;
-      }
+// ✅ Lecture directe par UID au lieu d'une query sur toute la collection
+const db = getFirestore();
+const docRef = doc(db, 'coaches', user.uid);
+const snapshot = await getDoc(docRef);
 
-      const coach = snapshot.docs[0].data();
+if (!snapshot.exists()) {
+  Alert.alert("Accès refusé", "Votre profil n'a pas été trouvé.");
+  setLoading(false);
+  return;
+}
+
+const coach = snapshot.data();
 
       // Sauvegardes existantes
-      await AsyncStorage.setItem("coachId", snapshot.docs[0].id);
+      await AsyncStorage.setItem("coachId", user.uid); 
       await AsyncStorage.setItem("coachEmail", email);
       await AsyncStorage.setItem("firebaseUID", user.uid);
       await AsyncStorage.setItem("coachPrenom", coach.prenom || "Coach");
