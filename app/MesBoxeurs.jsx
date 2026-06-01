@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import BottomTabBar, { TAB_BAR_HEIGHT } from './components/BottomTabBar';
 import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -133,11 +135,15 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
 
     setLoading(true);
     try {
-      const auth = getAuth();
-      const idToken = await auth.currentUser.getIdToken();
-      const coachEmail = await AsyncStorage.getItem('coachEmail');
-      const clubName = await AsyncStorage.getItem('clubName');
-      const clubId = await AsyncStorage.getItem('clubId');
+    const auth = getAuth();
+const idToken = await auth.currentUser.getIdToken();
+const db = getFirestore();
+const coachDoc = await getDoc(doc(db, 'coaches', auth.currentUser.uid));
+const coachData = coachDoc.data();
+const clubId = coachData.clubId;
+const clubName = coachData.clubName;
+const coachEmail = coachData.email;
+console.log('🔍 clubId depuis Firestore:', clubId);
 
       const response = await fetch(
         "https://europe-west9-hitting-23de9.cloudfunctions.net/addBoxeurEnAttente",

@@ -154,3 +154,4 @@ const record = await base("Boxeurs en attente").create({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
+f
