@@ -7,6 +7,7 @@ const { setGlobalOptions } = require("firebase-functions/v2");
 
 const admin = require("firebase-admin");
 const axios = require("axios");
+const Airtable = require("airtable");
 
 admin.initializeApp();
 
@@ -100,5 +101,56 @@ exports.syncCoachToAirtableV2 = onDocumentCreated({
     
   } catch (error) {
     console.error('❌ Error syncing to Airtable:', error.response ? error.response.data : error.message);
+  }
+});
+
+// ===== CLOUD FUNCTION v2: addBoxeurEnAttente =====
+exports.addBoxeurEnAttente = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") {
+    res.set("Access-Control-Allow-Methods", "POST");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    return res.status(204).send("");
+  }
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+
+    const { nom, prenom, dateNaissance, sexe, categorie, categoriePoids,
+            poids, niveau, numeroLicence, coachEmail, clubName, clubId } = req.body;
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+const record = await base("Boxeurs en attente").create({
+  "Nom": nom || "",
+  "Prénom": prenom || "",
+  "Date de naissance": dateNaissance ? (() => {
+    const parts = dateNaissance.split('/');
+    if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    return dateNaissance;
+  })() : "",
+  "Sexe": sexe || "",
+  "Catégorie de poids": categoriePoids || "",
+  "Poids": poids ? parseFloat(poids) : null,
+  "Niveau": niveau || "",
+  "Numéro de licence": numeroLicence ? parseInt(numeroLicence) : null,
+  "Liaison vers Club": clubId ? [clubId] : [],
+});
+
+    return res.status(200).json({ success: true, id: record.id });
+
+  } catch (error) {
+    console.error("Erreur addBoxeurEnAttente:", error.response ? error.response.data : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
