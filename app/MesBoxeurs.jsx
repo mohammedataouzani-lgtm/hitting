@@ -52,11 +52,7 @@ const BOXEURS_INIT = [
 
 const NIVEAUX = ['Débutant', 'Espoir', 'Elite'];
 const SEXES = ['Homme', 'Femme'];
-const CATEGORIES_POIDS = [
-  'Mini-mouche', 'Mouche', 'Super-mouche', 'Coq', 'Super-coq',
-  'Léger', 'Super-léger', 'Welter', 'Super-welter',
-  'Moyen', 'Super-moyen', 'Mi-lourd', 'Lourd', 'Super-lourd',
-];
+
 
 function BoxerCard({ boxer, onEdit, onPress }) {
   const borderColor = boxer.sexe === 'F' ? '#E91E63' : '#2196F3';
@@ -344,15 +340,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             <Text style={s.fieldLabel}>Poids (kg)</Text>
             <TextInput style={[s.input, { marginBottom: 16 }]} placeholder="ex : 75" placeholderTextColor="#C0C0C0" value={poids} onChangeText={setPoids} keyboardType="numeric" />
 
-            <Text style={s.fieldLabel}>Catégorie de poids</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 28 }} contentContainerStyle={{ paddingRight: 16 }}>
-              {CATEGORIES_POIDS.map((cat) => (
-                <TouchableOpacity key={cat} style={[s.chipBtn, categoriePoids === cat && s.chipBtnActive]} onPress={() => setCategoriePoids(cat)}>
-                  <Text style={[s.chipTxt, categoriePoids === cat && s.chipTxtActive]}>{cat}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
+          
             <TouchableOpacity onPress={handleSubmit} activeOpacity={0.85} style={s.submitBtn} disabled={loading}>
               <LinearGradient colors={['#EF5350', '#E53935']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.submitGradient}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.submitTxt}>Enregistrer le boxeur</Text>}
