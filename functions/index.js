@@ -30,8 +30,6 @@ exports.getClubs = onRequest({
     const apiKey = process.env.AIRTABLE_SECRET_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
     
-    console.log('🔄 Envoi de la requête à Airtable...');
-    
     const response = await axios.get(
       `https://api.airtable.com/v0/${baseId}/Club`,
       { headers: { Authorization: `Bearer ${apiKey}` } }
@@ -98,6 +96,11 @@ exports.syncCoachToAirtableV2 = onDocumentCreated({
     );
     
     console.log(`✅ Coach synced successfully: ${response.data.id}`);
+
+    await admin.firestore().doc(`coaches/${coachId}`).update({
+      airtableRecordId: response.data.id
+    });
+    console.log(`✅ airtableRecordId sauvegardé dans Firestore: ${response.data.id}`);
     
   } catch (error) {
     console.error('❌ Error syncing to Airtable:', error.response ? error.response.data : error.message);
@@ -123,29 +126,73 @@ exports.addBoxeurEnAttente = onRequest({
   }
 
   try {
-    await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const decodedToken = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const firebaseUID = decodedToken.uid;
 
-    const { nom, prenom, dateNaissance, sexe, categorie, categoriePoids,
-            poids, niveau, numeroLicence, coachEmail, clubName, clubId } = req.body;
+    const { nom, prenom, dateNaissance, sexe, categoriePoids,
+        poids, niveau, numeroLicence, clubId, photoLicenceBase64, photoBoxeurBase64 } = req.body;
+
+    // Récupération du airtableRecordId du coach depuis Firestore
+    const coachDoc = await admin.firestore().doc(`coaches/${firebaseUID}`).get();
+    const airtableCoachId = coachDoc.exists ? coachDoc.data()?.airtableRecordId : null;
+    console.log(`👤 airtableCoachId: ${airtableCoachId}`);
+
+    // Upload photo vers Firebase Storage
+    let photoUrl = null;
+    if (photoLicenceBase64) {
+      try {
+        const bucket = admin.storage().bucket();
+        const fileName = `licences/${firebaseUID}_${Date.now()}.jpg`;
+        const file = bucket.file(fileName);
+        await file.save(Buffer.from(photoLicenceBase64, 'base64'), {
+          metadata: { contentType: 'image/jpeg' },
+        });
+        await file.makePublic();
+        photoUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+        console.log(`📸 Photo uploadée: ${photoUrl}`);
+      } catch (photoError) {
+        console.error('❌ Erreur upload photo:', photoError.message);
+      }
+    }
+
+    let photoBoxeurUrl = null;
+    if (photoBoxeurBase64) {
+      try {
+        const bucket = admin.storage().bucket();
+        const fileName = `boxeurs/${firebaseUID}_${Date.now()}.jpg`;
+        const file = bucket.file(fileName);
+        await file.save(Buffer.from(photoBoxeurBase64, 'base64'), {
+          metadata: { contentType: 'image/jpeg' },
+        });
+        await file.makePublic();
+        photoBoxeurUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+        console.log(`📸 Photo du boxeur uploadée: ${photoBoxeurUrl}`);
+      } catch (photoError) {
+        console.error('❌ Erreur upload photo du boxeur:', photoError.message);
+      }
+    }
 
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
-const record = await base("Boxeurs en attente").create({
-  "Nom": nom || "",
-  "Prénom": prenom || "",
-  "Date de naissance": dateNaissance ? (() => {
-    const parts = dateNaissance.split('/');
-    if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    return dateNaissance;
-  })() : "",
-  "Sexe": sexe || "",
-  "Catégorie de poids": categoriePoids || "",
-  "Poids": poids ? parseFloat(poids) : null,
-  "Niveau": niveau || "",
-  "Numéro de licence": numeroLicence ? parseInt(numeroLicence) : null,
-  "Liaison vers Club": clubId ? [clubId] : [],
-});
+    const record = await base("Boxeurs en attente").create({
+      "Nom": nom || "",
+      "Prénom": prenom || "",
+      "Date de naissance": dateNaissance ? (() => {
+        const parts = dateNaissance.split('/');
+        if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        return dateNaissance;
+      })() : "",
+      "Sexe": sexe || "",
+      "Catégorie de poids": categoriePoids || "",
+      "Poids": poids ? parseFloat(poids) : null,
+      "Niveau": niveau || "",
+      "Numéro de licence": numeroLicence ? parseInt(numeroLicence) : null,
+      "Liaison vers Club": clubId ? [clubId] : [],
+      "Liaison vers Coach": airtableCoachId ? [airtableCoachId] : [],
+      "Photo de la licence": photoUrl ? [{ url: photoUrl }] : [],
+      "Photo du boxeur": photoBoxeurUrl ? [{ url: photoBoxeurUrl }] : [],
+    });
 
     return res.status(200).json({ success: true, id: record.id });
 
@@ -154,4 +201,3 @@ const record = await base("Boxeurs en attente").create({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
-f

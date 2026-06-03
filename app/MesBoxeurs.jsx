@@ -4,6 +4,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import {
   View,
   Text,
@@ -57,7 +58,6 @@ const CATEGORIES_POIDS = [
   'Moyen', 'Super-moyen', 'Mi-lourd', 'Lourd', 'Super-lourd',
 ];
 
-// ─── Composant carte boxeur ──────────────────────────────────────────────────
 function BoxerCard({ boxer, onEdit, onPress }) {
   const borderColor = boxer.sexe === 'F' ? '#E91E63' : '#2196F3';
   return (
@@ -82,11 +82,12 @@ function BoxerCard({ boxer, onEdit, onPress }) {
   );
 }
 
-// ─── Composant BottomSheet Ajout Boxeur ──────────────────────────────────────
 function AddBoxeurSheet({ visible, onClose, onAdd }) {
   const slideAnim = useRef(new Animated.Value(height)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
+  const [photoLicence, setPhotoLicence] = useState(null);
+  const [photoBoxeur, setPhotoBoxeur] = useState(null);
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
   const [dateNaissance, setDateNaissance] = useState('');
@@ -116,6 +117,8 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
     setNom(''); setPrenom(''); setDateNaissance('');
     setSexe(null); setNiveau(null); setPoids('');
     setCategoriePoids(null); setNumeroLicence(''); setErrors({});
+    setPhotoLicence(null);
+    setPhotoBoxeur(null);
   };
 
   const handleClose = () => { resetForm(); onClose(); };
@@ -135,15 +138,14 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
 
     setLoading(true);
     try {
-    const auth = getAuth();
-const idToken = await auth.currentUser.getIdToken();
-const db = getFirestore();
-const coachDoc = await getDoc(doc(db, 'coaches', auth.currentUser.uid));
-const coachData = coachDoc.data();
-const clubId = coachData.clubId;
-const clubName = coachData.clubName;
-const coachEmail = coachData.email;
-console.log('🔍 clubId depuis Firestore:', clubId);
+      const auth = getAuth();
+      const idToken = await auth.currentUser.getIdToken();
+      const db = getFirestore();
+      const coachDoc = await getDoc(doc(db, 'coaches', auth.currentUser.uid));
+      const coachData = coachDoc.data();
+      const clubId = coachData.clubId;
+      const clubName = coachData.clubName;
+      const coachEmail = coachData.email;
 
       const response = await fetch(
         "https://europe-west9-hitting-23de9.cloudfunctions.net/addBoxeurEnAttente",
@@ -165,7 +167,9 @@ console.log('🔍 clubId depuis Firestore:', clubId);
             numeroLicence,
             coachEmail,
             clubName,
-            clubId
+            clubId,
+            photoLicenceBase64: photoLicence ? photoLicence.base64 : null,
+            photoBoxeurBase64: photoBoxeur ? photoBoxeur.base64 : null,
           })
         }
       );
@@ -174,7 +178,6 @@ console.log('🔍 clubId depuis Firestore:', clubId);
 
       Alert.alert("✅ Demande envoyée", "Le boxeur a été envoyé en validation. Un administrateur va examiner la demande.");
       
-      // Ajout local temporaire en attendant la validation
       onAdd({
         id: Date.now().toString(),
         nom: `${prenom} ${nom}`,
@@ -183,9 +186,9 @@ console.log('🔍 clubId depuis Firestore:', clubId);
         poids: categoriePoids || 'Non défini',
         kg: poids ? `${poids} kg` : '—',
         vic: 0, def: 0, nuls: 0, ko: 0,
-        avatar: sexe === 'Femme'
+        avatar: photoBoxeur ? photoBoxeur.uri : (sexe === 'Femme'
           ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face'
-          : 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face',
+          : 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face'),
       });
 
       handleClose();
@@ -219,11 +222,32 @@ console.log('🔍 clubId depuis Firestore:', clubId);
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetBody} keyboardShouldPersistTaps="handled">
-            {/* Photo */}
-            <TouchableOpacity style={s.photoBtn} activeOpacity={0.7}>
+            
+            {/* ── Photo du boxeur ── */}
+            <TouchableOpacity style={s.photoBtn} activeOpacity={0.7} onPress={async () => {
+              const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (!permission.granted) {
+                Alert.alert('Permission requise', "Autorisez l'accès à vos photos.");
+                return;
+              }
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.7,
+                base64: true,
+              });
+              if (!result.canceled) setPhotoBoxeur(result.assets[0]);
+            }}>
               <LinearGradient colors={['#5C6BC0', '#3949AB']} style={s.photoBtnInner}>
-                <Text style={s.photoIcon}>⬆</Text>
-                <Text style={s.photoLabel}>Photo</Text>
+                {photoBoxeur ? (
+                  <Image source={{ uri: photoBoxeur.uri }} style={{ width: 72, height: 72, borderRadius: 36 }} />
+                ) : (
+                  <>
+                    <Text style={s.photoIcon}>⬆</Text>
+                    <Text style={s.photoLabel}>Photo</Text>
+                  </>
+                )}
               </LinearGradient>
             </TouchableOpacity>
 
@@ -242,30 +266,30 @@ console.log('🔍 clubId depuis Firestore:', clubId);
               </View>
             </View>
 
-           <Text style={s.fieldLabel}>Date de naissance</Text>
-<View style={s.dateRow}>
-  <TextInput
-    style={[s.input, { flex: 1 }]}
-    placeholder="jj/mm/aaaa"
-    placeholderTextColor="#C0C0C0"
-    value={dateNaissance}
-    onChangeText={(text) => {
-      const cleaned = text.replace(/\D/g, '');
-      let formatted = cleaned;
-      if (cleaned.length >= 3 && cleaned.length <= 4) {
-        formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2)}`;
-      } else if (cleaned.length >= 5) {
-        formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2,4)}/${cleaned.slice(4,8)}`;
-      }
-      setDateNaissance(formatted);
-    }}
-    keyboardType="numeric"
-    maxLength={10}
-  />
-  <TouchableOpacity style={s.calendarBtn}>
-    <Text style={s.calendarIcon}>📅</Text>
-  </TouchableOpacity>
-</View>
+            <Text style={s.fieldLabel}>Date de naissance</Text>
+            <View style={s.dateRow}>
+              <TextInput
+                style={[s.input, { flex: 1 }]}
+                placeholder="jj/mm/aaaa"
+                placeholderTextColor="#C0C0C0"
+                value={dateNaissance}
+                onChangeText={(text) => {
+                  const cleaned = text.replace(/\D/g, '');
+                  let formatted = cleaned;
+                  if (cleaned.length >= 3 && cleaned.length <= 4) {
+                    formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2)}`;
+                  } else if (cleaned.length >= 5) {
+                    formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2,4)}/${cleaned.slice(4,8)}`;
+                  }
+                  setDateNaissance(formatted);
+                }}
+                keyboardType="numeric"
+                maxLength={10}
+              />
+              <TouchableOpacity style={s.calendarBtn}>
+                <Text style={s.calendarIcon}>📅</Text>
+              </TouchableOpacity>
+            </View>
 
             <Text style={s.fieldLabel}>Sexe *</Text>
             <View style={[s.row, { marginBottom: 20 }]}>
@@ -278,6 +302,32 @@ console.log('🔍 clubId depuis Firestore:', clubId);
 
             <Text style={s.fieldLabel}>Numéro de licence FFBoxe</Text>
             <TextInput style={[s.input, { marginBottom: 16 }]} placeholder="ex : 651289" placeholderTextColor="#C0C0C0" value={numeroLicence} onChangeText={setNumeroLicence} keyboardType="numeric" />
+
+            {/* Photo de la licence */}
+            <Text style={s.fieldLabel}>Photo de la licence</Text>
+            <TouchableOpacity
+              style={[s.input, { height: 80, justifyContent: 'center', alignItems: 'center' }]}
+              onPress={async () => {
+                const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (!permission.granted) {
+                  Alert.alert('Permission requise', "Autorisez l'accès à vos photos.");
+                  return;
+                }
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  quality: 0.7,
+                  base64: true,
+                });
+                if (!result.canceled) setPhotoLicence(result.assets[0]);
+              }}
+            >
+              {photoLicence ? (
+                <Image source={{ uri: photoLicence.uri }} style={{ width: 60, height: 60, borderRadius: 8 }} />
+              ) : (
+                <Text style={{ color: '#C0C0C0', fontSize: 15 }}>📷 Importer la photo de licence</Text>
+              )}
+            </TouchableOpacity>
 
             {/* COMPÉTITION */}
             <Text style={s.sectionLabel}>COMPÉTITION</Text>
@@ -317,7 +367,6 @@ console.log('🔍 clubId depuis Firestore:', clubId);
   );
 }
 
-// ─── Composant principal ─────────────────────────────────────────────────────
 export default function MesBoxeursScreen({ navigation }) {
   const [search, setSearch] = useState('');
   const [boxeurs, setBoxeurs] = useState(BOXEURS_INIT);
@@ -326,40 +375,25 @@ export default function MesBoxeursScreen({ navigation }) {
   const [boxeurToEdit, setBoxeurToEdit] = useState(null);
 
   const filteredBoxeurs = boxeurs.filter((b) => b.nom.toLowerCase().includes(search.toLowerCase()));
-
   const handleAddBoxeur = (newBoxeur) => setBoxeurs((prev) => [newBoxeur, ...prev]);
-
-  const handleEditBoxeur = (boxer) => {
-    setBoxeurToEdit(boxer);
-    setEditSheetVisible(true);
-  };
-
-  const handleSaveBoxeur = (updatedBoxeur) => {
-    setBoxeurs((prev) => prev.map((b) => (b.id === updatedBoxeur.id ? updatedBoxeur : b)));
-  };
+  const handleEditBoxeur = (boxer) => { setBoxeurToEdit(boxer); setEditSheetVisible(true); };
+  const handleSaveBoxeur = (updatedBoxeur) => { setBoxeurs((prev) => prev.map((b) => (b.id === updatedBoxeur.id ? updatedBoxeur : b))); };
 
   return (
     <View style={s.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
       <View style={s.heroWrap}>
         <Image source={{ uri: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800&h=400&fit=crop' }} style={s.heroImage} />
         <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.6)']} style={s.heroOverlay} />
       </View>
-
       <View style={s.body}>
         <View style={s.searchRow}>
           <View style={s.searchBar}>
             <TextInput style={s.searchInput} placeholder="Rechercher un boxeur" placeholderTextColor="#999" value={search} onChangeText={setSearch} />
-            <TouchableOpacity style={s.searchIconBtn}>
-              <Text style={s.searchIconTxt}>🔍</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={s.searchIconBtn}><Text style={s.searchIconTxt}>🔍</Text></TouchableOpacity>
           </View>
-          <TouchableOpacity style={s.filterBtn}>
-            <Text style={s.filterIcon}>☰</Text>
-          </TouchableOpacity>
+          <TouchableOpacity style={s.filterBtn}><Text style={s.filterIcon}>☰</Text></TouchableOpacity>
         </View>
-
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.listContent}>
           {filteredBoxeurs.map((boxer) => (
             <BoxerCard key={boxer.id} boxer={boxer} onEdit={handleEditBoxeur} onPress={(b) => navigation.navigate('FicheBoxeur', { boxer: b })} />
@@ -373,15 +407,12 @@ export default function MesBoxeursScreen({ navigation }) {
           <View style={{ height: 90 }} />
         </ScrollView>
       </View>
-
       <BottomTabBar activeTab="boxeurs" navigation={navigation} onPlusPress={() => setSheetVisible(true)} />
-
       <AddBoxeurSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} onAdd={handleAddBoxeur} />
     </View>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
 const HEADER_HEIGHT = 220;
 const SHEET_HEIGHT = height * 0.9;
 
