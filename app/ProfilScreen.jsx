@@ -10,9 +10,10 @@ import {
   StatusBar,
   Alert,
   Dimensions,
+  TextInput,
 } from 'react-native';
 import { useAuth } from '../AuthContext';
-import { getCoachProfile } from '../services/firebase';
+import { getCoachProfile, updateTelephone, updateCoachEmail, updateAvatar } from '../services/firebase';
 import BottomTabBar from './components/BottomTabBar';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
@@ -23,6 +24,8 @@ export default function ProfilScreen({ navigation }) {
   const [avatar, setAvatar] = React.useState(null);
   const [profile, setProfile] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
+  const [editTelephone, setEditTelephone] = React.useState('');
+  const [editEmail, setEditEmail] = React.useState('');
   const { logout, user, loadingAuth } = useAuth();
 
   const handleLogout = () => {
@@ -70,7 +73,11 @@ export default function ProfilScreen({ navigation }) {
         aspect: [1, 1],
         quality: 0.8,
       });
-      if (!result.canceled) setAvatar(result.assets[0].uri);
+      if (!result.canceled) {
+        setAvatar(result.assets[0].uri);
+        const avatarResult = await updateAvatar(user.uid, result.assets[0].uri);
+        if (!avatarResult.success) Alert.alert('Erreur', 'Impossible de sauvegarder la photo');
+      }
     } catch (error) {
       Alert.alert("Erreur", "Une erreur est survenue lors de la sélection de l'image.");
     }
@@ -88,7 +95,11 @@ export default function ProfilScreen({ navigation }) {
         aspect: [1, 1],
         quality: 0.8,
       });
-      if (!result.canceled) setAvatar(result.assets[0].uri);
+      if (!result.canceled) {
+        setAvatar(result.assets[0].uri);
+        const avatarResult = await updateAvatar(user.uid, result.assets[0].uri);
+        if (!avatarResult.success) Alert.alert('Erreur', 'Impossible de sauvegarder la photo');
+      }
     } catch (error) {
       Alert.alert("Erreur", "Une erreur est survenue lors de l'accès à l'appareil photo.");
     }
@@ -116,55 +127,64 @@ export default function ProfilScreen({ navigation }) {
     );
   };
 
+  const handleSaveTelephone = async () => {
+    const result = await updateTelephone(user.uid, editTelephone);
+    if (!result.success) Alert.alert('Erreur', 'Impossible de mettre à jour le téléphone');
+  };
+
+  const handleSaveEmail = async () => {
+    Alert.prompt(
+      'Confirmation',
+      "Entrez votre mot de passe pour changer l'email",
+      async (password) => {
+        if (!password) return;
+        const result = await updateCoachEmail(password, editEmail);
+        if (!result.success) Alert.alert('Erreur', result.error);
+        else Alert.alert('Succès', 'Email mis à jour');
+      }
+    );
+  };
+
   React.useEffect(() => {
+    if (loadingAuth) return;
     if (!user) {
-      console.log('❌ Pas de user dans useEffect');
+      navigation.replace('Login');
       return;
     }
-    console.log('✅ User trouvé:', user.uid, user.email);
 
     const fetchProfile = async () => {
-  try {
-    const db = getFirestore();
-    const docRef = doc(db, 'coaches', user.uid);
-    const snapshot = await getDoc(docRef);
-    if (snapshot.exists()) {
-      setProfile(snapshot.data());
-      console.log('✅ Profil chargé:', snapshot.data());
-    } else {
-      console.log('❌ Document coach introuvable');
-    }
-  } catch (error) {
-    console.error('❌ Erreur fetchProfile:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+      try {
+        const db = getFirestore();
+        const docRef = doc(db, 'coaches', user.uid);
+        const snapshot = await getDoc(docRef);
+        if (!snapshot.exists()) return;
+
+        const firestoreData = snapshot.data();
+        const airtableData = await getCoachProfile();
+
+        const merged = {
+          ...firestoreData,
+          firstName: firestoreData.firstName || airtableData.profile?.prenom || '',
+          lastName: firestoreData.lastName || airtableData.profile?.nom || '',
+          adresse: airtableData.success ? airtableData.profile?.adresse : '',
+          affiliation: airtableData.success ? airtableData.profile?.affiliation : '',
+          nomClub: airtableData.success ? airtableData.profile?.nomClub : firestoreData.clubName,
+        };
+
+        setProfile(merged);
+        setEditTelephone(merged.telephone || '');
+        setEditEmail(user.email || '');
+        if (merged.avatarUrl) setAvatar(merged.avatarUrl);
+
+      } catch (error) {
+        console.error('❌ Erreur fetchProfile:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
     fetchProfile();
-  }, [user]);
-
-  React.useEffect(() => {
-  if (loadingAuth) return;
-  if (!user) {
-    console.log('❌ Pas de user');
-    navigation.replace('Login'); // ← redirige si pas connecté
-    return;
-  }
-  console.log('✅ User trouvé:', user.uid, user.email);
-  const fetchProfile = async () => {
-    try {
-      const data = await getCoachProfile();
-      console.log('📦 Réponse:', JSON.stringify(data));
-      if (data.success) setProfile(data.profile);
-    } catch (error) {
-      console.error('❌ Erreur fetchProfile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchProfile();
-}, [user, loadingAuth]);
+  }, [user, loadingAuth]);
 
   return (
     <View style={styles.container}>
@@ -190,10 +210,10 @@ export default function ProfilScreen({ navigation }) {
             </TouchableOpacity>
           </View>
           <Text style={styles.coachName}>
-            {profile ? `${profile.firstName} ${profile.lastName}` : 'Chargement...'}
+            {profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() : 'Chargement...'}
           </Text>
           <Text style={styles.clubName}>
-            {profile?.nomClub || ''}
+            {profile?.clubName || profile?.nomClub || ''}
           </Text>
         </View>
 
@@ -202,12 +222,25 @@ export default function ProfilScreen({ navigation }) {
 
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>E-mail</Text>
-            <Text style={styles.infoValue}>{user?.email || '—'}</Text>
+            <TextInput
+              style={styles.infoValueInput}
+              value={editEmail}
+              onChangeText={setEditEmail}
+              onBlur={handleSaveEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
           </View>
 
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Téléphone</Text>
-            <Text style={styles.infoValue}>{profile?.telephone || '—'}</Text>
+            <TextInput
+              style={styles.infoValueInput}
+              value={editTelephone}
+              onChangeText={setEditTelephone}
+              onBlur={handleSaveTelephone}
+              keyboardType="phone-pad"
+            />
           </View>
 
           <View style={styles.infoItem}>
@@ -221,7 +254,7 @@ export default function ProfilScreen({ navigation }) {
 
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Nom du Club</Text>
-            <Text style={styles.infoValue}>{profile?.nomClub || '—'}</Text>
+            <Text style={styles.infoValue}>{profile?.clubName || profile?.nomClub || '—'}</Text>
           </View>
 
           <View style={styles.infoItem}>
@@ -230,7 +263,7 @@ export default function ProfilScreen({ navigation }) {
           </View>
 
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Affiliation</Text>
+            <Text style={styles.infoLabel}>Numéro d'affiliation</Text>
             <Text style={styles.infoValue}>{profile?.affiliation || '—'}</Text>
           </View>
         </View>
@@ -348,6 +381,14 @@ const styles = StyleSheet.create({
   clickableItem: { borderBottomWidth: 0.5 },
   infoLabel: { fontSize: 14, fontWeight: '700', color: '#1C1C1E' },
   infoValue: { fontSize: 14, color: '#8E8E93', fontWeight: '500' },
+  infoValueInput: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontWeight: '500',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 8,
+  },
   chevron: { fontSize: 18, color: '#C7C7CC', fontWeight: '600' },
   premiumBadge: {
     backgroundColor: '#FFF8E1',

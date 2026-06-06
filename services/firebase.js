@@ -1,5 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { 
+import { getFirestore, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import {
   initializeAuth,
   getReactNativePersistence,
   signInWithEmailAndPassword,
@@ -7,10 +9,11 @@ import {
   signInWithCredential,
   GoogleAuthProvider,
   FacebookAuthProvider,
-  signOut
+  signOut,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  updateEmail
 } from 'firebase/auth';
-// AJOUT de doc et setDoc ici pour pouvoir écrire dans Firestore
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
@@ -25,10 +28,18 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Initialiser Auth avec persistance AsyncStorage
 const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage)
 });
+
+const db = getFirestore(app);
+
+console.log('🔑 Firebase config:', {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ? '✅ OK' : '❌ MANQUANT',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ? '✅ OK' : '❌ MANQUANT',
+});
+
+export { auth };
 
 // Connexion Email/Password
 export const loginWithEmail = async (email, password) => {
@@ -50,7 +61,7 @@ export const registerWithEmail = async (email, password) => {
   }
 };
 
-// Connexion avec Google (via ID Token)
+// Connexion avec Google
 export const loginWithGoogleCredential = async (idToken) => {
   try {
     const credential = GoogleAuthProvider.credential(idToken);
@@ -61,7 +72,7 @@ export const loginWithGoogleCredential = async (idToken) => {
   }
 };
 
-// Connexion avec Facebook (via Access Token)
+// Connexion avec Facebook
 export const loginWithFacebookCredential = async (accessToken) => {
   try {
     const credential = FacebookAuthProvider.credential(accessToken);
@@ -82,81 +93,45 @@ export const logout = async () => {
   }
 };
 
-export { auth };
-const db = getFirestore(app);
-
-// ---- AJOUT DE LA FONCTION MANQUANTE POUR TON ÉCRAN ----
+// Création profil coach dans Firestore
 export const createCoachFirestore = async (uid, coachDetails) => {
   try {
-    console.log(`⏳ Enregistrement du profil coach dans Firestore pour le UID: ${uid}...`);
-    
-    // Crée un document dans la collection "coaches" avec l'UID de l'authentification
     const coachRef = doc(db, 'coaches', uid);
-    
     await setDoc(coachRef, {
       firstName: coachDetails.firstName || '',
       lastName: coachDetails.lastName || '',
       email: coachDetails.email || '',
-      telephone: coachDetails.telephone || '',  
-      numeroLicence: coachDetails.numeroLicence || '', 
-      clubId: coachDetails.clubId || '', 
-       clubName: coachDetails.clubName || '',
+      telephone: coachDetails.telephone || '',
+      numeroLicence: coachDetails.numeroLicence || '',
+      clubId: coachDetails.clubId || '',
+      clubName: coachDetails.clubName || '',
       createdAt: new Date().toISOString()
     });
-
-    console.log('✅ Profil créé avec succès dans Firestore !');
     return { success: true };
   } catch (error) {
-    console.error('❌ Erreur dans createCoachFirestore :', error.message);
     return { success: false, error: error.message };
   }
 };
 
-// Cette fonction reste ici car le TÉLÉPHONE appelle l'URL de la fonction Cloud
+// Récupération des clubs via Cloud Function
 export const getClubsFromFirestore = async () => {
   try {
-    console.log('🔄 Fetching clubs from Cloud Function (Paris)...');
-
-    const response = await fetch(
-      'https://europe-west9-hitting-23de9.cloudfunctions.net/getClubs'
-    );
-
-    console.log('📦 Response status:', response.status);
-
-    if (!response.ok) {
-      console.error('❌ HTTP error:', response.status);
-      return { success: false, clubs: [] };
-    }
-
+    const response = await fetch('https://europe-west9-hitting-23de9.cloudfunctions.net/getClubs');
+    if (!response.ok) return { success: false, clubs: [] };
     const data = await response.json();
-    
-    console.log('📄 Response data:', data);
-
-  if (data.clubs && data.clubs.length > 0) {
-  console.log('✅ Success! Found', data.clubs.length, 'clubs');
-  return { success: true, clubs: data.clubs };
-}
-
-console.log('❌ Aucun club retourné', data);
-return { success: false, clubs: [] };
-    
+    if (data.clubs && data.clubs.length > 0) return { success: true, clubs: data.clubs };
+    return { success: false, clubs: [] };
   } catch (error) {
-    console.error('❌ Error fetching clubs:', error.message);
     return { success: false, clubs: [] };
   }
 };
+
+// Récupération profil coach via Cloud Function
 export const getCoachProfile = async () => {
   try {
     const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.error('❌ Aucun utilisateur connecté');
-      return { success: false, error: 'Non connecté' };
-    }
-
-    // Force le refresh du token
+    if (!currentUser) return { success: false, error: 'Non connecté' };
     const token = await currentUser.getIdToken(true);
-    console.log('🔑 Token récupéré, longueur:', token.length);
-
     const response = await fetch(
       'https://europe-west9-hitting-23de9.cloudfunctions.net/getCoachProfile',
       {
@@ -167,19 +142,50 @@ export const getCoachProfile = async () => {
         },
       }
     );
-
     const data = await response.json();
     console.log('📦 Réponse getCoachProfile:', data);
     return data;
-
   } catch (error) {
-    console.error('❌ Erreur getCoachProfile:', error.message);
     return { success: false, error: error.message };
   }
 };
 
-console.log('🔑 Firebase config:', {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ? '✅ OK' : '❌ MANQUANT',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ? '✅ OK' : '❌ MANQUANT',
-});
+// Mise à jour du téléphone
+export const updateTelephone = async (uid, telephone) => {
+  try {
+    await updateDoc(doc(db, 'coaches', uid), { telephone });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
 
+// Mise à jour de l'email (nécessite re-auth)
+export const updateCoachEmail = async (currentPassword, newEmail) => {
+  try {
+    const currentUser = auth.currentUser;
+    const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+    await reauthenticateWithCredential(currentUser, credential);
+    await updateEmail(currentUser, newEmail);
+    await updateDoc(doc(db, 'coaches', currentUser.uid), { email: newEmail });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+// Upload photo de profil
+export const updateAvatar = async (uid, imageUri) => {
+  try {
+    const storage = getStorage();
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+    const storageRef = ref(storage, `avatars/${uid}.jpg`);
+    await uploadBytes(storageRef, blob);
+    const downloadURL = await getDownloadURL(storageRef);
+    await updateDoc(doc(db, 'coaches', uid), { avatarUrl: downloadURL });
+    return { success: true, url: downloadURL };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
