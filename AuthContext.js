@@ -1,49 +1,29 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import { auth } from './firebase';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../services/firebase';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [userToken, setUserToken] = useState(null);
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('🔥 Auth state changed:', firebaseUser?.email || 'null');
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      console.log('🔥 Auth state changed:', firebaseUser?.email ?? 'null');
       setUser(firebaseUser);
-
-      if (firebaseUser) {
-        // Utilisateur connecté → on stocke le token
-        const token = await firebaseUser.getIdToken();
-        await SecureStore.setItemAsync('userToken', token);
-        setUserToken(token);
-      } else {
-        // Utilisateur déconnecté → on efface le token
-        await SecureStore.deleteItemAsync('userToken');
-        setUserToken(null);
-      }
-
       setLoadingAuth(false);
     });
-
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
-  const login = async (token) => {
-    await SecureStore.setItemAsync('userToken', token);
-    setUserToken(token);
-  };
-
   const logout = async () => {
-    await SecureStore.deleteItemAsync('userToken');
-    setUserToken(null);
+    const { logout: firebaseLogout } = await import('../services/firebase');
+    await firebaseLogout();
   };
 
   return (
-    <AuthContext.Provider value={{ userToken, setUserToken, login, logout, user, loadingAuth }}>
+    <AuthContext.Provider value={{ user, loadingAuth, logout }}>
       {children}
     </AuthContext.Provider>
   );
