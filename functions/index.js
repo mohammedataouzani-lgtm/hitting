@@ -129,8 +129,9 @@ exports.addBoxeurEnAttente = onRequest({
     const decodedToken = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
     const firebaseUID = decodedToken.uid;
 
-    const { nom, prenom, dateNaissance, sexe, categoriePoids,
-        poids, niveau, numeroLicence, clubId, photoLicenceBase64, photoBoxeurBase64 } = req.body;
+  const { nom, prenom, dateNaissance, sexe, categoriePoids,
+    poids, niveau, numeroLicence, clubId, photoLicenceBase64, photoBoxeurBase64,
+    victoires, defaites, nuls, ko } = req.body;
 
     // Récupération du airtableRecordId du coach depuis Firestore
     const coachDoc = await admin.firestore().doc(`coaches/${firebaseUID}`).get();
@@ -192,6 +193,10 @@ exports.addBoxeurEnAttente = onRequest({
       "Liaison vers Coach": airtableCoachId ? [airtableCoachId] : [],
       "Photo de la licence": photoUrl ? [{ url: photoUrl }] : [],
       "Photo du boxeur": photoBoxeurUrl ? [{ url: photoBoxeurUrl }] : [],
+      "Victoires": victoires || 0,
+  "Défaites": defaites || 0,
+  "Nuls": nuls || 0,
+  "K.O": ko || 0,
     });
 
     return res.status(200).json({ success: true, id: record.id });

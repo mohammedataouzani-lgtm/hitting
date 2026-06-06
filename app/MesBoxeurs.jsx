@@ -53,7 +53,6 @@ const BOXEURS_INIT = [
 const NIVEAUX = ['Débutant', 'Espoir', 'Elite'];
 const SEXES = ['Homme', 'Femme'];
 
-
 function BoxerCard({ boxer, onEdit, onPress }) {
   const borderColor = boxer.sexe === 'F' ? '#E91E63' : '#2196F3';
   return (
@@ -94,6 +93,10 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
   const [numeroLicence, setNumeroLicence] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [victoires, setVictoires] = useState('');
+  const [defaites, setDefaites] = useState('');
+  const [nuls, setNuls] = useState('');
+  const [ko, setKo] = useState('');
 
   React.useEffect(() => {
     if (visible) {
@@ -113,8 +116,8 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
     setNom(''); setPrenom(''); setDateNaissance('');
     setSexe(null); setNiveau(null); setPoids('');
     setCategoriePoids(null); setNumeroLicence(''); setErrors({});
-    setPhotoLicence(null);
-    setPhotoBoxeur(null);
+    setPhotoLicence(null); setPhotoBoxeur(null);
+    setVictoires(''); setDefaites(''); setNuls(''); setKo('');
   };
 
   const handleClose = () => { resetForm(); onClose(); };
@@ -164,6 +167,10 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             coachEmail,
             clubName,
             clubId,
+            victoires: victoires ? parseInt(victoires) : 0,
+            defaites: defaites ? parseInt(defaites) : 0,
+            nuls: nuls ? parseInt(nuls) : 0,
+            ko: ko ? parseInt(ko) : 0,
             photoLicenceBase64: photoLicence ? photoLicence.base64 : null,
             photoBoxeurBase64: photoBoxeur ? photoBoxeur.base64 : null,
           })
@@ -173,7 +180,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
       if (!response.ok) throw new Error("Erreur serveur");
 
       Alert.alert("✅ Demande envoyée", "Le boxeur a été envoyé en validation. Un administrateur va examiner la demande.");
-      
+
       onAdd({
         id: Date.now().toString(),
         nom: `${prenom} ${nom}`,
@@ -181,7 +188,10 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
         categorie: sexe === 'Homme' ? 'Seniors H' : 'Seniors F',
         poids: categoriePoids || 'Non défini',
         kg: poids ? `${poids} kg` : '—',
-        vic: 0, def: 0, nuls: 0, ko: 0,
+        vic: victoires ? parseInt(victoires) : 0,
+        def: defaites ? parseInt(defaites) : 0,
+        nuls: nuls ? parseInt(nuls) : 0,
+        ko: ko ? parseInt(ko) : 0,
         avatar: photoBoxeur ? photoBoxeur.uri : (sexe === 'Femme'
           ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face'
           : 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face'),
@@ -218,20 +228,14 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetBody} keyboardShouldPersistTaps="handled">
-            
-            {/* ── Photo du boxeur ── */}
+
+            {/* Photo du boxeur */}
             <TouchableOpacity style={s.photoBtn} activeOpacity={0.7} onPress={async () => {
               const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-              if (!permission.granted) {
-                Alert.alert('Permission requise', "Autorisez l'accès à vos photos.");
-                return;
-              }
+              if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
               const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.7,
-                base64: true,
+                allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
               });
               if (!result.canceled) setPhotoBoxeur(result.assets[0]);
             }}>
@@ -239,10 +243,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                 {photoBoxeur ? (
                   <Image source={{ uri: photoBoxeur.uri }} style={{ width: 72, height: 72, borderRadius: 36 }} />
                 ) : (
-                  <>
-                    <Text style={s.photoIcon}>⬆</Text>
-                    <Text style={s.photoLabel}>Photo</Text>
-                  </>
+                  <><Text style={s.photoIcon}>⬆</Text><Text style={s.photoLabel}>Photo</Text></>
                 )}
               </LinearGradient>
             </TouchableOpacity>
@@ -272,19 +273,14 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                 onChangeText={(text) => {
                   const cleaned = text.replace(/\D/g, '');
                   let formatted = cleaned;
-                  if (cleaned.length >= 3 && cleaned.length <= 4) {
-                    formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2)}`;
-                  } else if (cleaned.length >= 5) {
-                    formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2,4)}/${cleaned.slice(4,8)}`;
-                  }
+                  if (cleaned.length >= 3 && cleaned.length <= 4) formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2)}`;
+                  else if (cleaned.length >= 5) formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2,4)}/${cleaned.slice(4,8)}`;
                   setDateNaissance(formatted);
                 }}
                 keyboardType="numeric"
                 maxLength={10}
               />
-              <TouchableOpacity style={s.calendarBtn}>
-                <Text style={s.calendarIcon}>📅</Text>
-              </TouchableOpacity>
+              <TouchableOpacity style={s.calendarBtn}><Text style={s.calendarIcon}>📅</Text></TouchableOpacity>
             </View>
 
             <Text style={s.fieldLabel}>Sexe *</Text>
@@ -299,21 +295,15 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             <Text style={s.fieldLabel}>Numéro de licence FFBoxe</Text>
             <TextInput style={[s.input, { marginBottom: 16 }]} placeholder="ex : 651289" placeholderTextColor="#C0C0C0" value={numeroLicence} onChangeText={setNumeroLicence} keyboardType="numeric" />
 
-            {/* Photo de la licence */}
             <Text style={s.fieldLabel}>Photo de la licence</Text>
             <TouchableOpacity
               style={[s.input, { height: 80, justifyContent: 'center', alignItems: 'center' }]}
               onPress={async () => {
                 const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (!permission.granted) {
-                  Alert.alert('Permission requise', "Autorisez l'accès à vos photos.");
-                  return;
-                }
+                if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
                 const result = await ImagePicker.launchImageLibraryAsync({
                   mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                  allowsEditing: true,
-                  quality: 0.7,
-                  base64: true,
+                  allowsEditing: true, quality: 0.7, base64: true,
                 });
                 if (!result.canceled) setPhotoLicence(result.assets[0]);
               }}
@@ -340,7 +330,33 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             <Text style={s.fieldLabel}>Poids (kg)</Text>
             <TextInput style={[s.input, { marginBottom: 16 }]} placeholder="ex : 75" placeholderTextColor="#C0C0C0" value={poids} onChangeText={setPoids} keyboardType="numeric" />
 
-          
+            {/* PALMARÈS */}
+            <Text style={s.sectionLabel}>PALMARÈS</Text>
+
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.fieldLabel}>Victoires</Text>
+                <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={victoires} onChangeText={setVictoires} keyboardType="numeric" />
+              </View>
+              <View style={{ width: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.fieldLabel}>Défaites</Text>
+                <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={defaites} onChangeText={setDefaites} keyboardType="numeric" />
+              </View>
+            </View>
+
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.fieldLabel}>Nuls</Text>
+                <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={nuls} onChangeText={setNuls} keyboardType="numeric" />
+              </View>
+              <View style={{ width: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.fieldLabel}>K.O</Text>
+                <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={ko} onChangeText={setKo} keyboardType="numeric" />
+              </View>
+            </View>
+
             <TouchableOpacity onPress={handleSubmit} activeOpacity={0.85} style={s.submitBtn} disabled={loading}>
               <LinearGradient colors={['#EF5350', '#E53935']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.submitGradient}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.submitTxt}>Enregistrer le boxeur</Text>}
