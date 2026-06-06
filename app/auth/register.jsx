@@ -18,7 +18,7 @@ import { registerWithEmail } from '../../services/firebase';
 import { createCoachFirestore } from '../../services/firebase';
 import { getAuth, sendEmailVerification } from 'firebase/auth';
 import { getClubsFromFirestore } from '../../services/firebase';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../AuthContext';
 
 export default function RegisterScreen({ navigation }) {
   const { login } = useAuth();
