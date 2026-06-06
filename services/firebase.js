@@ -177,3 +177,9 @@ export const getCoachProfile = async () => {
     return { success: false, error: error.message };
   }
 };
+
+console.log('🔑 Firebase config:', {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ? '✅ OK' : '❌ MANQUANT',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ? '✅ OK' : '❌ MANQUANT',
+});
+

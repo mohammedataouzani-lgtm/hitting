@@ -11,10 +11,11 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../AuthContext';
 import { getCoachProfile } from '../services/firebase';
 import BottomTabBar from './components/BottomTabBar';
 import * as ImagePicker from 'expo-image-picker';
+import { doc, getDoc, getFirestore } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -123,54 +124,47 @@ export default function ProfilScreen({ navigation }) {
     console.log('✅ User trouvé:', user.uid, user.email);
 
     const fetchProfile = async () => {
-      try {
-        console.log('🔄 Appel getCoachProfile...');
-        const data = await getCoachProfile();
-        console.log('📦 Réponse complète:', JSON.stringify(data));
-        if (data.success) {
-          setProfile(data.profile);
-        } else {
-          console.log('❌ Erreur data:', data.error);
-        }
-      } catch (error) {
-        console.error('❌ Erreur fetchProfile:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  try {
+    const db = getFirestore();
+    const docRef = doc(db, 'coaches', user.uid);
+    const snapshot = await getDoc(docRef);
+    if (snapshot.exists()) {
+      setProfile(snapshot.data());
+      console.log('✅ Profil chargé:', snapshot.data());
+    } else {
+      console.log('❌ Document coach introuvable');
+    }
+  } catch (error) {
+    console.error('❌ Erreur fetchProfile:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
     fetchProfile();
   }, [user]);
 
   React.useEffect(() => {
-  if (loadingAuth) return; // ← attendre que Firebase soit prêt
-  
+  if (loadingAuth) return;
   if (!user) {
-    console.log('❌ Pas de user dans useEffect');
+    console.log('❌ Pas de user');
+    navigation.replace('Login'); // ← redirige si pas connecté
     return;
   }
-  
   console.log('✅ User trouvé:', user.uid, user.email);
-
   const fetchProfile = async () => {
     try {
-      console.log('🔄 Appel getCoachProfile...');
       const data = await getCoachProfile();
-      console.log('📦 Réponse complète:', JSON.stringify(data));
-      if (data.success) {
-        setProfile(data.profile);
-      } else {
-        console.log('❌ Erreur data:', data.error);
-      }
+      console.log('📦 Réponse:', JSON.stringify(data));
+      if (data.success) setProfile(data.profile);
     } catch (error) {
       console.error('❌ Erreur fetchProfile:', error);
     } finally {
       setLoading(false);
     }
   };
-
   fetchProfile();
-}, [user, loadingAuth]); // ← ajouter loadingAuth dans les dépendances
+}, [user, loadingAuth]);
 
   return (
     <View style={styles.container}>
@@ -196,7 +190,7 @@ export default function ProfilScreen({ navigation }) {
             </TouchableOpacity>
           </View>
           <Text style={styles.coachName}>
-            {profile ? `${profile.prenom} ${profile.nom}` : 'Chargement...'}
+            {profile ? `${profile.firstName} ${profile.lastName}` : 'Chargement...'}
           </Text>
           <Text style={styles.clubName}>
             {profile?.nomClub || ''}

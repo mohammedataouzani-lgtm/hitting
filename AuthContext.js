@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { auth } from './services/firebase';
 
 const AuthContext = createContext();
 
@@ -22,11 +22,11 @@ export const AuthProvider = ({ children }) => {
     setUser(firebaseUser);
   };
 
-  const logout = async () => {
-    const { logout: firebaseLogout } = await import('../services/firebase');
-    await firebaseLogout();
-    setUser(null);
-  };
+const logout = async () => {
+  const { logout: firebaseLogout } = await import('./services/firebase'); // ← ./ au lieu de ../
+  await firebaseLogout();
+  setUser(null);
+};
 
   return (
     <AuthContext.Provider value={{ user, loadingAuth, login, logout }}>
