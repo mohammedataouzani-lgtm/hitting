@@ -21,10 +21,7 @@ exports.getClubs = onRequest({
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type');
   
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
+  if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   
   try {
     const apiKey = process.env.AIRTABLE_SECRET_KEY;
@@ -36,7 +33,6 @@ exports.getClubs = onRequest({
     );
     
     const records = response.data.records || [];
-    
     const clubs = records.map(record => {
       const f = record.fields || {};
       let regionRaw = f['Région'] || '';
@@ -70,8 +66,6 @@ exports.syncCoachToAirtableV2 = onDocumentCreated({
     
     const coachData = event.data.data();
     const coachId = event.params.coachId;
-    console.log('👉 DONNÉES REÇUES DE FIRESTORE :', JSON.stringify(coachData));
-    console.log(`📝 Syncing coach ${coachId} to Airtable...`);
     
     const clubArray = coachData.clubId ? [String(coachData.clubId)] : [];
     const finalFirstName = coachData.prenom || coachData.firstName || '';
@@ -95,12 +89,9 @@ exports.syncCoachToAirtableV2 = onDocumentCreated({
       { headers: { Authorization: `Bearer ${apiKey}` } }
     );
     
-    console.log(`✅ Coach synced successfully: ${response.data.id}`);
-
     await admin.firestore().doc(`coaches/${coachId}`).update({
       airtableRecordId: response.data.id
     });
-    console.log(`✅ airtableRecordId sauvegardé dans Firestore: ${response.data.id}`);
     
   } catch (error) {
     console.error('❌ Error syncing to Airtable:', error.response ? error.response.data : error.message);
@@ -129,28 +120,22 @@ exports.addBoxeurEnAttente = onRequest({
     const decodedToken = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
     const firebaseUID = decodedToken.uid;
 
-  const { nom, prenom, dateNaissance, sexe, categoriePoids,
-    poids, niveau, numeroLicence, clubId, photoLicenceBase64, photoBoxeurBase64,
-    victoires, defaites, nuls, ko } = req.body;
+    const { nom, prenom, dateNaissance, sexe, categoriePoids,
+      poids, niveau, numeroLicence, clubId, photoLicenceBase64, photoBoxeurBase64,
+      victoires, defaites, nuls, ko } = req.body;
 
-    // Récupération du airtableRecordId du coach depuis Firestore
     const coachDoc = await admin.firestore().doc(`coaches/${firebaseUID}`).get();
     const airtableCoachId = coachDoc.exists ? coachDoc.data()?.airtableRecordId : null;
-    console.log(`👤 airtableCoachId: ${airtableCoachId}`);
 
-    // Upload photo vers Firebase Storage
     let photoUrl = null;
     if (photoLicenceBase64) {
       try {
         const bucket = admin.storage().bucket();
         const fileName = `licences/${firebaseUID}_${Date.now()}.jpg`;
         const file = bucket.file(fileName);
-        await file.save(Buffer.from(photoLicenceBase64, 'base64'), {
-          metadata: { contentType: 'image/jpeg' },
-        });
+        await file.save(Buffer.from(photoLicenceBase64, 'base64'), { metadata: { contentType: 'image/jpeg' } });
         await file.makePublic();
         photoUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-        console.log(`📸 Photo uploadée: ${photoUrl}`);
       } catch (photoError) {
         console.error('❌ Erreur upload photo:', photoError.message);
       }
@@ -162,12 +147,9 @@ exports.addBoxeurEnAttente = onRequest({
         const bucket = admin.storage().bucket();
         const fileName = `boxeurs/${firebaseUID}_${Date.now()}.jpg`;
         const file = bucket.file(fileName);
-        await file.save(Buffer.from(photoBoxeurBase64, 'base64'), {
-          metadata: { contentType: 'image/jpeg' },
-        });
+        await file.save(Buffer.from(photoBoxeurBase64, 'base64'), { metadata: { contentType: 'image/jpeg' } });
         await file.makePublic();
         photoBoxeurUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-        console.log(`📸 Photo du boxeur uploadée: ${photoBoxeurUrl}`);
       } catch (photoError) {
         console.error('❌ Erreur upload photo du boxeur:', photoError.message);
       }
@@ -194,9 +176,9 @@ exports.addBoxeurEnAttente = onRequest({
       "Photo de la licence": photoUrl ? [{ url: photoUrl }] : [],
       "Photo du boxeur": photoBoxeurUrl ? [{ url: photoBoxeurUrl }] : [],
       "Victoires": victoires || 0,
-  "Défaites": defaites || 0,
-  "Nuls": nuls || 0,
-  "K.O": ko || 0,
+      "Défaites": defaites || 0,
+      "Nuls": nuls || 0,
+      "K.O": ko || 0,
     });
 
     return res.status(200).json({ success: true, id: record.id });
@@ -213,45 +195,32 @@ exports.getCoachProfile = onRequest({
 }, async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization'); 
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
+  if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
 
   try {
-    // Extraction plus robuste du token
     const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
-    console.log('📥 Auth header reçu:', authHeader ? `${authHeader.substring(0, 20)}...` : 'VIDE');
-    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('❌ Header Authorization manquant ou mal formé');
       return res.status(401).json({ success: false, error: 'Token manquant' });
     }
 
     const token = authHeader.split('Bearer ')[1].trim();
-    console.log('🔑 Token extrait, longueur:', token.length);
-
     const decoded = await admin.auth().verifyIdToken(token);
     const uid = decoded.uid;
-    console.log('✅ UID décodé:', uid);
 
-    // Récupération du airtableRecordId depuis Firestore
     const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
     if (!coachDoc.exists) {
       return res.status(404).json({ success: false, error: 'Coach non trouvé dans Firestore' });
     }
 
     const airtableRecordId = coachDoc.data().airtableRecordId;
-    console.log('📋 airtableRecordId:', airtableRecordId);
-    
     if (!airtableRecordId) {
       return res.status(404).json({ success: false, error: 'airtableRecordId manquant' });
     }
 
-   const apiKey = process.env.AIRTABLE_SECRET_KEY;        // ✅
-const baseId = process.env.AIRTABLE_BASE_ID_SECURE;  
+    const apiKey = process.env.AIRTABLE_SECRET_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
 
     const response = await axios.get(
       `https://api.airtable.com/v0/${baseId}/Coach/${airtableRecordId}`,
@@ -259,7 +228,6 @@ const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
     );
 
     const f = response.data.fields || {};
-
     const profile = {
       nom: f['Nom'] || '',
       prenom: f['Prénom'] || '',
@@ -269,7 +237,6 @@ const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
       affiliation: f['Numéro d\'affiliation'] || '',
     };
 
-    console.log('✅ Profil récupéré:', JSON.stringify(profile));
     return res.status(200).json({ success: true, profile });
 
   } catch (error) {
@@ -277,6 +244,7 @@ const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
     return res.status(500).json({ success: false, error: error.message });
   }
 });
+
 // ===== CLOUD FUNCTION v2: deleteCoachAccount =====
 exports.deleteCoachAccount = onRequest({
   secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
@@ -285,10 +253,7 @@ exports.deleteCoachAccount = onRequest({
   res.set('Access-Control-Allow-Methods', 'DELETE, POST, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
+  if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
 
   try {
     const authHeader = req.headers['authorization'] || '';
@@ -299,9 +264,7 @@ exports.deleteCoachAccount = onRequest({
     const token = authHeader.split('Bearer ')[1].trim();
     const decoded = await admin.auth().verifyIdToken(token);
     const uid = decoded.uid;
-    console.log('🗑️ Suppression compte pour UID:', uid);
 
-    // 1. Récupérer les IDs Airtable depuis Firestore
     const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
     if (!coachDoc.exists) {
       return res.status(404).json({ success: false, error: 'Coach introuvable' });
@@ -311,12 +274,10 @@ exports.deleteCoachAccount = onRequest({
     const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
     const airtableCoachId = coachDoc.data().airtableRecordId;
 
-    // 2. Supprimer les boxeurs liés dans Airtable
     if (airtableCoachId) {
       try {
-        // Chercher les boxeurs liés à ce coach
         const boxeursResponse = await axios.get(
-          `https://api.airtable.com/v0/${baseId}/Boxeurs en attente`,
+          `https://api.airtable.com/v0/${baseId}/Boxeurs%20en%20attente`,
           {
             headers: { Authorization: `Bearer ${apiKey}` },
             params: {
@@ -326,39 +287,102 @@ exports.deleteCoachAccount = onRequest({
         );
 
         const boxeurs = boxeursResponse.data.records || [];
-        console.log(`🥊 ${boxeurs.length} boxeurs à supprimer`);
-
-        // Supprimer chaque boxeur
         for (const boxeur of boxeurs) {
           await axios.delete(
-            `https://api.airtable.com/v0/${baseId}/Boxeurs en attente/${boxeur.id}`,
+            `https://api.airtable.com/v0/${baseId}/Boxeurs%20en%20attente/${boxeur.id}`,
             { headers: { Authorization: `Bearer ${apiKey}` } }
           );
         }
 
-        // 3. Supprimer le coach dans Airtable
         await axios.delete(
           `https://api.airtable.com/v0/${baseId}/Coach/${airtableCoachId}`,
           { headers: { Authorization: `Bearer ${apiKey}` } }
         );
-        console.log('✅ Coach supprimé dans Airtable');
       } catch (airtableError) {
         console.error('❌ Erreur suppression Airtable:', airtableError.message);
       }
     }
 
-    // 4. Supprimer le document Firestore
     await admin.firestore().doc(`coaches/${uid}`).delete();
-    console.log('✅ Document Firestore supprimé');
-
-    // 5. Supprimer le compte Firebase Auth
     await admin.auth().deleteUser(uid);
-    console.log('✅ Compte Firebase Auth supprimé');
 
     return res.status(200).json({ success: true });
 
   } catch (error) {
     console.error('❌ Erreur deleteCoachAccount:', error.message);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== CLOUD FUNCTION v2: getBoxeurs =====
+exports.getBoxeurs = onRequest({
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+
+  try {
+    const authHeader = req.headers['authorization'] || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'Token manquant' });
+    }
+
+    const token = authHeader.split('Bearer ')[1].trim();
+    const decoded = await admin.auth().verifyIdToken(token);
+    const uid = decoded.uid;
+
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) return res.status(404).json({ success: false, error: 'Coach introuvable' });
+    const coachEmail = coachDoc.data().email;
+
+    const apiKey = process.env.AIRTABLE_SECRET_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
+
+    // Test sans filtre pour vérifier la connexion à la table
+    const response = await axios.get(
+      `https://api.airtable.com/v0/${baseId}/Boxeurs`,
+      {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        params: {
+          maxRecords: 3,
+        }
+      }
+    );
+
+const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+  .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+const records = await base('Boxeurs').select({
+  filterByFormula: `FIND("${coachEmail}", ARRAYJOIN({Coach}))`,
+}).all();
+
+const boxeurs = records.map(record => {
+  const f = record.fields || {};
+   console.log('📋 Fields bruts:', JSON.stringify(f));
+  return {
+    id: record.id,
+    nom: f['Nom du boxeur'] || '',
+    prenom: f['Prénom'] || '',
+    sexe: f['Sexe'] || '',
+    poids: f['Poids'] || 0,
+    categoriePoids: f['Catégorie de poids'] || '',
+    categorie: f['Catégorie'] || '',
+    dateNaissance: f['Date de naissance'] || '',
+      vic: f['Victoires '] || 0,   // ← espace après
+    def: f['Défaites '] || 0,   // ← espace après
+    nuls: f['Nuls '] || 0,      // ← espace après
+    ko: f['KO '] || 0,    
+    photo: f['Photo du boxeur'] ? f['Photo du boxeur'][0]?.url : null,
+  };
+});
+
+return res.status(200).json({ success: true, boxeurs });
+
+  } catch (error) {
+    console.error('❌ Erreur getBoxeurs:', error.response ? JSON.stringify(error.response.data) : error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
 });

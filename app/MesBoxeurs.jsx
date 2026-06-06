@@ -27,29 +27,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
-const BOXEURS_INIT = [
-  {
-    id: '1',
-    nom: 'Lucas Voisin',
-    sexe: 'H',
-    categorie: 'Seniors H',
-    poids: 'Super-welter',
-    kg: '75 kg',
-    vic: 19, def: 4, nuls: 2, ko: 19,
-    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face',
-  },
-  {
-    id: '2',
-    nom: 'Mounia Chelbi',
-    sexe: 'F',
-    categorie: 'Seniors F',
-    poids: 'Super-welter',
-    kg: '75 kg',
-    vic: 19, def: 4, nuls: 2, ko: 19,
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face',
-  },
-];
-
 const NIVEAUX = ['Débutant', 'Espoir', 'Elite'];
 const SEXES = ['Homme', 'Femme'];
 
@@ -373,15 +350,75 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
 
 export default function MesBoxeursScreen({ navigation }) {
   const [search, setSearch] = useState('');
-  const [boxeurs, setBoxeurs] = useState(BOXEURS_INIT);
+  const [boxeurs, setBoxeurs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [boxeurToEdit, setBoxeurToEdit] = useState(null);
 
+  React.useEffect(() => {
+    fetchBoxeurs();
+  }, []);
+
+  const fetchBoxeurs = async () => {
+    try {
+      const auth = getAuth();
+      const idToken = await auth.currentUser.getIdToken();
+
+      const response = await fetch(
+        'https://europe-west9-hitting-23de9.cloudfunctions.net/getBoxeurs',
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+
+      const data = await response.json();
+      console.log('📦 Boxeurs:', JSON.stringify(data));
+
+      if (data.success) {
+        const mapped = data.boxeurs.map(b => ({
+          id: b.id,
+          nom: `${b.prenom} ${b.nom}`,
+          sexe: b.sexe === 'Femme' ? 'F' : 'H',
+          categorie: b.categorie || '',
+          poids: b.categoriePoids || '',
+          kg: b.poids ? `${b.poids} kg` : '—',
+          vic: b.vic || 0,
+          def: b.def || 0,
+          nuls: b.nuls || 0,
+          ko: b.ko || 0,
+          avatar: b.photo || (b.sexe === 'Femme'
+            ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face'
+            : 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face'),
+        }));
+        setBoxeurs(mapped);
+      }
+    } catch (error) {
+      console.error('❌ Erreur fetchBoxeurs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredBoxeurs = boxeurs.filter((b) => b.nom.toLowerCase().includes(search.toLowerCase()));
-  const handleAddBoxeur = (newBoxeur) => setBoxeurs((prev) => [newBoxeur, ...prev]);
+  const handleAddBoxeur = (newBoxeur) => {
+    setBoxeurs((prev) => [newBoxeur, ...prev]);
+  };
   const handleEditBoxeur = (boxer) => { setBoxeurToEdit(boxer); setEditSheetVisible(true); };
   const handleSaveBoxeur = (updatedBoxeur) => { setBoxeurs((prev) => prev.map((b) => (b.id === updatedBoxeur.id ? updatedBoxeur : b))); };
+
+  if (loading) {
+    return (
+      <View style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#E53935" />
+      </View>
+    );
+  }
+
 
   return (
     <View style={s.container}>
