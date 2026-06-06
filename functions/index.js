@@ -201,3 +201,72 @@ exports.addBoxeurEnAttente = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
+
+// ===== CLOUD FUNCTION v2: getCoachProfile =====
+exports.getCoachProfile = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  try {
+    // Extraction plus robuste du token
+    const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
+    console.log('📥 Auth header reçu:', authHeader ? `${authHeader.substring(0, 20)}...` : 'VIDE');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('❌ Header Authorization manquant ou mal formé');
+      return res.status(401).json({ success: false, error: 'Token manquant' });
+    }
+
+    const token = authHeader.split('Bearer ')[1].trim();
+    console.log('🔑 Token extrait, longueur:', token.length);
+
+    const decoded = await admin.auth().verifyIdToken(token);
+    const uid = decoded.uid;
+    console.log('✅ UID décodé:', uid);
+
+    // Récupération du airtableRecordId depuis Firestore
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) {
+      return res.status(404).json({ success: false, error: 'Coach non trouvé dans Firestore' });
+    }
+
+    const airtableRecordId = coachDoc.data().airtableRecordId;
+    console.log('📋 airtableRecordId:', airtableRecordId);
+    
+    if (!airtableRecordId) {
+      return res.status(404).json({ success: false, error: 'airtableRecordId manquant' });
+    }
+
+    const apiKey = process.env.AIRTABLE_API_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID;
+
+    const response = await axios.get(
+      `https://api.airtable.com/v0/${baseId}/Coach/${airtableRecordId}`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+
+    const f = response.data.fields || {};
+
+    const profile = {
+      nom: f['Nom'] || '',
+      prenom: f['Prénom'] || '',
+      telephone: f['Téléphone'] || '',
+      nomClub: f['Nom du club (from Club 2)'] ? f['Nom du club (from Club 2)'][0] : '',
+      adresse: f['Adresse (from Club 2)'] ? f['Adresse (from Club 2)'][0] : '',
+      affiliation: f['Numéro d\'affiliation'] || '',
+    };
+
+    console.log('✅ Profil récupéré:', JSON.stringify(profile));
+    return res.status(200).json({ success: true, profile });
+
+  } catch (error) {
+    console.error('❌ Erreur getCoachProfile:', error.response ? error.response.data : error.message);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});

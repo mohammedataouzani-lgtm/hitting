@@ -145,3 +145,35 @@ return { success: false, clubs: [] };
     return { success: false, clubs: [] };
   }
 };
+export const getCoachProfile = async () => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.error('❌ Aucun utilisateur connecté');
+      return { success: false, error: 'Non connecté' };
+    }
+
+    // Force le refresh du token
+    const token = await currentUser.getIdToken(true);
+    console.log('🔑 Token récupéré, longueur:', token.length);
+
+    const response = await fetch(
+      'https://europe-west9-hitting-23de9.cloudfunctions.net/getCoachProfile',
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const data = await response.json();
+    console.log('📦 Réponse getCoachProfile:', data);
+    return data;
+
+  } catch (error) {
+    console.error('❌ Erreur getCoachProfile:', error.message);
+    return { success: false, error: error.message };
+  }
+};

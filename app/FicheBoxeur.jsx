@@ -19,7 +19,7 @@ const MOCK_COMBATS = [
     date: '14 mar. 25',
     club: 'Boxing Paris 15',
     resultat: 'N',       // N = Nul, V = Victoire, D = Défaite
-    detail: 'Par points',
+    detail: 'Par points', // ne pas mettre de points  
     ville: 'Paris',
   },
   {

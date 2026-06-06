@@ -20,24 +20,9 @@ import ProfilScreen from './app/ProfilScreen';
 const Stack = createNativeStackNavigator();
 
 function NavigationLayout() {
-  const { userToken, setUserToken } = useAuth(); // On récupère le token global
-  const [isLoading, setIsLoading] = useState(true);
+  const { userToken, loadingAuth } = useAuth();
 
-  useEffect(() => {
-    const checkLoginStatus = async () => {
-      try {
-        const token = await SecureStore.getItemAsync('userToken');
-        setUserToken(token);
-      } catch (e) {
-        console.error("Erreur lecture token", e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    checkLoginStatus();
-  }, []);
-
-  if (isLoading) {
+  if (loadingAuth) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
         <ActivityIndicator size="large" color="#000" />
