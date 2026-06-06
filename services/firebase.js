@@ -189,3 +189,26 @@ export const updateAvatar = async (uid, imageUri) => {
     return { success: false, error: error.message };
   }
 };
+
+// Suppression du compte coach
+export const deleteCoachAccount = async () => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return { success: false, error: 'Non connecté' };
+    const token = await currentUser.getIdToken(true);
+    const response = await fetch(
+      'https://europe-west9-hitting-23de9.cloudfunctions.net/deleteCoachAccount',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};

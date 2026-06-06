@@ -13,10 +13,10 @@ import {
   TextInput,
 } from 'react-native';
 import { useAuth } from '../AuthContext';
-import { getCoachProfile, updateTelephone, updateCoachEmail, updateAvatar } from '../services/firebase';
 import BottomTabBar from './components/BottomTabBar';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
+import { getCoachProfile, updateTelephone, updateCoachEmail, updateAvatar, deleteCoachAccount } from '../services/firebase';
 
 const { width } = Dimensions.get('window');
 
@@ -285,13 +285,32 @@ export default function ProfilScreen({ navigation }) {
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={[styles.infoItem, styles.clickableItem]}
-          >
-            <Text style={styles.infoLabel}>Changer de mot de passe</Text>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
+         <TouchableOpacity
+  activeOpacity={0.7}
+  style={[styles.infoItem, styles.clickableItem]}
+  onPress={() => {
+    Alert.alert(
+      'Supprimer mon compte',
+      'Cette action est irréversible. Tous vos données et boxeurs associés seront supprimés.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await deleteCoachAccount();
+            if (!result.success) {
+              Alert.alert('Erreur', result.error);
+            }
+          }
+        }
+      ]
+    );
+  }}
+>
+  <Text style={[styles.infoLabel, { color: '#FF3B30' }]}>Supprimer mon compte</Text>
+  <Text style={styles.chevron}>›</Text>
+</TouchableOpacity>
         </View>
 
         <TouchableOpacity

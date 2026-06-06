@@ -272,3 +272,88 @@ const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
     return res.status(500).json({ success: false, error: error.message });
   }
 });
+// ===== CLOUD FUNCTION v2: deleteCoachAccount =====
+exports.deleteCoachAccount = onRequest({
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'DELETE, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  try {
+    const authHeader = req.headers['authorization'] || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'Token manquant' });
+    }
+
+    const token = authHeader.split('Bearer ')[1].trim();
+    const decoded = await admin.auth().verifyIdToken(token);
+    const uid = decoded.uid;
+    console.log('🗑️ Suppression compte pour UID:', uid);
+
+    // 1. Récupérer les IDs Airtable depuis Firestore
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) {
+      return res.status(404).json({ success: false, error: 'Coach introuvable' });
+    }
+
+    const apiKey = process.env.AIRTABLE_SECRET_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
+    const airtableCoachId = coachDoc.data().airtableRecordId;
+
+    // 2. Supprimer les boxeurs liés dans Airtable
+    if (airtableCoachId) {
+      try {
+        // Chercher les boxeurs liés à ce coach
+        const boxeursResponse = await axios.get(
+          `https://api.airtable.com/v0/${baseId}/Boxeurs en attente`,
+          {
+            headers: { Authorization: `Bearer ${apiKey}` },
+            params: {
+              filterByFormula: `FIND("${airtableCoachId}", ARRAYJOIN({Liaison vers Coach}))`
+            }
+          }
+        );
+
+        const boxeurs = boxeursResponse.data.records || [];
+        console.log(`🥊 ${boxeurs.length} boxeurs à supprimer`);
+
+        // Supprimer chaque boxeur
+        for (const boxeur of boxeurs) {
+          await axios.delete(
+            `https://api.airtable.com/v0/${baseId}/Boxeurs en attente/${boxeur.id}`,
+            { headers: { Authorization: `Bearer ${apiKey}` } }
+          );
+        }
+
+        // 3. Supprimer le coach dans Airtable
+        await axios.delete(
+          `https://api.airtable.com/v0/${baseId}/Coach/${airtableCoachId}`,
+          { headers: { Authorization: `Bearer ${apiKey}` } }
+        );
+        console.log('✅ Coach supprimé dans Airtable');
+      } catch (airtableError) {
+        console.error('❌ Erreur suppression Airtable:', airtableError.message);
+      }
+    }
+
+    // 4. Supprimer le document Firestore
+    await admin.firestore().doc(`coaches/${uid}`).delete();
+    console.log('✅ Document Firestore supprimé');
+
+    // 5. Supprimer le compte Firebase Auth
+    await admin.auth().deleteUser(uid);
+    console.log('✅ Compte Firebase Auth supprimé');
+
+    return res.status(200).json({ success: true });
+
+  } catch (error) {
+    console.error('❌ Erreur deleteCoachAccount:', error.message);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
