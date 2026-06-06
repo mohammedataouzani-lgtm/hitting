@@ -103,7 +103,7 @@ const coach = snapshot.data();
       await AsyncStorage.setItem("clubName", coach.clubName || "Votre club");
 
       // Sauvegarde sécurisée et switch de navigation vers le Dashboard
-      await login(user.uid);
+      navigation.replace("Dashboard");
 
     } catch (error) {
       console.error("Erreur:", error);
