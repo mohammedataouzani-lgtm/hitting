@@ -203,10 +203,12 @@ exports.addBoxeurEnAttente = onRequest({
 });
 
 // ===== CLOUD FUNCTION v2: getCoachProfile =====
-exports.getCoachProfile = onRequest(async (req, res) => {
+exports.getCoachProfile = onRequest({
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization'); 
 
   if (req.method === 'OPTIONS') {
     res.status(204).send('');
@@ -243,8 +245,8 @@ exports.getCoachProfile = onRequest(async (req, res) => {
       return res.status(404).json({ success: false, error: 'airtableRecordId manquant' });
     }
 
-    const apiKey = process.env.AIRTABLE_API_KEY;
-    const baseId = process.env.AIRTABLE_BASE_ID;
+   const apiKey = process.env.AIRTABLE_SECRET_KEY;        // ✅
+const baseId = process.env.AIRTABLE_BASE_ID_SECURE;  
 
     const response = await axios.get(
       `https://api.airtable.com/v0/${baseId}/Coach/${airtableRecordId}`,
