@@ -17,13 +17,19 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
+  // ← AJOUT : met à jour user immédiatement après login
+  const login = (firebaseUser) => {
+    setUser(firebaseUser);
+  };
+
   const logout = async () => {
     const { logout: firebaseLogout } = await import('../services/firebase');
     await firebaseLogout();
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loadingAuth, logout }}>
+    <AuthContext.Provider value={{ user, loadingAuth, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

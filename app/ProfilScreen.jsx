@@ -12,7 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { getCoachProfile } from '../firebase';
+import { getCoachProfile } from '../services/firebase';
 import BottomTabBar from './components/BottomTabBar';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -142,13 +142,35 @@ export default function ProfilScreen({ navigation }) {
     fetchProfile();
   }, [user]);
 
-  if (loadingAuth) {
-    return (
-      <View style={styles.container}>
-        <Text>Chargement...</Text>
-      </View>
-    );
+  React.useEffect(() => {
+  if (loadingAuth) return; // ← attendre que Firebase soit prêt
+  
+  if (!user) {
+    console.log('❌ Pas de user dans useEffect');
+    return;
   }
+  
+  console.log('✅ User trouvé:', user.uid, user.email);
+
+  const fetchProfile = async () => {
+    try {
+      console.log('🔄 Appel getCoachProfile...');
+      const data = await getCoachProfile();
+      console.log('📦 Réponse complète:', JSON.stringify(data));
+      if (data.success) {
+        setProfile(data.profile);
+      } else {
+        console.log('❌ Erreur data:', data.error);
+      }
+    } catch (error) {
+      console.error('❌ Erreur fetchProfile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchProfile();
+}, [user, loadingAuth]); // ← ajouter loadingAuth dans les dépendances
 
   return (
     <View style={styles.container}>
