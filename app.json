@@ -42,7 +42,8 @@
       ],
       "expo-asset",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
     ],
     "scheme": "hitting",
     "extra": {

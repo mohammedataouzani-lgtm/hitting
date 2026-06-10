@@ -224,23 +224,39 @@ exports.updateBoxeur = onRequest({
   }
 });
 
+
 // ===== CLOUD FUNCTION v2: addEvenement =====
 exports.addEvenement = onRequest({
   region: "europe-west9",
   secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
 }, async (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
-  if (req.method === "OPTIONS") { res.set("Access-Control-Allow-Methods", "POST"); res.set("Access-Control-Allow-Headers", "Content-Type, Authorization"); return res.status(204).send(""); }
+  if (req.method === "OPTIONS") { 
+    res.set("Access-Control-Allow-Methods", "POST"); 
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization"); 
+    return res.status(204).send(""); 
+  }
+
   const authorizationHeader = req.headers.authorization;
   if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) return res.status(401).json({ error: "Non autorisé" });
+  
   try {
     const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
     const firebaseUID = decoded.uid;
 
-    const { titre, dateHeure, adresse, prix, contact, photoUrl } = req.body;
+  
+    const data = req.body.fields || req.body;
+
+    // On récupère les valeurs avec un fallback (au cas où les clés varient)
+    const titre = data["Nom événement"] || data.titre;
+    const dateHeure = data["Date et heure"] || data.dateHeure;
+    const adresse = data["Adresse"] || data.adresse || data.salle;
+    const prix = data["Prix d'entrée"] || data.prix;
+   const contact = data["Contact"] || data.contact;
+    const photoUrl = data["Photo du gala"] || data.photoUrl;
+
     if (!titre) return res.status(400).json({ error: "Le titre est obligatoire" });
 
-    // Récupérer le clubId du coach connecté
     const coachDoc = await admin.firestore().doc(`coaches/${firebaseUID}`).get();
     const clubId = coachDoc.exists ? coachDoc.data()?.clubId : null;
 
@@ -253,17 +269,10 @@ exports.addEvenement = onRequest({
       "Statut": "A venir",
     };
 
-    // Format date pour Airtable : "YYYY-MM-DDTHH:mm:ss.000Z"
     if (dateHeure) {
-      try {
-        const d = new Date(dateHeure);
-        if (!isNaN(d.getTime())) {
-          // Format attendu par Airtable pour les champs date/heure
-          const pad = n => String(n).padStart(2, '0');
-          fields["Date et heure"] = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00.000Z`;
-        }
-      } catch(e) {
-        console.warn("⚠️ Format date invalide:", dateHeure);
+      const d = new Date(dateHeure);
+      if (!isNaN(d.getTime())) {
+        fields["Date et heure"] = d.toISOString();
       }
     }
 
@@ -271,13 +280,11 @@ exports.addEvenement = onRequest({
     if (prix && !isNaN(parseFloat(prix))) fields["Prix d'entrée"] = parseFloat(prix);
     if (photoUrl) fields["Photo du gala"] = [{ url: photoUrl }];
 
-    console.log("📤 Champs envoyés:", JSON.stringify(fields));
-
     const record = await base("Événements").create(fields);
     return res.status(200).json({ success: true, id: record.id });
 
   } catch (error) {
-    console.error("❌ Erreur addEvenement:", error.response ? JSON.stringify(error.response.data) : error.message);
+    console.error("❌ Erreur addEvenement:", error);
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
