@@ -16,13 +16,23 @@ import {
   ScrollView,
   Dimensions,
   Image,
+  Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   loginWithEmail,
   loginWithGoogleCredential,
 } from "../../services/firebase";
-import { doc, getDoc, getFirestore } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  getFirestore,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { getAuth, sendPasswordResetEmail } from "firebase/auth";
 
 const { width } = Dimensions.get("window");
 
@@ -36,17 +46,28 @@ export default function LoginScreen({ navigation }) {
   const [activeSlide, setActiveSlide] = useState(0);
   const scrollViewRef = useRef(null);
 
+  // --- Mot de passe oublié ---
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+
+  // --- Identifiant oublié ---
+  const [showForgotEmail, setShowForgotEmail] = useState(false);
+  const [searchPrenom, setSearchPrenom] = useState("");
+  const [searchNom, setSearchNom] = useState("");
+  const [searchTel, setSearchTel] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+
   // Configuration Google Sign-In
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId:
       "380253921077-qoule85g3a3ivi7au1c2jv0r94jqneuh.apps.googleusercontent.com",
     androidClientId:
-      "380253921077-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.apps.googleusercontent.com", 
+      "380253921077-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.apps.googleusercontent.com",
     webClientId:
       "380253921077-u6bro404ui016onmskqi3fjjv2r5t835.apps.googleusercontent.com",
   });
 
-  // Gérer la réponse Google
   useEffect(() => {
     if (response?.type === "success") {
       const { id_token } = response.params;
@@ -54,57 +75,46 @@ export default function LoginScreen({ navigation }) {
     }
   }, [response]);
 
-  // Images du carrousel
   const carouselImages = [
     "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800",
     "https://images.unsplash.com/photo-1561677843-39dee7a319ca?w=800",
     "https://images.unsplash.com/photo-1587411768941-671226e4a152?w=800",
   ];
 
-  // VERSION UNIQUE DE HANDLELOGIN
+  // ─────────────────────────────────────────────
+  // LOGIN EMAIL
+  // ─────────────────────────────────────────────
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Erreur", "Veuillez remplir tous les champs");
       return;
     }
-
     setLoading(true);
-
     try {
       const firebaseResult = await loginWithEmail(email, password);
-
       if (!firebaseResult.success) {
         Alert.alert("Erreur", "Email ou mot de passe incorrect");
         setLoading(false);
         return;
       }
-
       const { user } = firebaseResult;
-
-// ✅ Lecture directe par UID au lieu d'une query sur toute la collection
-const db = getFirestore();
-const docRef = doc(db, 'coaches', user.uid);
-const snapshot = await getDoc(docRef);
-
-if (!snapshot.exists()) {
-  Alert.alert("Accès refusé", "Votre profil n'a pas été trouvé.");
-  setLoading(false);
-  return;
-}
-
-const coach = snapshot.data();
-
-      // Sauvegardes existantes
-      await AsyncStorage.setItem("coachId", user.uid); 
+      const db = getFirestore();
+      const docRef = doc(db, "coaches", user.uid);
+      const snapshot = await getDoc(docRef);
+      if (!snapshot.exists()) {
+        Alert.alert("Accès refusé", "Votre profil n'a pas été trouvé.");
+        setLoading(false);
+        return;
+      }
+      const coach = snapshot.data();
+      await AsyncStorage.setItem("coachId", user.uid);
       await AsyncStorage.setItem("coachEmail", email);
       await AsyncStorage.setItem("firebaseUID", user.uid);
       await AsyncStorage.setItem("coachPrenom", coach.prenom || "Coach");
       await AsyncStorage.setItem("clubId", coach.clubId || "");
       await AsyncStorage.setItem("clubName", coach.clubName || "Votre club");
-
-      // Sauvegarde sécurisée et switch de navigation vers le Dashboard
-    login(user);
-navigation.replace("Dashboard");
+      login(user);
+      navigation.replace("Dashboard");
     } catch (error) {
       console.error("Erreur:", error);
       Alert.alert("Erreur", "Une erreur est survenue.");
@@ -113,43 +123,36 @@ navigation.replace("Dashboard");
     }
   };
 
-  // VERSION UNIQUE DE HANDLEGOOGLELOGIN
+  // ─────────────────────────────────────────────
+  // LOGIN GOOGLE
+  // ─────────────────────────────────────────────
   const handleGoogleLogin = async (idToken) => {
     setLoading(true);
     try {
       const result = await loginWithGoogleCredential(idToken);
-
       if (!result.success) {
         Alert.alert("Erreur", "Connexion Google échouée");
         setLoading(false);
         return;
       }
-
       const { user } = result;
       const db = getFirestore();
       const coachesRef = collection(db, "coaches");
       const q = query(coachesRef, where("firebaseUID", "==", user.uid));
       const snapshot = await getDocs(q);
-
       if (snapshot.empty) {
         Alert.alert("Accès refusé", "Votre profil n'a pas été trouvé.");
         setLoading(false);
         return;
       }
-
       const coach = snapshot.docs[0].data();
-
-      // Sauvegardes existantes
       await AsyncStorage.setItem("coachId", snapshot.docs[0].id);
       await AsyncStorage.setItem("coachEmail", user.email);
       await AsyncStorage.setItem("firebaseUID", user.uid);
       await AsyncStorage.setItem("coachPrenom", coach.prenom || "Coach");
       await AsyncStorage.setItem("clubId", coach.clubId || "");
       await AsyncStorage.setItem("clubName", coach.clubName || "Votre club");
-
-      // Connexion via le contexte global
       await login(user.uid);
-
     } catch (error) {
       console.error("Erreur Google:", error);
       Alert.alert("Erreur", "Une erreur est survenue");
@@ -158,11 +161,107 @@ navigation.replace("Dashboard");
     }
   };
 
+  // ─────────────────────────────────────────────
+  // MOT DE PASSE OUBLIÉ
+  // ─────────────────────────────────────────────
+  const handleForgotPassword = async () => {
+    if (!resetEmail.trim()) {
+      Alert.alert("Erreur", "Veuillez saisir votre adresse email.");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const auth = getAuth();
+      await sendPasswordResetEmail(auth, resetEmail.trim());
+      Alert.alert(
+        "Email envoyé",
+        "Un lien de réinitialisation a été envoyé à " + resetEmail.trim(),
+        [{ text: "OK", onPress: () => { setShowForgotPassword(false); setResetEmail(""); } }]
+      );
+    } catch (error) {
+      console.error("Reset password error:", error);
+      if (error.code === "auth/user-not-found") {
+        Alert.alert("Erreur", "Aucun compte associé à cet email.");
+      } else if (error.code === "auth/invalid-email") {
+        Alert.alert("Erreur", "Adresse email invalide.");
+      } else {
+        Alert.alert("Erreur", "Une erreur est survenue. Réessayez.");
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // IDENTIFIANT OUBLIÉ
+  // ─────────────────────────────────────────────
+  const handleForgotEmail = async () => {
+    if (!searchPrenom.trim() || !searchNom.trim() || !searchTel.trim()) {
+      Alert.alert("Erreur", "Veuillez remplir tous les champs.");
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const db = getFirestore();
+      const coachesRef = collection(db, "coaches");
+
+      // Recherche par prénom + nom + téléphone
+      const q = query(
+        coachesRef,
+        where("prenom", "==", searchPrenom.trim()),
+        where("nom", "==", searchNom.trim()),
+        where("telephone", "==", searchTel.trim())
+      );
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        Alert.alert(
+          "Introuvable",
+          "Aucun compte trouvé avec ces informations. Vérifiez vos données ou contactez le support."
+        );
+      } else {
+        const coach = snapshot.docs[0].data();
+        const foundEmail = coach.email || coach.coachEmail || "";
+        // On masque partiellement l'email : was***@gmail.com
+        const maskedEmail = maskEmail(foundEmail);
+        Alert.alert(
+          "Compte trouvé",
+          `Votre identifiant est : ${maskedEmail}\n\nUn email de confirmation a été envoyé à cette adresse.`,
+          [{ text: "OK", onPress: () => { setShowForgotEmail(false); resetForgotEmailForm(); } }]
+        );
+        // Envoyer un email de rappel
+        const auth = getAuth();
+        await sendPasswordResetEmail(auth, foundEmail);
+      }
+    } catch (error) {
+      console.error("Forgot email error:", error);
+      Alert.alert("Erreur", "Une erreur est survenue. Réessayez.");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const maskEmail = (email) => {
+    if (!email || !email.includes("@")) return email;
+    const [local, domain] = email.split("@");
+    const visible = local.slice(0, 3);
+    return `${visible}${"*".repeat(Math.max(local.length - 3, 2))}@${domain}`;
+  };
+
+  const resetForgotEmailForm = () => {
+    setSearchPrenom("");
+    setSearchNom("");
+    setSearchTel("");
+  };
+
   const handleScroll = (event) => {
     const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
     setActiveSlide(slideIndex);
   };
 
+  // ─────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -172,7 +271,7 @@ navigation.replace("Dashboard");
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Carrousel d'images */}
+        {/* Carrousel */}
         <View style={styles.carouselContainer}>
           <ScrollView
             ref={scrollViewRef}
@@ -184,34 +283,25 @@ navigation.replace("Dashboard");
           >
             {carouselImages.map((imageUrl, index) => (
               <View key={index} style={styles.slide}>
-                <Image
-                  source={{ uri: imageUrl }}
-                  style={styles.carouselImage}
-                />
+                <Image source={{ uri: imageUrl }} style={styles.carouselImage} />
               </View>
             ))}
           </ScrollView>
-
-          {/* Indicateurs de pagination */}
           <View style={styles.pagination}>
             {carouselImages.map((_, index) => (
               <View
                 key={index}
-                style={[
-                  styles.paginationDot,
-                  index === activeSlide && styles.paginationDotActive,
-                ]}
+                style={[styles.paginationDot, index === activeSlide && styles.paginationDotActive]}
               />
             ))}
           </View>
         </View>
 
-        {/* Contenu du formulaire */}
+        {/* Formulaire */}
         <View style={styles.content}>
           <Text style={styles.title}>Bienvenue sur Hitting</Text>
-
-          {/* Champs du formulaire */}
           <View style={styles.form}>
+
             <TextInput
               style={styles.input}
               placeholder="Adresse email"
@@ -233,12 +323,17 @@ navigation.replace("Dashboard");
               editable={!loading}
             />
 
-            {/* Bouton de connexion */}
+            {/* Mot de passe oublié */}
             <TouchableOpacity
-              style={[
-                styles.loginButton,
-                loading && styles.loginButtonDisabled,
-              ]}
+              style={styles.forgotPasswordLink}
+              onPress={() => setShowForgotPassword(true)}
+            >
+              <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
+            </TouchableOpacity>
+
+            {/* Bouton connexion */}
+            <TouchableOpacity
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={loading}
             >
@@ -249,17 +344,15 @@ navigation.replace("Dashboard");
               )}
             </TouchableOpacity>
 
-            {/* Divider "ou" */}
+            {/* Divider */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>ou</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Texte "Se connecter avec" */}
             <Text style={styles.socialTitle}>Se connecter avec</Text>
 
-            {/* Boutons sociaux */}
             <View style={styles.socialButtons}>
               <TouchableOpacity
                 style={styles.socialButton}
@@ -284,10 +377,132 @@ navigation.replace("Dashboard");
                   <Text style={styles.footerLink}>créer ici</Text>
                 </Text>
               </TouchableOpacity>
+
+              {/* Identifiant oublié */}
+              <TouchableOpacity
+                style={styles.forgotEmailLinkWrapper}
+                onPress={() => setShowForgotEmail(true)}
+              >
+                <Text style={styles.footerText}>
+                  <Text style={styles.footerLink}>Identifiant oublié ?</Text>
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
       </ScrollView>
+
+      {/* ─── MODAL : Mot de passe oublié ─── */}
+      <Modal
+        visible={showForgotPassword}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowForgotPassword(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Mot de passe oublié</Text>
+            <Text style={styles.modalSubtitle}>
+              Saisissez votre email, on vous envoie un lien de réinitialisation.
+            </Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Votre adresse email"
+              placeholderTextColor="#999"
+              value={resetEmail}
+              onChangeText={setResetEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!resetLoading}
+            />
+
+            <TouchableOpacity
+              style={[styles.loginButton, resetLoading && styles.loginButtonDisabled]}
+              onPress={handleForgotPassword}
+              disabled={resetLoading}
+            >
+              {resetLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.loginButtonText}>Envoyer le lien</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => { setShowForgotPassword(false); setResetEmail(""); }}
+            >
+              <Text style={styles.modalCancelText}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── MODAL : Identifiant oublié ─── */}
+      <Modal
+        visible={showForgotEmail}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowForgotEmail(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Identifiant oublié</Text>
+            <Text style={styles.modalSubtitle}>
+              Renseignez vos informations pour retrouver votre compte.
+            </Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Prénom"
+              placeholderTextColor="#999"
+              value={searchPrenom}
+              onChangeText={setSearchPrenom}
+              autoCapitalize="words"
+              editable={!searchLoading}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Nom"
+              placeholderTextColor="#999"
+              value={searchNom}
+              onChangeText={setSearchNom}
+              autoCapitalize="words"
+              editable={!searchLoading}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Numéro de téléphone"
+              placeholderTextColor="#999"
+              value={searchTel}
+              onChangeText={setSearchTel}
+              keyboardType="phone-pad"
+              editable={!searchLoading}
+            />
+
+            <TouchableOpacity
+              style={[styles.loginButton, searchLoading && styles.loginButtonDisabled]}
+              onPress={handleForgotEmail}
+              disabled={searchLoading}
+            >
+              {searchLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.loginButtonText}>Retrouver mon compte</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => { setShowForgotEmail(false); resetForgotEmailForm(); }}
+            >
+              <Text style={styles.modalCancelText}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </KeyboardAvoidingView>
   );
 }
@@ -305,6 +520,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: "bold", textAlign: "center", color: "#000", marginBottom: 24 },
   form: { width: "100%" },
   input: { backgroundColor: "#fff", borderRadius: 8, padding: 16, fontSize: 16, marginBottom: 16, borderWidth: 1, borderColor: "#ddd", color: "#000" },
+  forgotPasswordLink: { alignSelf: "flex-end", marginTop: -8, marginBottom: 16 },
+  forgotPasswordText: { color: "#d32f2f", fontSize: 13, fontWeight: "500" },
   loginButton: { backgroundColor: "#d32f2f", borderRadius: 8, padding: 16, alignItems: "center", marginBottom: 20, borderWidth: 2, borderColor: "#d32f2f" },
   loginButtonDisabled: { opacity: 0.6 },
   loginButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
@@ -315,8 +532,17 @@ const styles = StyleSheet.create({
   socialButtons: { flexDirection: "row", justifyContent: "center", gap: 16 },
   socialButton: { width: 56, height: 56, borderRadius: 8, backgroundColor: "#f0f0f0", alignItems: "center", justifyContent: "center" },
   socialIcon: { fontSize: 24, fontWeight: "bold", color: "#666" },
-  footer: { marginTop: 24, alignItems: "center" },
+  socialButtonDisabled: { opacity: 0.3 },
+  footer: { marginTop: 24, alignItems: "center", gap: 12 },
   footerText: { fontSize: 14, color: "#666" },
   footerLink: { color: "#007AFF", fontWeight: "600" },
-  socialButtonDisabled: { opacity: 0.3 },
+  forgotEmailLinkWrapper: { marginTop: 4 },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalContainer: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modalTitle: { fontSize: 20, fontWeight: "bold", color: "#000", marginBottom: 8 },
+  modalSubtitle: { fontSize: 14, color: "#666", marginBottom: 24, lineHeight: 20 },
+  modalCancelButton: { marginTop: 8, alignItems: "center", padding: 12 },
+  modalCancelText: { color: "#666", fontSize: 15 },
 });
