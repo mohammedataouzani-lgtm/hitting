@@ -179,7 +179,8 @@ function AddEventSheet({ visible, onClose, onAdd }) {
   const [prix, setPrix] = useState('');
   const [description, setDescription] = useState('');
   const [affiche, setAffiche] = useState(PRESET_IMAGES[0].url);
-  const [loading, setLoading] = useState(false); // ✅ état loading
+  const [loading, setLoading] = useState(false);
+  const [contact, setContact] = useState('');
 
   const handleSubmit = async () => {
     if (!titre || !date || !salle) {
@@ -221,19 +222,16 @@ function AddEventSheet({ visible, onClose, onAdd }) {
             titre,
             dateHeure,
             adresse: salle,
+            club: club || null,
             prix: prix || null,
-            contact: "",
+            contact: contact || "",
             statut: "A venir",
             photoUrl: affiche || null,
           }),
         }
       );
 
-     if (!response.ok) {
-  const responseText = await response.text();
-  console.log('❌ Réponse serveur:', response.status, responseText);
-  throw new Error("Erreur serveur");
-}
+      if (!response.ok) throw new Error("Erreur serveur");
 
       const data = await response.json();
 
@@ -244,6 +242,7 @@ function AddEventSheet({ visible, onClose, onAdd }) {
       // Reset
       setTitre(''); setDate(''); setHeure(''); setSalle('');
       setClub('Boxing Paris 19'); setPrix(''); setDescription('');
+      setContact('');
       setAffiche(PRESET_IMAGES[0].url);
       onClose();
 
@@ -297,6 +296,11 @@ function AddEventSheet({ visible, onClose, onAdd }) {
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>Club Organisateur</Text>
             <TextInput style={styles.input} placeholder="Ex: Boxing Paris 19" placeholderTextColor="#A1A1A6" value={club} onChangeText={setClub} />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Contact</Text>
+            <TextInput style={styles.input} placeholder="Ex: 06 12 34 56 78" placeholderTextColor="#A1A1A6" value={contact} onChangeText={setContact} keyboardType="phone-pad" />
           </View>
 
           <View style={styles.fieldGroup}>
