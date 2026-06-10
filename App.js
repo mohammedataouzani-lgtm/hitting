@@ -10,6 +10,7 @@ import ProfilScreen from './app/ProfilScreen';
 import PaiementScreen from './app/Paiement';
 import FicheBoxeurScreen from './app/FicheBoxeur';
 import EvenementsScreen from './app/Evenements';
+import SplashScreen from './app/SplashScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,9 +19,10 @@ export default function App() {
     <AuthProvider>
       <NavigationContainer>
         <Stack.Navigator
-          initialRouteName="Login"
+          initialRouteName="Splash"
           screenOptions={{ headerShown: false }}
         >
+          <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="Dashboard" component={DashboardScreen} />
