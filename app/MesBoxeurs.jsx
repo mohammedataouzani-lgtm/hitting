@@ -211,7 +211,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
               const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
               if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
               const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+               mediaTypes: ['images'],
                 allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
               });
               if (!result.canceled) setPhotoBoxeur(result.assets[0]);
@@ -279,7 +279,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                 const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
                 if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
                 const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  mediaTypes: ['images'],
                   allowsEditing: true, quality: 0.7, base64: true,
                 });
                 if (!result.canceled) setPhotoLicence(result.assets[0]);

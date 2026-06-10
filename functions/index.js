@@ -386,3 +386,84 @@ return res.status(200).json({ success: true, boxeurs });
     return res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ===== CLOUD FUNCTION v2: updateBoxeur =====
+exports.updateBoxeur = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") {
+    res.set("Access-Control-Allow-Methods", "POST");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    return res.status(204).send("");
+  }
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const firebaseUID = decodedToken.uid;
+
+    const {
+      boxeurId,
+      nom,
+      prenom,
+      victoires,
+      defaites,
+      nuls,
+      ko,
+      photoBoxeurBase64,
+    } = req.body;
+
+    if (!boxeurId) {
+      return res.status(400).json({ error: "boxeurId manquant" });
+    }
+
+    // Upload nouvelle photo si fournie
+    let photoBoxeurUrl = null;
+    if (photoBoxeurBase64) {
+      try {
+        const bucket = admin.storage().bucket();
+        const fileName = `boxeurs/${firebaseUID}_${Date.now()}.jpg`;
+        const file = bucket.file(fileName);
+        await file.save(Buffer.from(photoBoxeurBase64, 'base64'), {
+          metadata: { contentType: 'image/jpeg' }
+        });
+        await file.makePublic();
+        photoBoxeurUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      } catch (photoError) {
+        console.error('❌ Erreur upload photo boxeur:', photoError.message);
+      }
+    }
+
+    // Construire les champs à mettre à jour
+    const fields = {};
+    if (nom !== undefined) fields["Nom du boxeur"] = nom;
+    if (prenom !== undefined) fields["Prénom"] = prenom;
+    if (victoires !== undefined) fields["Victoires "] = parseInt(victoires) || 0;
+    if (defaites !== undefined) fields["Défaites "] = parseInt(defaites) || 0;
+    if (nuls !== undefined) fields["Nuls "] = parseInt(nuls) || 0;
+    if (ko !== undefined) fields["KO "] = parseInt(ko) || 0;
+    if (photoBoxeurUrl) fields["Photo du boxeur"] = [{ url: photoBoxeurUrl }];
+
+    const apiKey = process.env.AIRTABLE_SECRET_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
+
+    await axios.patch(
+      `https://api.airtable.com/v0/${baseId}/Boxeurs/${boxeurId}`,
+      { fields },
+      { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
+    );
+
+    return res.status(200).json({ success: true });
+
+  } catch (error) {
+    console.error("❌ Erreur updateBoxeur:", error.response ? error.response.data : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});

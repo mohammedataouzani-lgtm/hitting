@@ -1,13 +1,14 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { AuthProvider } from './AuthContext'; 
+import { AuthProvider } from './AuthContext';
 import LoginScreen from './app/auth/login.jsx';
 import RegisterScreen from './app/auth/register';
 import DashboardScreen from './app/DashboardScreen';
 import MesBoxeursScreen from './app/MesBoxeurs';
 import ProfilScreen from './app/ProfilScreen';
 import PaiementScreen from './app/Paiement';
+import FicheBoxeurScreen from './app/FicheBoxeur';
 
 const Stack = createNativeStackNavigator();
 
@@ -25,6 +26,7 @@ export default function App() {
           <Stack.Screen name="MesBoxeurs" component={MesBoxeursScreen} />
           <Stack.Screen name="Profil" component={ProfilScreen} />
           <Stack.Screen name="Offres" component={PaiementScreen} />
+          <Stack.Screen name="FicheBoxeur" component={FicheBoxeurScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>
