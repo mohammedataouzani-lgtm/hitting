@@ -183,11 +183,13 @@ function AddEventSheet({ visible, onClose, onAdd }) {
   const [contact, setContact] = useState('');
 
   const handleSubmit = async () => {
+   
     if (!titre || !date || !salle) {
       Alert.alert("Champs manquants", "Veuillez remplir au moins le titre, la date et la salle.");
       return;
     }
-
+ console.log('📅 dateHeure calculée:', dateHeure);
+console.log('📅 date saisie:', date, 'heure saisie:', heure);
     setLoading(true);
     try {
       const auth = getAuth();
