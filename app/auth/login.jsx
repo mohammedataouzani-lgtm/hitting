@@ -54,7 +54,6 @@ export default function LoginScreen({ navigation }) {
   // --- Identifiant oublié ---
   const [showForgotEmail, setShowForgotEmail] = useState(false);
   const [searchPrenom, setSearchPrenom] = useState("");
-  const [searchNom, setSearchNom] = useState("");
   const [searchTel, setSearchTel] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
 
@@ -196,7 +195,7 @@ export default function LoginScreen({ navigation }) {
   // IDENTIFIANT OUBLIÉ
   // ─────────────────────────────────────────────
   const handleForgotEmail = async () => {
-    if (!searchPrenom.trim() || !searchNom.trim() || !searchTel.trim()) {
+    if (!searchPrenom.trim() || !searchTel.trim()) {
       Alert.alert("Erreur", "Veuillez remplir tous les champs.");
       return;
     }
@@ -205,11 +204,10 @@ export default function LoginScreen({ navigation }) {
       const db = getFirestore();
       const coachesRef = collection(db, "coaches");
 
-      // Recherche par prénom + nom + téléphone
+      // Recherche par firstName + lastName + telephone
       const q = query(
         coachesRef,
-        where("prenom", "==", searchPrenom.trim()),
-        where("nom", "==", searchNom.trim()),
+        where("firstName", "==", searchPrenom.trim()),
         where("telephone", "==", searchTel.trim())
       );
       const snapshot = await getDocs(q);
@@ -226,12 +224,9 @@ export default function LoginScreen({ navigation }) {
         const maskedEmail = maskEmail(foundEmail);
         Alert.alert(
           "Compte trouvé",
-          `Votre identifiant est : ${maskedEmail}\n\nUn email de confirmation a été envoyé à cette adresse.`,
+          `Votre identifiant est : ${maskedEmail}\n\nConnectez-vous avec cet email.`,
           [{ text: "OK", onPress: () => { setShowForgotEmail(false); resetForgotEmailForm(); } }]
         );
-        // Envoyer un email de rappel
-        const auth = getAuth();
-        await sendPasswordResetEmail(auth, foundEmail);
       }
     } catch (error) {
       console.error("Forgot email error:", error);
@@ -250,7 +245,6 @@ export default function LoginScreen({ navigation }) {
 
   const resetForgotEmailForm = () => {
     setSearchPrenom("");
-    setSearchNom("");
     setSearchTel("");
   };
 
@@ -396,11 +390,14 @@ export default function LoginScreen({ navigation }) {
       <Modal
         visible={showForgotPassword}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowForgotPassword(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+        <KeyboardAvoidingView
+          style={styles.centeredModalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={styles.centeredModalContainer}>
             <Text style={styles.modalTitle}>Mot de passe oublié</Text>
             <Text style={styles.modalSubtitle}>
               Saisissez votre email, on vous envoie un lien de réinitialisation.
@@ -436,18 +433,21 @@ export default function LoginScreen({ navigation }) {
               <Text style={styles.modalCancelText}>Annuler</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ─── MODAL : Identifiant oublié ─── */}
       <Modal
         visible={showForgotEmail}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowForgotEmail(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+        <KeyboardAvoidingView
+          style={styles.centeredModalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={styles.centeredModalContainer}>
             <Text style={styles.modalTitle}>Identifiant oublié</Text>
             <Text style={styles.modalSubtitle}>
               Renseignez vos informations pour retrouver votre compte.
@@ -459,15 +459,6 @@ export default function LoginScreen({ navigation }) {
               placeholderTextColor="#999"
               value={searchPrenom}
               onChangeText={setSearchPrenom}
-              autoCapitalize="words"
-              editable={!searchLoading}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Nom"
-              placeholderTextColor="#999"
-              value={searchNom}
-              onChangeText={setSearchNom}
               autoCapitalize="words"
               editable={!searchLoading}
             />
@@ -500,7 +491,7 @@ export default function LoginScreen({ navigation }) {
               <Text style={styles.modalCancelText}>Annuler</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
     </KeyboardAvoidingView>
@@ -541,6 +532,8 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   modalContainer: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  centeredModalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", paddingHorizontal: 24 },
+  centeredModalContainer: { backgroundColor: "#fff", borderRadius: 20, padding: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
   modalTitle: { fontSize: 20, fontWeight: "bold", color: "#000", marginBottom: 8 },
   modalSubtitle: { fontSize: 14, color: "#666", marginBottom: 24, lineHeight: 20 },
   modalCancelButton: { marginTop: 8, alignItems: "center", padding: 12 },
