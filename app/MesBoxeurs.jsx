@@ -132,18 +132,11 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             "Authorization": `Bearer ${idToken}`
           },
           body: JSON.stringify({
-            nom,
-            prenom,
-            dateNaissance,
-            sexe,
+            nom, prenom, dateNaissance, sexe,
             categorie: sexe === 'Homme' ? 'Seniors H' : 'Seniors F',
             categoriePoids: categoriePoids || '',
-            poids,
-            niveau,
-            numeroLicence,
-            coachEmail,
-            clubName,
-            clubId,
+            poids, niveau, numeroLicence,
+            coachEmail, clubName, clubId,
             victoires: victoires ? parseInt(victoires) : 0,
             defaites: defaites ? parseInt(defaites) : 0,
             nuls: nuls ? parseInt(nuls) : 0,
@@ -175,7 +168,6 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
       });
 
       handleClose();
-
     } catch (error) {
       console.error("Erreur ajout boxeur:", error);
       Alert.alert("Erreur", "Impossible d'ajouter le boxeur. Veuillez réessayer.");
@@ -195,7 +187,6 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
 
         <Animated.View style={[s.sheet, { transform: [{ translateY: slideAnim }] }]}>
           <View style={s.handleBar} />
-
           <View style={s.sheetHeader}>
             <TouchableOpacity onPress={handleClose} style={s.closeBtn}>
               <Text style={s.closeBtnTxt}>✕</Text>
@@ -205,14 +196,11 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetBody} keyboardShouldPersistTaps="handled">
-
-            {/* Photo du boxeur */}
             <TouchableOpacity style={s.photoBtn} activeOpacity={0.7} onPress={async () => {
               const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
               if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
               const result = await ImagePicker.launchImageLibraryAsync({
-               mediaTypes: ['images'],
-                allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
+                mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
               });
               if (!result.canceled) setPhotoBoxeur(result.assets[0]);
             }}>
@@ -225,9 +213,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* IDENTITÉ */}
             <Text style={s.sectionLabel}>IDENTITÉ</Text>
-
             <View style={s.row}>
               <View style={{ flex: 1 }}>
                 <Text style={s.fieldLabel}>Nom *</Text>
@@ -243,9 +229,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             <Text style={s.fieldLabel}>Date de naissance</Text>
             <View style={s.dateRow}>
               <TextInput
-                style={[s.input, { flex: 1 }]}
-                placeholder="jj/mm/aaaa"
-                placeholderTextColor="#C0C0C0"
+                style={[s.input, { flex: 1 }]} placeholder="jj/mm/aaaa" placeholderTextColor="#C0C0C0"
                 value={dateNaissance}
                 onChangeText={(text) => {
                   const cleaned = text.replace(/\D/g, '');
@@ -254,8 +238,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                   else if (cleaned.length >= 5) formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2,4)}/${cleaned.slice(4,8)}`;
                   setDateNaissance(formatted);
                 }}
-                keyboardType="numeric"
-                maxLength={10}
+                keyboardType="numeric" maxLength={10}
               />
               <TouchableOpacity style={s.calendarBtn}><Text style={s.calendarIcon}>📅</Text></TouchableOpacity>
             </View>
@@ -278,10 +261,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
               onPress={async () => {
                 const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
                 if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
-                const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: ['images'],
-                  allowsEditing: true, quality: 0.7, base64: true,
-                });
+                const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.7, base64: true });
                 if (!result.canceled) setPhotoLicence(result.assets[0]);
               }}
             >
@@ -292,9 +272,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
               )}
             </TouchableOpacity>
 
-            {/* COMPÉTITION */}
             <Text style={s.sectionLabel}>COMPÉTITION</Text>
-
             <Text style={s.fieldLabel}>Niveau *</Text>
             <View style={[s.row, { marginBottom: 20 }]}>
               {NIVEAUX.map((n) => (
@@ -307,9 +285,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             <Text style={s.fieldLabel}>Poids (kg)</Text>
             <TextInput style={[s.input, { marginBottom: 16 }]} placeholder="ex : 75" placeholderTextColor="#C0C0C0" value={poids} onChangeText={setPoids} keyboardType="numeric" />
 
-            {/* PALMARÈS */}
             <Text style={s.sectionLabel}>PALMARÈS</Text>
-
             <View style={s.row}>
               <View style={{ flex: 1 }}>
                 <Text style={s.fieldLabel}>Victoires</Text>
@@ -321,7 +297,6 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                 <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={defaites} onChangeText={setDefaites} keyboardType="numeric" />
               </View>
             </View>
-
             <View style={s.row}>
               <View style={{ flex: 1 }}>
                 <Text style={s.fieldLabel}>Nuls</Text>
@@ -339,7 +314,6 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.submitTxt}>Enregistrer le boxeur</Text>}
               </LinearGradient>
             </TouchableOpacity>
-
             <View style={{ height: 32 }} />
           </ScrollView>
         </Animated.View>
@@ -348,7 +322,10 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
   );
 }
 
-export default function MesBoxeursScreen({ navigation }) {
+// ─────────────────────────────────────────────
+// SCREEN PRINCIPAL
+// ─────────────────────────────────────────────
+export default function MesBoxeursScreen({ navigation, route }) {
   const [search, setSearch] = useState('');
   const [boxeurs, setBoxeurs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -357,6 +334,9 @@ export default function MesBoxeursScreen({ navigation }) {
   const [boxeurToEdit, setBoxeurToEdit] = useState(null);
 
   React.useEffect(() => {
+    if (route.params?.openAddSheet) {
+      setSheetVisible(true);
+    }
     fetchBoxeurs();
   }, []);
 
@@ -364,21 +344,12 @@ export default function MesBoxeursScreen({ navigation }) {
     try {
       const auth = getAuth();
       const idToken = await auth.currentUser.getIdToken();
-
       const response = await fetch(
         'https://europe-west9-hitting-23de9.cloudfunctions.net/getBoxeurs',
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${idToken}`,
-            'Content-Type': 'application/json',
-          }
-        }
+        { method: 'GET', headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'application/json' } }
       );
-
       const data = await response.json();
       console.log('📦 Boxeurs:', JSON.stringify(data));
-
       if (data.success) {
         const mapped = data.boxeurs.map(b => ({
           id: b.id,
@@ -405,9 +376,7 @@ export default function MesBoxeursScreen({ navigation }) {
   };
 
   const filteredBoxeurs = boxeurs.filter((b) => b.nom.toLowerCase().includes(search.toLowerCase()));
-  const handleAddBoxeur = (newBoxeur) => {
-    setBoxeurs((prev) => [newBoxeur, ...prev]);
-  };
+  const handleAddBoxeur = (newBoxeur) => { setBoxeurs((prev) => [newBoxeur, ...prev]); };
   const handleEditBoxeur = (boxer) => { setBoxeurToEdit(boxer); setEditSheetVisible(true); };
   const handleSaveBoxeur = (updatedBoxeur) => { setBoxeurs((prev) => prev.map((b) => (b.id === updatedBoxeur.id ? updatedBoxeur : b))); };
 
@@ -418,7 +387,6 @@ export default function MesBoxeursScreen({ navigation }) {
       </View>
     );
   }
-
 
   return (
     <View style={s.container}>

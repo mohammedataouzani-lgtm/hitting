@@ -9,6 +9,7 @@ import MesBoxeursScreen from './app/MesBoxeurs';
 import ProfilScreen from './app/ProfilScreen';
 import PaiementScreen from './app/Paiement';
 import FicheBoxeurScreen from './app/FicheBoxeur';
+import EvenementsScreen from './app/Evenements';
 
 const Stack = createNativeStackNavigator();
 
@@ -27,6 +28,7 @@ export default function App() {
           <Stack.Screen name="Profil" component={ProfilScreen} />
           <Stack.Screen name="Offres" component={PaiementScreen} />
           <Stack.Screen name="FicheBoxeur" component={FicheBoxeurScreen} />
+          <Stack.Screen name="Evenements" component={EvenementsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

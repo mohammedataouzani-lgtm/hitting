@@ -467,3 +467,63 @@ exports.updateBoxeur = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
+
+// ===== CLOUD FUNCTION v2: addEvenement =====
+exports.addEvenement = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") {
+    res.set("Access-Control-Allow-Methods", "POST");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    return res.status(204).send("");
+  }
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+
+    const { titre, dateHeure, adresse, prix, contact, photoUrl } = req.body;
+
+    if (!titre) {
+      return res.status(400).json({ error: "Le titre est obligatoire" });
+    }
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    const fields = {
+      "Nom événement": titre,
+      "Adresse": adresse || "",
+      "Contact": contact || "",
+      "Statut": "A venir",
+    };
+
+    // Format date : Airtable attend "YYYY-MM-DDTHH:mm:ss.000Z"
+    if (dateHeure) {
+      const d = new Date(dateHeure);
+      if (!isNaN(d.getTime())) {
+        fields["Date et heure"] = d.toISOString();
+      }
+    }
+
+    if (prix && !isNaN(parseFloat(prix))) fields["Prix d'entrée"] = parseFloat(prix);
+    if (photoUrl) fields["Photo du gala"] = [{ url: photoUrl }];
+
+    console.log("📤 Champs envoyés:", JSON.stringify(fields));
+
+    const record = await base("Événements").create(fields);
+
+    return res.status(200).json({ success: true, id: record.id });
+
+  } catch (error) {
+    console.error("❌ Erreur addEvenement:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});
