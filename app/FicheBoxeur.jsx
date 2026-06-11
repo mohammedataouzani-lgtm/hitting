@@ -1,21 +1,8 @@
 import React, { useState, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  Dimensions,
-  Modal,
-  Animated,
-  Platform,
-  Pressable,
-  TextInput,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
+  View, Text, StyleSheet, Image, TouchableOpacity, ScrollView,
+  StatusBar, Dimensions, Modal, Animated, Platform, Pressable,
+  TextInput, Alert, ActivityIndicator, KeyboardAvoidingView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getAuth } from 'firebase/auth';
@@ -25,7 +12,7 @@ const { width, height } = Dimensions.get('window');
 const SHEET_HEIGHT = height * 0.85;
 
 // ─────────────────────────────────────────────
-// EDIT SHEET (Nom, Prénom, Palmarès, Photo)
+// EDIT SHEET
 // ─────────────────────────────────────────────
 function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
   const slideAnim = useRef(new Animated.Value(height)).current;
@@ -81,35 +68,23 @@ function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
   const handleSubmit = async () => {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
-
     setLoading(true);
     try {
       const auth = getAuth();
       const idToken = await auth.currentUser.getIdToken();
-
-      const response = await fetch(
-        'https://europe-west9-hitting-23de9.cloudfunctions.net/updateBoxeur',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            boxeurId: boxer.id,
-            nom,
-            prenom,
-            victoires: victoires ? parseInt(victoires) : 0,
-            defaites: defaites ? parseInt(defaites) : 0,
-            nuls: nuls ? parseInt(nuls) : 0,
-            ko: ko ? parseInt(ko) : 0,
-            photoBoxeurBase64: photoBoxeur ? photoBoxeur.base64 : null,
-          }),
-        }
-      );
-
+      const response = await fetch('https://europe-west9-hitting-23de9.cloudfunctions.net/updateBoxeur', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({
+          boxeurId: boxer.id, nom, prenom,
+          victoires: victoires ? parseInt(victoires) : 0,
+          defaites: defaites ? parseInt(defaites) : 0,
+          nuls: nuls ? parseInt(nuls) : 0,
+          ko: ko ? parseInt(ko) : 0,
+          photoBoxeurBase64: photoBoxeur ? photoBoxeur.base64 : null,
+        }),
+      });
       if (!response.ok) throw new Error('Erreur serveur');
-
       onSave({
         ...boxer,
         nom: `${prenom} ${nom}`,
@@ -119,11 +94,9 @@ function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
         ko: ko ? parseInt(ko) : boxer.ko,
         avatar: photoBoxeur ? photoBoxeur.uri : boxer.avatar,
       });
-
       Alert.alert('✅ Modifié', 'Les informations du boxeur ont été mises à jour.');
       handleClose();
     } catch (error) {
-      console.error('Erreur modification boxeur:', error);
       Alert.alert('Erreur', 'Impossible de modifier le boxeur. Veuillez réessayer.');
     } finally {
       setLoading(false);
@@ -138,10 +111,8 @@ function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
         <Animated.View style={[es.backdrop, { opacity: backdropAnim }]}>
           <Pressable style={{ flex: 1 }} onPress={handleClose} />
         </Animated.View>
-
         <Animated.View style={[es.sheet, { transform: [{ translateY: slideAnim }] }]}>
           <View style={es.handleBar} />
-
           <View style={es.sheetHeader}>
             <TouchableOpacity onPress={handleClose} style={es.closeBtn}>
               <Text style={es.closeBtnTxt}>✕</Text>
@@ -149,20 +120,11 @@ function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
             <Text style={es.sheetTitle}>Modifier le boxeur</Text>
             <View style={{ width: 36 }} />
           </View>
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={es.sheetBody}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Photo */}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={es.sheetBody} keyboardShouldPersistTaps="handled">
             <TouchableOpacity style={es.photoBtn} activeOpacity={0.7} onPress={async () => {
               const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
               if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
-              const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'],
-                allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
-              });
+              const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true });
               if (!result.canceled) setPhotoBoxeur(result.assets[0]);
             }}>
               <LinearGradient colors={['#5C6BC0', '#3949AB']} style={es.photoBtnInner}>
@@ -177,36 +139,20 @@ function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
               <Text style={es.photoHint}>Appuyer pour changer la photo</Text>
             </TouchableOpacity>
 
-            {/* IDENTITÉ */}
             <Text style={es.sectionLabel}>IDENTITÉ</Text>
-
             <View style={es.row}>
               <View style={{ flex: 1 }}>
                 <Text style={es.fieldLabel}>Nom *</Text>
-                <TextInput
-                  style={[es.input, errors.nom && es.inputError]}
-                  placeholder="Dupont"
-                  placeholderTextColor="#C0C0C0"
-                  value={nom}
-                  onChangeText={(v) => { setNom(v); setErrors(p => ({ ...p, nom: false })); }}
-                />
+                <TextInput style={[es.input, errors.nom && es.inputError]} placeholder="Dupont" placeholderTextColor="#C0C0C0" value={nom} onChangeText={(v) => { setNom(v); setErrors(p => ({ ...p, nom: false })); }} />
               </View>
               <View style={{ width: 12 }} />
               <View style={{ flex: 1 }}>
                 <Text style={es.fieldLabel}>Prénom *</Text>
-                <TextInput
-                  style={[es.input, errors.prenom && es.inputError]}
-                  placeholder="Jean"
-                  placeholderTextColor="#C0C0C0"
-                  value={prenom}
-                  onChangeText={(v) => { setPrenom(v); setErrors(p => ({ ...p, prenom: false })); }}
-                />
+                <TextInput style={[es.input, errors.prenom && es.inputError]} placeholder="Jean" placeholderTextColor="#C0C0C0" value={prenom} onChangeText={(v) => { setPrenom(v); setErrors(p => ({ ...p, prenom: false })); }} />
               </View>
             </View>
 
-            {/* PALMARÈS */}
             <Text style={es.sectionLabel}>PALMARÈS</Text>
-
             <View style={es.row}>
               <View style={{ flex: 1 }}>
                 <Text style={es.fieldLabel}>Victoires</Text>
@@ -218,7 +164,6 @@ function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
                 <TextInput style={es.input} placeholder="0" placeholderTextColor="#C0C0C0" value={defaites} onChangeText={setDefaites} keyboardType="numeric" />
               </View>
             </View>
-
             <View style={es.row}>
               <View style={{ flex: 1 }}>
                 <Text style={es.fieldLabel}>Nuls</Text>
@@ -236,7 +181,6 @@ function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={es.submitTxt}>Enregistrer les modifications</Text>}
               </LinearGradient>
             </TouchableOpacity>
-
             <View style={{ height: 32 }} />
           </ScrollView>
         </Animated.View>
@@ -254,7 +198,6 @@ export default function FicheBoxeurScreen({ navigation, route }) {
 
   const isFemme = boxer.sexe === 'F';
   const accentColor = isFemme ? '#E91E63' : '#2196F3';
-
   const totalCombats = (boxer.vic || 0) + (boxer.def || 0) + (boxer.nuls || 0);
   const winRate = totalCombats > 0 ? Math.round(((boxer.vic || 0) / totalCombats) * 100) : 0;
 
@@ -275,15 +218,12 @@ export default function FicheBoxeurScreen({ navigation, route }) {
         <View style={s.hero}>
           <Image source={{ uri: boxer.avatar }} style={s.heroBg} blurRadius={8} />
           <LinearGradient colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.75)']} style={StyleSheet.absoluteFillObject} />
-
           <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
             <Text style={s.backIcon}>←</Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={s.editBtn} onPress={() => setEditVisible(true)}>
             <Text style={s.editIcon}>✏️</Text>
           </TouchableOpacity>
-
           <View style={s.heroContent}>
             <View style={[s.avatarWrapper, { borderColor: accentColor }]}>
               <Image source={{ uri: boxer.avatar }} style={s.avatar} />
@@ -331,6 +271,17 @@ export default function FicheBoxeurScreen({ navigation, route }) {
             ))}
           </View>
         </View>
+
+        {/* BOUTON TROUVER UN ADVERSAIRE */}
+        <TouchableOpacity
+          style={s.adversaireBtn}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('AdversairesPotentiels', { boxer })}
+        >
+          <LinearGradient colors={['#EF5350', '#E53935']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.adversaireBtnGradient}>
+            <Text style={s.adversaireBtnTxt}>🥊  Trouver un adversaire</Text>
+          </LinearGradient>
+        </TouchableOpacity>
 
       </ScrollView>
 
@@ -385,6 +336,11 @@ const s = StyleSheet.create({
   statLabel: { fontSize: 12, color: '#888', fontWeight: '600', marginTop: 2, marginBottom: 8 },
   statBar: { height: 4, borderRadius: 2, overflow: 'hidden' },
   statBarFill: { height: '100%', borderRadius: 2 },
+
+  // Bouton adversaire
+  adversaireBtn: { marginHorizontal: 16, marginTop: 24, borderRadius: 14, overflow: 'hidden', shadowColor: '#E53935', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6 },
+  adversaireBtnGradient: { height: 56, alignItems: 'center', justifyContent: 'center' },
+  adversaireBtnTxt: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
 });
 
 const es = StyleSheet.create({

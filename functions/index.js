@@ -288,3 +288,110 @@ exports.addEvenement = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
+
+// ===== CLOUD FUNCTION v2: getMatchsPossibles =====
+exports.getMatchsPossibles = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
+    const coachEmail = coachDoc.data().email;
+
+    const boxeurId = req.query.boxeurId;
+    if (!boxeurId) return res.status(400).json({ error: "boxeurId manquant" });
+
+    console.log('🔍 Recherche matchs pour boxeurId:', boxeurId, '| coachEmail:', coachEmail);
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    // Récupérer TOUS les records et filtrer manuellement
+    // car FIND sur un champ lien Airtable est peu fiable
+    const allRecords = await base("Matchs possibles").select().all();
+
+    console.log('📦 Total records Matchs possibles:', allRecords.length);
+
+    const matchs = [];
+
+    for (const record of allRecords) {
+      const f = record.fields || {};
+
+      const emailCoach1 = Array.isArray(f["Email coach 1"]) ? f["Email coach 1"][0] : f["Email coach 1"] || "";
+      const emailCoach2 = Array.isArray(f["Email coach 2"]) ? f["Email coach 2"][0] : f["Email coach 2"] || "";
+      const boxeur1Ids = Array.isArray(f["Boxeur 1"]) ? f["Boxeur 1"] : [];
+      const boxeur2Ids = Array.isArray(f["Boxeur 2"]) ? f["Boxeur 2"] : [];
+
+      const isCoach1Match = emailCoach1.toLowerCase() === coachEmail.toLowerCase() && boxeur1Ids.includes(boxeurId);
+      const isCoach2Match = emailCoach2.toLowerCase() === coachEmail.toLowerCase() && boxeur2Ids.includes(boxeurId);
+
+      if (!isCoach1Match && !isCoach2Match) continue;
+
+      const isCoach1 = isCoach1Match;
+
+      // Adversaire = l'autre boxeur
+      const adversaireNom = isCoach1
+        ? (f["Nom et prénom boxeur 2"] || "")
+        : (f["Nom et prénom boxeur 1"] || "");
+
+      const adversaireClubRaw = isCoach1 ? f["club Boxeur 2"] : f["club Boxeur 1"];
+      let adversaireClub = "";
+      if (Array.isArray(adversaireClubRaw)) {
+        adversaireClub = adversaireClubRaw[0] || "";
+      } else if (typeof adversaireClubRaw === 'string') {
+        adversaireClub = adversaireClubRaw;
+      }
+
+      const adversairePhoto = isCoach1
+        ? (f["Photo boxeur 2"] ? f["Photo boxeur 2"][0]?.url : null)
+        : (f["Photo du boxeur"] ? f["Photo du boxeur"][0]?.url : null);
+
+      // Palmarès adversaire (string ou array)
+      const palmaresRaw = isCoach1 ? f["Palmares boxeur 2"] : f["Palmares (from Boxeurs)"];
+      let palmares = null;
+      if (palmaresRaw) {
+        if (typeof palmaresRaw === 'string') {
+          try { palmares = JSON.parse(palmaresRaw); } catch { palmares = null; }
+        } else {
+          palmares = palmaresRaw;
+        }
+      }
+
+      console.log('✅ Match trouvé:', record.id, '| adversaire:', adversaireNom);
+
+      matchs.push({
+        id: record.id,
+        affichageCombat: f["Affichage combat"] || "",
+        adversaireNom,
+        adversaireClub,
+        adversairePhoto,
+        sexe: f["Sexe"] || "",
+        categoriePoids: f["Catégorie de poids"] || "",
+        palmares,
+      });
+    }
+
+    console.log('🎯 Matchs trouvés:', matchs.length);
+
+    return res.status(200).json({ success: true, matchs });
+
+  } catch (error) {
+    console.error("❌ Erreur getMatchsPossibles:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});

@@ -11,6 +11,8 @@ import PaiementScreen from './app/Paiement';
 import FicheBoxeurScreen from './app/FicheBoxeur';
 import EvenementsScreen from './app/Evenements';
 import SplashScreen from './app/SplashScreen';
+import AdversairesPotentielsScreen from './app/AdversairesPotentiels';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -31,6 +33,7 @@ export default function App() {
           <Stack.Screen name="Offres" component={PaiementScreen} />
           <Stack.Screen name="FicheBoxeur" component={FicheBoxeurScreen} />
           <Stack.Screen name="Evenements" component={EvenementsScreen} />
+          <Stack.Screen name="AdversairesPotentiels" component={AdversairesPotentielsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>
