@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Image,
   TextInput, Platform, StatusBar, Dimensions, Animated, PanResponder,
@@ -14,48 +14,6 @@ const BOTTOM_SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.70;
 const SAFE_AREA_TOP = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight ?? 24);
 
 // ─────────────────────────────────────────────
-// DONNÉES MOCK INITIALES
-// ─────────────────────────────────────────────
-const INITIAL_EVENTS = [
-  {
-    id: 'e1',
-    titre: 'Gala de boxe Paris Nord',
-    dateText: '15 fév 2026 - 20h00',
-    jour: '15', mois: 'FEV',
-    salle: 'Salle Carpentier, Paris 13e',
-    club: 'Club Boxing Paris 19',
-    prix: 'A partir de 15€',
-    status: 'A venir',
-    affiche: 'https://images.unsplash.com/photo-1599058918144-1f488e559901?w=800',
-    description: 'Une soirée exceptionnelle réunissant les meilleurs espoirs régionaux.',
-  },
-  {
-    id: 'e2',
-    titre: 'Championnat Île-de-France',
-    dateText: '28 fév 2026 - 18h00',
-    jour: '28', mois: 'FEV',
-    salle: 'Halle Carpentier, Paris 13e',
-    club: 'Ring Olympique Audonien',
-    prix: '15 €',
-    status: 'A venir',
-    affiche: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800',
-    description: 'Les phases finales du championnat régional d\'Île-de-France.',
-  },
-  {
-    id: 'e3',
-    titre: 'Tournoi Sparring Interclubs',
-    dateText: '12 mar 2026 - 14h00',
-    jour: '12', mois: 'MAR',
-    salle: 'Gymnase Joliot Curie, Saint-Denis',
-    club: 'Red Star Boxing Club',
-    prix: 'Gratuit',
-    status: 'A venir',
-    affiche: 'https://images.unsplash.com/photo-1517438476312-10d79c07750d?w=800',
-    description: 'Une après-midi de sparring amical ouverte à tous les clubs affiliés.',
-  },
-];
-
-// ─────────────────────────────────────────────
 // CARTE ÉVÉNEMENT
 // ─────────────────────────────────────────────
 function EventCard({ event, onPress }) {
@@ -68,17 +26,17 @@ function EventCard({ event, onPress }) {
         </View>
         <Text style={styles.calendarIcon}>📅</Text>
         <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>{event.status}</Text>
+          <Text style={styles.statusText}>{event.status || event.statut}</Text>
         </View>
       </View>
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle}>{event.titre}</Text>
-        <Text style={styles.cardSub}>{event.dateText}</Text>
-        <Text style={styles.cardSub}>{event.salle}</Text>
+        <Text style={styles.cardSub}>{event.dateText || event.dateFormatee}</Text>
+        <Text style={styles.cardSub}>{event.salle || event.adresse}</Text>
       </View>
       <View style={styles.divider} />
       <View style={styles.cardFooter}>
-        <Text style={styles.clubName}>{event.club}</Text>
+        <Text style={styles.clubName}>{event.club || ''}</Text>
         <View style={styles.priceBadge}>
           <Text style={styles.priceText}>{event.prix || 'Gratuit'}</Text>
         </View>
@@ -122,15 +80,15 @@ function EventDetailsBottomSheet({ visible, event, onClose }) {
       <Animated.View style={[bs.sheet, { height: BOTTOM_SHEET_MAX_HEIGHT, transform: [{ translateY }] }]} {...panResponder.panHandlers}>
         <View style={bs.handleRow}><View style={bs.handle} /></View>
         <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={bs.scrollContent}>
-          {event.affiche ? <Image source={{ uri: event.affiche }} style={bs.posterImage} /> : null}
+          {(event.affiche || event.photo) ? <Image source={{ uri: event.affiche || event.photo }} style={bs.posterImage} /> : null}
           <View style={bs.detailsContainer}>
             <View style={bs.headerRow}>
-              <View style={bs.statusBadge}><Text style={bs.statusText}>{event.status}</Text></View>
+              <View style={bs.statusBadge}><Text style={bs.statusText}>{event.status || event.statut}</Text></View>
               <View style={bs.priceBadge}><Text style={bs.priceText}>{event.prix || 'Gratuit'}</Text></View>
             </View>
             <Text style={bs.title}>{event.titre}</Text>
-            <View style={bs.infoRow}><Text style={bs.infoIcon}>📅</Text><Text style={bs.infoTxt}>{event.dateText}</Text></View>
-            <View style={bs.infoRow}><Text style={bs.infoIcon}>📍</Text><Text style={bs.infoTxt}>{event.salle}</Text></View>
+            <View style={bs.infoRow}><Text style={bs.infoIcon}>📅</Text><Text style={bs.infoTxt}>{event.dateText || event.dateFormatee}</Text></View>
+            <View style={bs.infoRow}><Text style={bs.infoIcon}>📍</Text><Text style={bs.infoTxt}>{event.salle || event.adresse}</Text></View>
             {event.club ? (
               <View style={bs.infoRow}>
                 <Text style={bs.infoIcon}>🛡️</Text>
@@ -176,53 +134,36 @@ function AddEventSheet({ visible, onClose, onAdd }) {
     try {
       const auth = getAuth();
       const idToken = await auth.currentUser.getIdToken();
-
       const response = await fetch(
         "https://europe-west9-hitting-23de9.cloudfunctions.net/addEvenement",
         {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` },
           body: JSON.stringify({
-            titre,
-            dateHeure: dateObject.toISOString(),
-            adresse: salle,
-            prix: prix || null,
-            contact: contact || "",
-            photoUrl: affiche || null,
+            titre, dateHeure: dateObject.toISOString(), adresse: salle,
+            prix: prix || null, contact: contact || "", photoUrl: affiche || null,
           }),
         }
       );
-
-      if (!response.ok) {
-        const txt = await response.text();
-        console.log('❌ Réponse serveur:', response.status, txt);
-        throw new Error("Erreur serveur");
-      }
-
+      if (!response.ok) { const txt = await response.text(); console.log('❌', response.status, txt); throw new Error("Erreur serveur"); }
       Alert.alert("✅ Événement créé", "L'événement a bien été ajouté dans Airtable.");
-
-      // Mise à jour locale
       const months = ['JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'];
       onAdd({
         id: `e_${Date.now()}`,
         titre,
-        dateText: dateObject.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        dateText: dateObject.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
+        dateFormatee: dateObject.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
         jour: String(dateObject.getDate()).padStart(2, '0'),
         mois: months[dateObject.getMonth()],
-        salle,
-        club: '',
-        prix: prix || 'Gratuit',
-        status: 'A venir',
-        affiche: affiche || 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800',
+        salle, adresse: salle, club: '', prix: prix || 'Gratuit',
+        status: 'A venir', statut: 'A venir',
+        affiche: affiche || null, photo: affiche || null,
         description: '',
       });
-
-      // Reset
       setTitre(''); setSalle(''); setPrix(''); setContact('');
       setAffiche(null); setDateObject(new Date());
       onClose();
     } catch (error) {
-      console.error("Erreur addEvenement:", error);
       Alert.alert("Erreur", "Impossible de créer l'événement. Réessayez.");
     } finally {
       setLoading(false);
@@ -233,19 +174,15 @@ function AddEventSheet({ visible, onClose, onAdd }) {
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.formContainer}>
         <View style={styles.formHeader}>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={styles.formCancelTxt}>Annuler</Text>
-          </TouchableOpacity>
+          <TouchableOpacity onPress={onClose}><Text style={styles.formCancelTxt}>Annuler</Text></TouchableOpacity>
           <Text style={styles.formHeaderTitle}>Nouvel événement</Text>
           <TouchableOpacity onPress={handleSubmit} disabled={loading}>
             {loading ? <ActivityIndicator color="#007AFF" /> : <Text style={styles.formCreateTxt}>Créer</Text>}
           </TouchableOpacity>
         </View>
-
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formScroll}>
           <Text style={styles.fieldLabel}>Titre *</Text>
           <TextInput style={styles.input} placeholder="Ex: Coupe de Paris" placeholderTextColor="#A1A1A6" value={titre} onChangeText={setTitre} />
-
           <Text style={styles.fieldLabel}>Date et heure</Text>
           <TouchableOpacity style={styles.input} onPress={() => setShowPicker(true)}>
             <Text style={{ color: '#1C1C1E', fontSize: 15 }}>
@@ -253,29 +190,20 @@ function AddEventSheet({ visible, onClose, onAdd }) {
             </Text>
           </TouchableOpacity>
           {showPicker && (
-            <DateTimePicker
-              value={dateObject}
-              mode="datetime"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(e, d) => { setShowPicker(false); if (d) setDateObject(d); }}
-            />
+            <DateTimePicker value={dateObject} mode="datetime" display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(e, d) => { setShowPicker(false); if (d) setDateObject(d); }} />
           )}
-
           <Text style={styles.fieldLabel}>Lieu / Salle *</Text>
           <TextInput style={styles.input} placeholder="Ex: Gymnase Carpentier" placeholderTextColor="#A1A1A6" value={salle} onChangeText={setSalle} />
-
           <Text style={styles.fieldLabel}>Contact</Text>
           <TextInput style={styles.input} placeholder="Ex: 06 12 34 56 78" placeholderTextColor="#A1A1A6" value={contact} onChangeText={setContact} keyboardType="phone-pad" />
-
           <Text style={styles.fieldLabel}>Prix (€)</Text>
           <TextInput style={styles.input} placeholder="Ex: 15 (ou laisser vide si gratuit)" placeholderTextColor="#A1A1A6" value={prix} onChangeText={setPrix} keyboardType="numeric" />
-
           <Text style={styles.fieldLabel}>Affiche</Text>
           <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
             <Text style={{ color: '#555' }}>{affiche ? "✅ Image sélectionnée — changer" : "📷 Choisir une image"}</Text>
           </TouchableOpacity>
           {affiche && <Image source={{ uri: affiche }} style={styles.preview} />}
-
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -288,25 +216,57 @@ function AddEventSheet({ visible, onClose, onAdd }) {
 // ─────────────────────────────────────────────
 export default function EvenementsScreen({ navigation, route }) {
   const [search, setSearch] = useState('');
-  const [events, setEvents] = useState(INITIAL_EVENTS);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [addSheetVisible, setAddSheetVisible] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (route?.params?.openAddSheet) setAddSheetVisible(true);
+    fetchEvenements();
   }, []);
 
+  const fetchEvenements = async () => {
+    try {
+      const auth = getAuth();
+      const idToken = await auth.currentUser.getIdToken();
+      const response = await fetch(
+        'https://europe-west9-hitting-23de9.cloudfunctions.net/getEvenements',
+        { headers: { 'Authorization': `Bearer ${idToken}` } }
+      );
+      const data = await response.json();
+      if (data.success) {
+        const months = ['JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'];
+        const mapped = data.evenements.map(e => {
+          let jour = '--', mois = '---';
+          if (e.dateFormatee) {
+            const d = new Date(e.dateFormatee);
+            if (!isNaN(d)) {
+              jour = String(d.getDate()).padStart(2, '0');
+              mois = months[d.getMonth()];
+            }
+          }
+          return { ...e, jour, mois, dateText: e.dateFormatee, salle: e.adresse };
+        });
+        setEvents(mapped);
+      }
+    } catch (error) {
+      console.error('❌ Erreur fetchEvenements:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredEvents = events.filter((e) =>
-    e.titre.toLowerCase().includes(search.toLowerCase()) ||
+    (e.titre || '').toLowerCase().includes(search.toLowerCase()) ||
     (e.club || '').toLowerCase().includes(search.toLowerCase()) ||
-    (e.salle || '').toLowerCase().includes(search.toLowerCase())
+    (e.adresse || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.floatingBackBtn}>
         <Text style={styles.backArrow}>←</Text>
       </TouchableOpacity>
@@ -325,7 +285,11 @@ export default function EvenementsScreen({ navigation, route }) {
         </View>
 
         <View style={styles.listContainer}>
-          {filteredEvents.length === 0 ? (
+          {loading ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="large" color="#E53935" />
+            </View>
+          ) : filteredEvents.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>Aucun événement trouvé</Text>
             </View>
@@ -350,9 +314,6 @@ export default function EvenementsScreen({ navigation, route }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// STYLES
-// ─────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF9F6' },
   scrollContent: { paddingBottom: 100 },
@@ -394,7 +355,6 @@ const styles = StyleSheet.create({
   input: { height: 48, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 10, paddingHorizontal: 14, fontSize: 15, color: '#1C1C1E', marginBottom: 8, justifyContent: 'center' },
   imagePicker: { padding: 15, backgroundColor: '#EEE', borderRadius: 10, alignItems: 'center', marginBottom: 8 },
   preview: { width: '100%', height: 160, borderRadius: 10, marginTop: 8, resizeMode: 'cover' },
-  formHeaderTitle: { fontSize: 17, fontWeight: '800', color: '#1C1C1E' },
 });
 
 const bs = StyleSheet.create({

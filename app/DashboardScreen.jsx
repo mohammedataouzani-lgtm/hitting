@@ -16,6 +16,8 @@ import {
   TouchableWithoutFeedback,
   ActivityIndicator,
   Pressable,
+  FlatList,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
@@ -250,6 +252,9 @@ export default function DashboardScreen({ navigation }) {
   const [bilanVisible, setBilanVisible] = useState(false);
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [evenements, setEvenements] = useState([]);
+  const carouselRef = useRef(null);
+  const [activeSlide, setActiveSlide] = useState(0);
   const [coachData, setCoachData] = useState({
     firstName: 'Coach',
     clubName: 'Chargement du club...',
@@ -286,6 +291,16 @@ export default function DashboardScreen({ navigation }) {
             saison: data.saison || '2025 --- 2026',
           });
         }
+
+        // Fetch événements
+        const auth2 = getAuth();
+        const idToken = await auth2.currentUser.getIdToken();
+        const evtResponse = await fetch(
+          'https://europe-west9-hitting-23de9.cloudfunctions.net/getEvenements',
+          { headers: { 'Authorization': `Bearer ${idToken}` } }
+        );
+        const evtData = await evtResponse.json();
+        if (evtData.success) setEvenements(evtData.evenements);
       } catch (error) {
         console.error("Erreur Dashboard:", error);
       } finally {
@@ -350,46 +365,72 @@ export default function DashboardScreen({ navigation }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={styles.content}>
 
-          {/* PROCHAIN ÉVÉNEMENT */}
+          {/* ÉVÉNEMENTS — CARROUSEL */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Prochain événement</Text>
+              <Text style={styles.sectionTitle}>Événements</Text>
               <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('Evenements')} style={styles.voirRow}>
-                <Text style={styles.voirTxt}>Voir</Text>
+                <Text style={styles.voirTxt}>Voir tous</Text>
                 <View style={styles.avatarCircle}><Text style={styles.avatarEmoji}>🥊</Text></View>
               </TouchableOpacity>
             </View>
 
-            {coachData.nextEvent ? (
-              <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('Evenements')} style={styles.eventCard}>
-                <View style={styles.eventBadges}>
-                  <View style={styles.badgeGala}><Text style={styles.badgeGalaTxt}>{coachData.nextEvent.type?.toUpperCase() || 'GALA'}</Text></View>
-                  <View style={styles.badgePrice}><Text style={styles.badgePriceTxt}>{coachData.nextEvent.priceText || 'Gratuit'}</Text></View>
-                </View>
-                <Text style={styles.eventTitle}>{coachData.nextEvent.title || 'Événement à venir'}</Text>
-                <View style={styles.eventRow}>
-                  <Text style={styles.eventIcon}>📅</Text>
-                  <Text style={styles.eventMeta}>{coachData.nextEvent.dateText || 'Date non communiquée'}</Text>
-                </View>
-                <View style={[styles.eventRow, styles.eventRowLast]}>
-                  <Text style={styles.eventIcon}>📍</Text>
-                  <Text style={styles.eventMeta}>{coachData.nextEvent.location || 'Lieu à définir'}</Text>
-                </View>
-                <View style={styles.countdownRow}>
-                  <Text style={styles.countdownLabel}>Dans</Text>
-                  {[['Jours', coachData.nextEvent.days || '0'], ['Heures', coachData.nextEvent.hours || '00'], ['Min', coachData.nextEvent.minutes || '00']].map(([lbl, val]) => (
-                    <View key={lbl} style={styles.countdownItem}>
-                      <Text style={styles.countdownSub}>{lbl}</Text>
-                      <Text style={styles.countdownVal}>{val}</Text>
-                    </View>
-                  ))}
-                  <View style={styles.infoCircle}><Text style={styles.infoTxt}>ℹ</Text></View>
-                </View>
-              </TouchableOpacity>
-            ) : (
+            {evenements.length === 0 ? (
               <View style={styles.noEventCard}>
-                <Text style={styles.noEventText}>Aucun gala ou combat de planifié pour le moment. ☕</Text>
+                <Text style={styles.noEventText}>Aucun événement à venir. ☕</Text>
               </View>
+            ) : (
+              <>
+                <FlatList
+                  ref={carouselRef}
+                  data={evenements}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item.id}
+                  onScroll={(e) => {
+                    const idx = Math.round(e.nativeEvent.contentOffset.x / (width - 36));
+                    setActiveSlide(idx);
+                  }}
+                  scrollEventThrottle={16}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      style={[styles.eventCard, { width: width - 36 }]}
+                      onPress={() => navigation.navigate('Evenements')}
+                    >
+                      {item.photo ? (
+                        <Image source={{ uri: item.photo }} style={styles.eventCardImage} />
+                      ) : null}
+                      <View style={styles.eventBadges}>
+                        <View style={styles.badgeGala}>
+                          <Text style={styles.badgeGalaTxt}>{item.statut?.toUpperCase() || 'À VENIR'}</Text>
+                        </View>
+                        <View style={styles.badgePrice}>
+                          <Text style={styles.badgePriceTxt}>{item.prix}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.eventTitle}>{item.titre}</Text>
+                      <View style={styles.eventRow}>
+                        <Text style={styles.eventIcon}>📅</Text>
+                        <Text style={styles.eventMeta}>{item.dateFormatee}</Text>
+                      </View>
+                      <View style={[styles.eventRow, styles.eventRowLast]}>
+                        <Text style={styles.eventIcon}>📍</Text>
+                        <Text style={styles.eventMeta}>{item.adresse}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+                {/* Indicateurs pagination */}
+                {evenements.length > 1 && (
+                  <View style={styles.carouselDots}>
+                    {evenements.map((_, i) => (
+                      <View key={i} style={[styles.dot, i === activeSlide && styles.dotActive]} />
+                    ))}
+                  </View>
+                )}
+              </>
             )}
           </View>
 
@@ -483,7 +524,11 @@ const styles = StyleSheet.create({
   voirTxt: { fontSize: 13, color: '#555', fontWeight: '600' },
   avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#43A047', alignItems: 'center', justifyContent: 'center' },
   avatarEmoji: { fontSize: 22 },
-  eventCard: { backgroundColor: '#F2F2F7', borderRadius: 16, padding: 14 },
+  eventCard: { backgroundColor: '#F2F2F7', borderRadius: 16, padding: 14, marginRight: 0 },
+  eventCardImage: { width: '100%', height: 120, borderRadius: 10, marginBottom: 10, resizeMode: 'cover' },
+  carouselDots: { flexDirection: 'row', justifyContent: 'center', marginTop: 10, gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ccc' },
+  dotActive: { backgroundColor: '#E53935', width: 18 },
   noEventCard: { backgroundColor: '#F2F2F7', borderRadius: 16, padding: 20, alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#CCC' },
   noEventText: { color: '#666', fontSize: 14, textAlign: 'center', fontWeight: '500' },
   eventBadges: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },

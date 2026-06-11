@@ -289,7 +289,58 @@ exports.addEvenement = onRequest({
   }
 });
 
-// ===== CLOUD FUNCTION v2: getMatchsPossibles =====
+// ===== CLOUD FUNCTION v2: getEvenements =====
+// ===== CLOUD FUNCTION v2: getEvenements =====
+exports.getEvenements = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    const records = await base("Événements").select({
+      sort: [{ field: "Date et heure", direction: "asc" }],
+      filterByFormula: `OR({Statut} = "A venir", {Statut} = "En cours")`,
+    }).all();
+
+    const evenements = records.map(record => {
+      const f = record.fields || {};
+      return {
+        id: record.id,
+        titre: f["Nom événement"] || "",
+        dateFormatee: f["Date formatée"] || "",
+        adresse: f["Adresse"] || "",
+        club: f["Nom club organisateur"] || 
+              (Array.isArray(f["Nom du club (from Club organisateur)"]) ? f["Nom du club (from Club organisateur)"][0] : "") ||
+              "",
+        statut: f["Statut"] || "",
+        contact: f["Contact"] || "",
+        prix: f["Prix d'entrée"] ? `${f["Prix d'entrée"]} €` : "Gratuit",
+        photo: f["Photo du gala"] ? f["Photo du gala"][0]?.url : null,
+      };
+    });
+
+    return res.status(200).json({ success: true, evenements });
+
+  } catch (error) {
+    console.error("❌ Erreur getEvenements:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});
 // ===== CLOUD FUNCTION v2: getMatchsPossibles =====
 exports.getMatchsPossibles = onRequest({
   region: "europe-west9",
