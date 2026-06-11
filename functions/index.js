@@ -290,6 +290,7 @@ exports.addEvenement = onRequest({
 });
 
 // ===== CLOUD FUNCTION v2: getMatchsPossibles =====
+// ===== CLOUD FUNCTION v2: getMatchsPossibles =====
 exports.getMatchsPossibles = onRequest({
   region: "europe-west9",
   secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
@@ -321,13 +322,11 @@ exports.getMatchsPossibles = onRequest({
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
-    // Récupérer TOUS les records et filtrer manuellement
-    // car FIND sur un champ lien Airtable est peu fiable
     const allRecords = await base("Matchs possibles").select().all();
-
-    console.log('📦 Total records Matchs possibles:', allRecords.length);
+    console.log('📦 Total records:', allRecords.length);
 
     const matchs = [];
+    const seenAdversaires = new Set();
 
     for (const record of allRecords) {
       const f = record.fields || {};
@@ -344,35 +343,43 @@ exports.getMatchsPossibles = onRequest({
 
       const isCoach1 = isCoach1Match;
 
-      // Adversaire = l'autre boxeur
+      // Nom adversaire — calculé avant le filtre
       const adversaireNom = isCoach1
         ? (f["Nom et prénom boxeur 2"] || "")
         : (f["Nom et prénom boxeur 1"] || "");
 
-      const adversaireClubRaw = isCoach1 ? f["club Boxeur 2"] : f["club Boxeur 1"];
+      // Ignorer si nom vide
+      if (!adversaireNom || adversaireNom.trim() === '') continue;
+
+      // Dédupliquer par nom adversaire
+      if (seenAdversaires.has(adversaireNom.trim())) continue;
+      seenAdversaires.add(adversaireNom.trim());
+
+      // Club adversaire via champ lookup texte
       let adversaireClub = "";
-      if (Array.isArray(adversaireClubRaw)) {
-        adversaireClub = adversaireClubRaw[0] || "";
-      } else if (typeof adversaireClubRaw === 'string') {
-        adversaireClub = adversaireClubRaw;
+      if (isCoach1) {
+        adversaireClub = Array.isArray(f["club Boxeur adversaire"]) ? f["club Boxeur adversaire"][0] : f["club Boxeur adversaire"] || "";
+      } else {
+        adversaireClub = Array.isArray(f["club Boxeur demandeur"]) ? f["club Boxeur demandeur"][0] : f["club Boxeur demandeur"] || "";
       }
 
+      // Photo adversaire
       const adversairePhoto = isCoach1
         ? (f["Photo boxeur 2"] ? f["Photo boxeur 2"][0]?.url : null)
         : (f["Photo du boxeur"] ? f["Photo du boxeur"][0]?.url : null);
 
-      // Palmarès adversaire (string ou array)
-      const palmaresRaw = isCoach1 ? f["Palmares boxeur 2"] : f["Palmares (from Boxeurs)"];
-      let palmares = null;
-      if (palmaresRaw) {
-        if (typeof palmaresRaw === 'string') {
-          try { palmares = JSON.parse(palmaresRaw); } catch { palmares = null; }
-        } else {
-          palmares = palmaresRaw;
-        }
+      // Palmarès adversaire
+      const palmaresStr = isCoach1
+        ? (Array.isArray(f["Palmares (from Palmares boxeur 2)"]) ? f["Palmares (from Palmares boxeur 2)"][0] : f["Palmares (from Palmares boxeur 2)"] || "")
+        : (Array.isArray(f["Palmares (from Boxeurs)"]) ? f["Palmares (from Boxeurs)"][0] : f["Palmares (from Boxeurs)"] || "");
+
+      let palmares = { vic: '—', def: '—', nuls: '—', ko: '—' };
+      if (palmaresStr) {
+        const m = palmaresStr.match(/(\d+)V-(\d+)D-(\d+)N\s*\((\d+)KO\)/i);
+        if (m) palmares = { vic: m[1], def: m[2], nuls: m[3], ko: m[4] };
       }
 
-      console.log('✅ Match trouvé:', record.id, '| adversaire:', adversaireNom);
+      console.log('✅ Match:', adversaireNom, '| club:', adversaireClub, '| palmares:', palmaresStr);
 
       matchs.push({
         id: record.id,
@@ -386,8 +393,7 @@ exports.getMatchsPossibles = onRequest({
       });
     }
 
-    console.log('🎯 Matchs trouvés:', matchs.length);
-
+    console.log('🎯 Matchs uniques trouvés:', matchs.length);
     return res.status(200).json({ success: true, matchs });
 
   } catch (error) {
