@@ -452,3 +452,74 @@ exports.getMatchsPossibles = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
+
+
+// ===== CLOUD FUNCTION v2: addDemandeMatch =====
+exports.addDemandeMatch = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") {
+    res.set("Access-Control-Allow-Methods", "POST");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    return res.status(204).send("");
+  }
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+
+    const {
+      nomBoxeur, prenomBoxeur,
+      nomAdversaire, prenomAdversaire,
+      affichageCombat, dateSouhaitee,
+      adresse, message,
+      emailCoach1, emailCoach2,
+      clubBoxeur, clubAdversaire,
+      categorieDemandeur, categorieAdversaire,
+      typeCombat,
+    } = req.body;
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    const fields = {
+      "Nom de mon boxeur": nomBoxeur || "",
+      "Prénom de mon boxeur": prenomBoxeur || "",
+      "Nom du boxeur adversaire": nomAdversaire || "",
+      "Prénom du boxeur adversaire": prenomAdversaire || "",
+      "Affichage combat": affichageCombat || "",
+      "Message": message || "",
+      "Adresse du combat": adresse || "",
+      "Email Coach 1": emailCoach1 || "",
+      "Club du boxeur": clubBoxeur || "",
+      "Club boxeur adversaire": clubAdversaire || "",
+      "Catégorie de poids demandeur": categorieDemandeur || "",
+      "Catégorie de poids adversaire": categorieAdversaire || "",
+      "Type combat": typeCombat || "Gala",
+      "Statut": "En attente",
+      "Date demande": new Date().toISOString(),
+    };
+
+    if (dateSouhaitee) {
+      const d = new Date(dateSouhaitee);
+      if (!isNaN(d.getTime())) fields["Date souhaitée"] = d.toISOString();
+    }
+
+    if (emailCoach2) fields["Email coach 2"] = emailCoach2;
+
+    const record = await base("Demandedematch").create(fields);
+
+    return res.status(200).json({ success: true, id: record.id });
+
+  } catch (error) {
+    console.error("❌ Erreur addDemandeMatch:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});

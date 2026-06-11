@@ -4,6 +4,7 @@ import {
   ScrollView, StatusBar, Dimensions, ActivityIndicator, Platform,
 } from 'react-native';
 import { getAuth } from 'firebase/auth';
+import { AdversaireSheet, FormulaireDemande } from './DemandeScreen';
 
 const { width } = Dimensions.get('window');
 const SAFE_AREA_TOP = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight ?? 24);
@@ -52,6 +53,9 @@ export default function AdversairesPotentielsScreen({ navigation, route }) {
   const { boxer } = route.params;
   const [matchs, setMatchs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [formulaireVisible, setFormulaireVisible] = useState(false);
 
   useEffect(() => {
     fetchMatchs();
@@ -136,11 +140,24 @@ export default function AdversairesPotentielsScreen({ navigation, route }) {
         ) : (
           <View style={s.list}>
             {matchs.map((match) => (
-              <AdversaireCard key={match.id} match={match} onPress={() => {}} />
+              <AdversaireCard key={match.id} match={match} onPress={() => { setSelectedMatch(match); setSheetVisible(true); }} />
             ))}
           </View>
         )}
       </ScrollView>
+      <AdversaireSheet
+        visible={sheetVisible}
+        match={selectedMatch}
+        boxer={boxer}
+        onClose={() => setSheetVisible(false)}
+        onDemandePress={(match) => { setSelectedMatch(match); setFormulaireVisible(true); }}
+      />
+      <FormulaireDemande
+        visible={formulaireVisible}
+        match={selectedMatch}
+        boxer={boxer}
+        onClose={() => setFormulaireVisible(false)}
+      />
     </View>
   );
 }
