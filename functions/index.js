@@ -500,42 +500,35 @@ exports.addDemandeMatch = onRequest({
       typeCombat,
     } = req.body;
 
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
-      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+   const apiKey = process.env.AIRTABLE_SECRET_KEY;
+const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
 
-    const fields = {
-      "Nom de mon boxeur": nomBoxeur || "",
-      "Prénom de mon boxeur": prenomBoxeur || "",
-      "Nom du boxeur adversaire": nomAdversaire || "",
-      "Prénom du boxeur adversaire": prenomAdversaire || "",
-      "Affichage combat": affichageCombat || "",
-      "Message": message || "",
-      "Adresse du combat": adresse || "",
-      "Email Coach 1": emailCoach1 || "",
-      "Club du boxeur": clubBoxeur || "",
-      "Club boxeur adversaire": clubAdversaire || "",
-      "Catégorie de poids demandeur": categorieDemandeur || "",
-      "Catégorie de poids adversaire": categorieAdversaire || "",
-      "Type combat": typeCombat || "Gala",
-      "Statut": "En attente",
-      "Date demande": new Date().toISOString(),
-    };
+const fields = {
+  "Nom de mon boxeur": nomBoxeur || "",
+  "Nom du boxeur adversaire": nomAdversaire || "",
+  "Prénom du boxeur adversaire": prenomAdversaire || "",
+};
 
-    if (dateSouhaitee) {
-      const d = new Date(dateSouhaitee);
-      if (!isNaN(d.getTime())) fields["Date souhaitée"] = d.toISOString();
-    }
 
-    if (emailCoach2) fields["Email coach 2"] = emailCoach2;
+if (emailCoach2) fields["Email coach 2"] = emailCoach2;
+
 console.log('📤 Fields envoyés à Airtable:', JSON.stringify(fields));
-    const record = await base("Demandedematch").create(fields);
+
+const response = await axios.post(
+  `https://api.airtable.com/v0/${baseId}/Demandedematch`,
+  { fields },
+  { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
+);
+
+const record = response.data;
 
     return res.status(200).json({ success: true, id: record.id });
 
-  } catch (error) {
-    console.error("❌ Erreur addDemandeMatch:", error.response ? JSON.stringify(error.response.data) : error.message);
-    return res.status(500).json({ error: "Erreur interne du serveur" });
-    
-  }
+ } catch (error) {
+ console.error("❌ Erreur addDemandeMatch:", 
+  error.response ? JSON.stringify(error.response.data) : error.message
+);
+  return res.status(500).json({ error: "Erreur interne du serveur" });
+}
  
 });

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function DemandeCombatScreen({ navigation, route }) {
   const { boxer, adversaire } = route.params || {};
@@ -27,21 +28,22 @@ export default function DemandeCombatScreen({ navigation, route }) {
     );
   }
 
-  // Form states
   const [monClub, setMonClub] = useState('');
   const [typeCombat, setTypeCombat] = useState('Gala');
-  const [dateSouhaitee, setDateSouhaitee] = useState('');
+  const [dateSouhaitee, setDateSouhaitee] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [adresse, setAdresse] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const clubAdversaire = adversaire.adversaireClub || '';
 
-  // Date de demande = aujourd'hui
   const today = new Date();
   const dateDemande = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
-  // Récupérer le club du coach connecté depuis Firestore
+  const formatDate = (date) =>
+    `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+
   useEffect(() => {
     const fetchCoachClub = async () => {
       try {
@@ -62,29 +64,12 @@ export default function DemandeCombatScreen({ navigation, route }) {
   }, []);
 
   const handleSendRequest = async () => {
-    if (!dateSouhaitee) {
-      Alert.alert("Champ manquant", "Veuillez renseigner une date souhaitée.");
-      return;
-    }
-
-    // Validation format date jj/mm/aaaa
-    const dateParts = dateSouhaitee.split('/');
-    if (dateParts.length !== 3 || dateParts[2].length !== 4) {
-      Alert.alert("Format invalide", "La date doit être au format jj/mm/aaaa.");
-      return;
-    }
-
     try {
       setLoading(true);
       const auth = getAuth();
       const idToken = await auth.currentUser.getIdToken();
       const emailCoach1 = auth.currentUser.email;
 
-      // Convertir date jj/mm/aaaa → ISO
-      const [day, month, year] = dateParts;
-      const dateISO = new Date(`${year}-${month}-${day}`).toISOString();
-
-      // Décomposer le nom adversaire
       const nomParts = (adversaire.adversaireNom || '').trim().split(' ');
       const prenomAdversaire = nomParts[0] || '';
       const nomAdversaire = nomParts.slice(1).join(' ') || nomParts[0] || '';
@@ -102,8 +87,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
             prenomBoxeur: boxer.prenom || '',
             nomAdversaire,
             prenomAdversaire,
-            affichageCombat: adversaire.affichageCombat || `${boxer.prenom} ${boxer.nom} VS ${adversaire.adversaireNom}`,
-            dateSouhaitee: dateISO,
+            dateSouhaitee: dateSouhaitee.toISOString(),
             adresse,
             message,
             emailCoach1,
@@ -111,7 +95,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
             clubBoxeur: monClub,
             clubAdversaire,
             categorieDemandeur: boxer.categoriePoids || '',
-            categorieAdversaire: adversaire.categoriePoids || '',
+            categorieAdversaire: Array.isArray(adversaire.categoriePoids) ? adversaire.categoriePoids[0] : adversaire.categoriePoids || '',
             typeCombat,
           }),
         }
@@ -143,7 +127,6 @@ export default function DemandeCombatScreen({ navigation, route }) {
     >
       <StatusBar barStyle="dark-content" backgroundColor="#FAF9F6" />
 
-      {/* ── HEADER ─────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backRow}>
           <Text style={styles.backArrow}>←</Text>
@@ -154,76 +137,54 @@ export default function DemandeCombatScreen({ navigation, route }) {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* ── VS CARD ───────────────────────────────────────────────── */}
+        {/* VS CARD */}
         <View style={styles.vsCard}>
-          {/* Mon boxeur */}
           <View style={styles.boxerProfile}>
             <Image
-              source={{
-                uri: boxer.photo || boxer.avatar || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
-              }}
+              source={{ uri: boxer.photo || boxer.avatar || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' }}
               style={styles.avatar}
             />
             <Text style={styles.boxerName} numberOfLines={2}>
               {boxer.prenom} {boxer.nom}
             </Text>
             <View style={styles.statsMiniRow}>
-              <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{boxer.vic ?? '—'}</Text>
-                <Text style={styles.statMiniLbl}>VIC.</Text>
-              </View>
-              <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{boxer.def ?? '—'}</Text>
-                <Text style={styles.statMiniLbl}>DEF.</Text>
-              </View>
-              <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{boxer.nuls ?? '—'}</Text>
-                <Text style={styles.statMiniLbl}>NULS</Text>
-              </View>
+              {[{ l: 'VIC.', v: boxer.vic }, { l: 'DEF.', v: boxer.def }, { l: 'NULS', v: boxer.nuls }].map(({ l, v }) => (
+                <View key={l} style={styles.statMiniItem}>
+                  <Text style={styles.statMiniVal}>{v ?? '—'}</Text>
+                  <Text style={styles.statMiniLbl}>{l}</Text>
+                </View>
+              ))}
             </View>
           </View>
 
-          {/* VS */}
           <View style={styles.vsBadgeContainer}>
             <View style={styles.vsCircle}>
               <Text style={styles.vsText}>VS</Text>
             </View>
           </View>
 
-          {/* Adversaire */}
           <View style={styles.boxerProfile}>
             <Image
-              source={{
-                uri: adversaire.adversairePhoto || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
-              }}
+              source={{ uri: adversaire.adversairePhoto || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' }}
               style={styles.avatar}
             />
             <Text style={styles.boxerName} numberOfLines={2}>
               {adversaire.adversaireNom}
             </Text>
             <View style={styles.statsMiniRow}>
-              <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{adversaire.palmares?.vic ?? '—'}</Text>
-                <Text style={styles.statMiniLbl}>VIC.</Text>
-              </View>
-              <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{adversaire.palmares?.def ?? '—'}</Text>
-                <Text style={styles.statMiniLbl}>DEF.</Text>
-              </View>
-              <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{adversaire.palmares?.nuls ?? '—'}</Text>
-                <Text style={styles.statMiniLbl}>NULS</Text>
-              </View>
-              <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{adversaire.palmares?.ko ?? '—'}</Text>
-                <Text style={styles.statMiniLbl}>K.O</Text>
-              </View>
+              {[{ l: 'VIC.', v: adversaire.palmares?.vic }, { l: 'DEF.', v: adversaire.palmares?.def }, { l: 'NULS', v: adversaire.palmares?.nuls }, { l: 'K.O', v: adversaire.palmares?.ko }].map(({ l, v }) => (
+                <View key={l} style={styles.statMiniItem}>
+                  <Text style={styles.statMiniVal}>{v ?? '—'}</Text>
+                  <Text style={styles.statMiniLbl}>{l}</Text>
+                </View>
+              ))}
             </View>
           </View>
         </View>
 
-        {/* ── CLUBS ─────────────────────────────────────────────────── */}
+        {/* CLUBS */}
         <Text style={styles.sectionHeading}>CLUBS</Text>
 
         <View style={styles.fieldGroup}>
@@ -248,7 +209,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
           />
         </View>
 
-        {/* ── DÉTAILS DU COMBAT ─────────────────────────────────────── */}
+        {/* DÉTAILS DU COMBAT */}
         <Text style={styles.sectionHeading}>DÉTAIL DU COMBAT</Text>
 
         <View style={styles.fieldGroup}>
@@ -273,17 +234,26 @@ export default function DemandeCombatScreen({ navigation, route }) {
         <View style={styles.row}>
           <View style={[styles.fieldGroup, { flex: 1, marginRight: 10 }]}>
             <Text style={styles.fieldLabel}>Date souhaitée</Text>
-            <View style={styles.inputWithIconContainer}>
-              <TextInput
-                style={[styles.input, { flex: 1, paddingRight: 35 }]}
+            <TouchableOpacity
+              style={styles.inputDate}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.inputDateTxt}>{formatDate(dateSouhaitee)}</Text>
+              <Text style={{ fontSize: 16 }}>📅</Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
                 value={dateSouhaitee}
-                onChangeText={setDateSouhaitee}
-                placeholder="jj/mm/aaaa"
-                placeholderTextColor="#C7C7CC"
-                keyboardType="numeric"
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) setDateSouhaitee(selectedDate);
+                }}
               />
-              <Text style={styles.calendarIcon}>📅</Text>
-            </View>
+            )}
           </View>
 
           <View style={[styles.fieldGroup, { flex: 1 }]}>
@@ -322,7 +292,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
           />
         </View>
 
-        {/* ── BOUTON ENVOI ──────────────────────────────────────────── */}
+        {/* BOUTON ENVOI */}
         <TouchableOpacity
           activeOpacity={0.85}
           style={[styles.sendBtn, loading && { opacity: 0.6 }]}
@@ -343,36 +313,18 @@ export default function DemandeCombatScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAF9F6',
-  },
+  container: { flex: 1, backgroundColor: '#FAF9F6' },
   header: {
     paddingTop: Platform.OS === 'ios' ? 56 : (StatusBar.currentHeight ?? 24) + 16,
     paddingHorizontal: 18,
     paddingBottom: 10,
     backgroundColor: '#FAF9F6',
   },
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  backArrow: {
-    fontSize: 22,
-    color: '#222',
-    fontWeight: '600',
-  },
-  backTxt: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#222',
-  },
-  scrollContent: {
-    paddingHorizontal: 18,
-  },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backArrow: { fontSize: 22, color: '#222', fontWeight: '600' },
+  backTxt: { fontSize: 16, fontWeight: '700', color: '#222' },
+  scrollContent: { paddingHorizontal: 18 },
 
-  // VS Card
   vsCard: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -390,84 +342,20 @@ const styles = StyleSheet.create({
     borderTopWidth: 5,
     borderTopColor: '#C2185B',
   },
-  boxerProfile: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#E0E0E0',
-    marginBottom: 8,
-  },
-  boxerName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#111',
-    textAlign: 'center',
-    height: 38,
-    marginBottom: 6,
-    paddingHorizontal: 4,
-  },
-  statsMiniRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  statMiniItem: {
-    alignItems: 'center',
-    minWidth: 26,
-  },
-  statMiniVal: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#333',
-  },
-  statMiniLbl: {
-    fontSize: 8,
-    fontWeight: '700',
-    color: '#999',
-    marginTop: 1,
-  },
-  vsBadgeContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-  },
-  vsCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  vsText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '900',
-  },
+  boxerProfile: { flex: 1, alignItems: 'center' },
+  avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#E0E0E0', marginBottom: 8 },
+  boxerName: { fontSize: 14, fontWeight: '800', color: '#111', textAlign: 'center', height: 38, marginBottom: 6, paddingHorizontal: 4 },
+  statsMiniRow: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  statMiniItem: { alignItems: 'center', minWidth: 26 },
+  statMiniVal: { fontSize: 13, fontWeight: '900', color: '#333' },
+  statMiniLbl: { fontSize: 8, fontWeight: '700', color: '#999', marginTop: 1 },
+  vsBadgeContainer: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6 },
+  vsCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  vsText: { color: '#fff', fontSize: 11, fontWeight: '900' },
 
-  // Sections
-  sectionHeading: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#8A8A8F',
-    letterSpacing: 0.5,
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  fieldGroup: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#3A3A3C',
-    marginBottom: 8,
-  },
+  sectionHeading: { fontSize: 12, fontWeight: '800', color: '#8A8A8F', letterSpacing: 0.5, marginTop: 8, marginBottom: 12 },
+  fieldGroup: { marginBottom: 16 },
+  fieldLabel: { fontSize: 14, fontWeight: '700', color: '#3A3A3C', marginBottom: 8 },
   input: {
     height: 48,
     backgroundColor: '#FFFFFF',
@@ -478,36 +366,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1C1C1E',
   },
-  disabledInput: {
-    backgroundColor: '#F2F2F7',
+  disabledInput: { backgroundColor: '#F2F2F7', borderColor: '#E5E5EA', color: '#8E8E93' },
+  textArea: { height: 100, paddingTop: 12, paddingBottom: 12 },
+  row: { flexDirection: 'row' },
+
+  inputDate: {
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
     borderColor: '#E5E5EA',
-    color: '#8E8E93',
-  },
-  textArea: {
-    height: 100,
-    paddingTop: 12,
-    paddingBottom: 12,
-  },
-  row: {
-    flexDirection: 'row',
-  },
-  inputWithIconContainer: {
-    position: 'relative',
-    justifyContent: 'center',
+    borderRadius: 10,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  calendarIcon: {
-    position: 'absolute',
-    right: 14,
-    fontSize: 16,
-  },
+  inputDateTxt: { fontSize: 15, color: '#1C1C1E' },
 
-  // Toggle
-  toggleRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  toggleRow: { flexDirection: 'row', gap: 8 },
   toggleBtn: {
     flex: 1,
     height: 40,
@@ -518,20 +394,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FAF9F6',
   },
-  toggleBtnActive: {
-    backgroundColor: '#E8F0FE',
-    borderColor: '#42A5F5',
-  },
-  toggleBtnTxt: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#8E8E93',
-  },
-  toggleBtnTxtActive: {
-    color: '#42A5F5',
-  },
+  toggleBtnActive: { backgroundColor: '#E8F0FE', borderColor: '#42A5F5' },
+  toggleBtnTxt: { fontSize: 13, fontWeight: '700', color: '#8E8E93' },
+  toggleBtnTxtActive: { color: '#42A5F5' },
 
-  // Send Button
   sendBtn: {
     backgroundColor: '#B71C1C',
     height: 52,
@@ -545,9 +411,5 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  sendBtnTxt: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '800',
-  },
+  sendBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });
