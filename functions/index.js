@@ -527,7 +527,7 @@ exports.addDemandeMatch = onRequest({
     }
 
     if (emailCoach2) fields["Email coach 2"] = emailCoach2;
-
+console.log('📤 Fields envoyés à Airtable:', JSON.stringify(fields));
     const record = await base("Demandedematch").create(fields);
 
     return res.status(200).json({ success: true, id: record.id });
@@ -535,6 +535,7 @@ exports.addDemandeMatch = onRequest({
   } catch (error) {
     console.error("❌ Erreur addDemandeMatch:", error.response ? JSON.stringify(error.response.data) : error.message);
     return res.status(500).json({ error: "Erreur interne du serveur" });
+    
   }
  
 });

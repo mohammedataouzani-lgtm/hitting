@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,10 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 export default function DemandeCombatScreen({ navigation, route }) {
   const { boxer, adversaire } = route.params || {};
@@ -25,20 +28,112 @@ export default function DemandeCombatScreen({ navigation, route }) {
   }
 
   // Form states
-  const [monClub, setMonClub] = useState('Boxing Paris 15');
-  const [clubAdversaire, setClubAdversaire] = useState(adversaire.club || 'Ozoir Boxing');
-  const [typeCombat, setTypeCombat] = useState('Gala'); // 'Gala' or 'Sparring'
+  const [monClub, setMonClub] = useState('');
+  const [typeCombat, setTypeCombat] = useState('Gala');
   const [dateSouhaitee, setDateSouhaitee] = useState('');
-  const [dateDemande] = useState('26/05/2026'); // Pre-filled with today's date
-  const [adresse, setAdresse] = useState('89 rue du landy');
+  const [adresse, setAdresse] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSendRequest = () => {
-    Alert.alert(
-      "Demande envoyée !",
-      `Votre demande de combat entre ${boxer.nom} et ${adversaire.nom} a bien été transmise au coach adverse.`,
-      [{ text: "Super", onPress: () => navigation.pop(2) }] // Go back to Boxer Profile
-    );
+  const clubAdversaire = adversaire.adversaireClub || '';
+
+  // Date de demande = aujourd'hui
+  const today = new Date();
+  const dateDemande = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+
+  // Récupérer le club du coach connecté depuis Firestore
+  useEffect(() => {
+    const fetchCoachClub = async () => {
+      try {
+        const auth = getAuth();
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+        const db = getFirestore();
+        const coachDoc = await getDoc(doc(db, 'coaches', uid));
+        if (coachDoc.exists()) {
+          const data = coachDoc.data();
+          setMonClub(data.clubName || '');
+        }
+      } catch (error) {
+        console.error('❌ Erreur récupération club coach:', error);
+      }
+    };
+    fetchCoachClub();
+  }, []);
+
+  const handleSendRequest = async () => {
+    if (!dateSouhaitee) {
+      Alert.alert("Champ manquant", "Veuillez renseigner une date souhaitée.");
+      return;
+    }
+
+    // Validation format date jj/mm/aaaa
+    const dateParts = dateSouhaitee.split('/');
+    if (dateParts.length !== 3 || dateParts[2].length !== 4) {
+      Alert.alert("Format invalide", "La date doit être au format jj/mm/aaaa.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const auth = getAuth();
+      const idToken = await auth.currentUser.getIdToken();
+      const emailCoach1 = auth.currentUser.email;
+
+      // Convertir date jj/mm/aaaa → ISO
+      const [day, month, year] = dateParts;
+      const dateISO = new Date(`${year}-${month}-${day}`).toISOString();
+
+      // Décomposer le nom adversaire
+      const nomParts = (adversaire.adversaireNom || '').trim().split(' ');
+      const prenomAdversaire = nomParts[0] || '';
+      const nomAdversaire = nomParts.slice(1).join(' ') || nomParts[0] || '';
+
+      const response = await fetch(
+        'https://europe-west9-hitting-23de9.cloudfunctions.net/addDemandeMatch',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            nomBoxeur: boxer.nom || '',
+            prenomBoxeur: boxer.prenom || '',
+            nomAdversaire,
+            prenomAdversaire,
+            affichageCombat: adversaire.affichageCombat || `${boxer.prenom} ${boxer.nom} VS ${adversaire.adversaireNom}`,
+            dateSouhaitee: dateISO,
+            adresse,
+            message,
+            emailCoach1,
+            emailCoach2: adversaire.emailCoach2 || '',
+            clubBoxeur: monClub,
+            clubAdversaire,
+            categorieDemandeur: boxer.categoriePoids || '',
+            categorieAdversaire: adversaire.categoriePoids || '',
+            typeCombat,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        Alert.alert(
+          "Demande envoyée ! 🥊",
+          `Votre demande de combat entre ${boxer.prenom} ${boxer.nom} et ${adversaire.adversaireNom} a bien été transmise au coach adverse.`,
+          [{ text: "Super !", onPress: () => navigation.pop(2) }]
+        );
+      } else {
+        Alert.alert("Erreur", "La demande n'a pas pu être envoyée. Réessayez.");
+      }
+    } catch (error) {
+      console.error('❌ Erreur envoi demande:', error);
+      Alert.alert("Erreur", "Une erreur est survenue. Vérifiez votre connexion.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,10 +145,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
 
       {/* ── HEADER ─────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backRow}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backRow}>
           <Text style={styles.backArrow}>←</Text>
           <Text style={styles.backTxt}>Retour</Text>
         </TouchableOpacity>
@@ -63,72 +155,84 @@ export default function DemandeCombatScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* ── VS CARD COMPARISON ────────────────────────────────────── */}
+        {/* ── VS CARD ───────────────────────────────────────────────── */}
         <View style={styles.vsCard}>
-          {/* Left Boxer (My Boxer) */}
+          {/* Mon boxeur */}
           <View style={styles.boxerProfile}>
-            <Image source={{ uri: boxer.avatar }} style={styles.avatar} />
-            <Text style={styles.boxerName} numberOfLines={2}>{boxer.nom}</Text>
+            <Image
+              source={{
+                uri: boxer.photo || boxer.avatar || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
+              }}
+              style={styles.avatar}
+            />
+            <Text style={styles.boxerName} numberOfLines={2}>
+              {boxer.prenom} {boxer.nom}
+            </Text>
             <View style={styles.statsMiniRow}>
               <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{boxer.vic}</Text>
+                <Text style={styles.statMiniVal}>{boxer.vic ?? '—'}</Text>
                 <Text style={styles.statMiniLbl}>VIC.</Text>
               </View>
               <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{boxer.def}</Text>
+                <Text style={styles.statMiniVal}>{boxer.def ?? '—'}</Text>
                 <Text style={styles.statMiniLbl}>DEF.</Text>
               </View>
               <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{boxer.nuls}</Text>
+                <Text style={styles.statMiniVal}>{boxer.nuls ?? '—'}</Text>
                 <Text style={styles.statMiniLbl}>NULS</Text>
               </View>
             </View>
           </View>
 
-          {/* VS Divider */}
+          {/* VS */}
           <View style={styles.vsBadgeContainer}>
             <View style={styles.vsCircle}>
               <Text style={styles.vsText}>VS</Text>
             </View>
           </View>
 
-          {/* Right Boxer (Adversary) */}
+          {/* Adversaire */}
           <View style={styles.boxerProfile}>
-            <Image source={{ uri: adversaire.avatar }} style={styles.avatar} />
-            <Text style={styles.boxerName} numberOfLines={2}>{adversaire.nom}</Text>
+            <Image
+              source={{
+                uri: adversaire.adversairePhoto || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
+              }}
+              style={styles.avatar}
+            />
+            <Text style={styles.boxerName} numberOfLines={2}>
+              {adversaire.adversaireNom}
+            </Text>
             <View style={styles.statsMiniRow}>
               <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{adversaire.vic}</Text>
+                <Text style={styles.statMiniVal}>{adversaire.palmares?.vic ?? '—'}</Text>
                 <Text style={styles.statMiniLbl}>VIC.</Text>
               </View>
               <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{adversaire.def}</Text>
+                <Text style={styles.statMiniVal}>{adversaire.palmares?.def ?? '—'}</Text>
                 <Text style={styles.statMiniLbl}>DEF.</Text>
               </View>
               <View style={styles.statMiniItem}>
-                <Text style={styles.statMiniVal}>{adversaire.nuls}</Text>
+                <Text style={styles.statMiniVal}>{adversaire.palmares?.nuls ?? '—'}</Text>
                 <Text style={styles.statMiniLbl}>NULS</Text>
               </View>
-              {adversaire.ko !== undefined && (
-                <View style={styles.statMiniItem}>
-                  <Text style={styles.statMiniVal}>{adversaire.ko}</Text>
-                  <Text style={styles.statMiniLbl}>K.O</Text>
-                </View>
-              )}
+              <View style={styles.statMiniItem}>
+                <Text style={styles.statMiniVal}>{adversaire.palmares?.ko ?? '—'}</Text>
+                <Text style={styles.statMiniLbl}>K.O</Text>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* ── SECTION CLUBS ────────────────────────────────────────── */}
+        {/* ── CLUBS ─────────────────────────────────────────────────── */}
         <Text style={styles.sectionHeading}>CLUBS</Text>
-        
+
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>Mon club</Text>
           <TextInput
             style={[styles.input, styles.disabledInput]}
             value={monClub}
             editable={false}
-            placeholder="Nom de votre club"
+            placeholder="Chargement..."
             placeholderTextColor="#A1A1A6"
           />
         </View>
@@ -139,52 +243,33 @@ export default function DemandeCombatScreen({ navigation, route }) {
             style={[styles.input, styles.disabledInput]}
             value={clubAdversaire}
             editable={false}
-            placeholder="Nom du club adverse"
+            placeholder="Club adverse"
             placeholderTextColor="#A1A1A6"
           />
         </View>
 
-        {/* ── SECTION DETAILS ──────────────────────────────────────── */}
-        <Text style={styles.sectionHeading}>DETAIL DU COMBAT</Text>
+        {/* ── DÉTAILS DU COMBAT ─────────────────────────────────────── */}
+        <Text style={styles.sectionHeading}>DÉTAIL DU COMBAT</Text>
 
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>Type de combat</Text>
           <View style={styles.toggleRow}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setTypeCombat('Gala')}
-              style={[
-                styles.toggleBtn,
-                typeCombat === 'Gala' && styles.toggleBtnActive
-              ]}
-            >
-              <Text style={[
-                styles.toggleBtnTxt,
-                typeCombat === 'Gala' && styles.toggleBtnTxtActive
-              ]}>
-                Gala
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setTypeCombat('Sparring')}
-              style={[
-                styles.toggleBtn,
-                typeCombat === 'Sparring' && styles.toggleBtnActive
-              ]}
-            >
-              <Text style={[
-                styles.toggleBtnTxt,
-                typeCombat === 'Sparring' && styles.toggleBtnTxtActive
-              ]}>
-                Sparring
-              </Text>
-            </TouchableOpacity>
+            {['Gala', 'Sparring', 'Combat'].map((type) => (
+              <TouchableOpacity
+                key={type}
+                activeOpacity={0.8}
+                onPress={() => setTypeCombat(type)}
+                style={[styles.toggleBtn, typeCombat === type && styles.toggleBtnActive]}
+              >
+                <Text style={[styles.toggleBtnTxt, typeCombat === type && styles.toggleBtnTxtActive]}>
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
-        {/* Dates Row */}
+        {/* Dates */}
         <View style={styles.row}>
           <View style={[styles.fieldGroup, { flex: 1, marginRight: 10 }]}>
             <Text style={styles.fieldLabel}>Date souhaitée</Text>
@@ -195,6 +280,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
                 onChangeText={setDateSouhaitee}
                 placeholder="jj/mm/aaaa"
                 placeholderTextColor="#C7C7CC"
+                keyboardType="numeric"
               />
               <Text style={styles.calendarIcon}>📅</Text>
             </View>
@@ -236,13 +322,18 @@ export default function DemandeCombatScreen({ navigation, route }) {
           />
         </View>
 
-        {/* Send button */}
+        {/* ── BOUTON ENVOI ──────────────────────────────────────────── */}
         <TouchableOpacity
           activeOpacity={0.85}
-          style={styles.sendBtn}
+          style={[styles.sendBtn, loading && { opacity: 0.6 }]}
           onPress={handleSendRequest}
+          disabled={loading}
         >
-          <Text style={styles.sendBtnTxt}>Envoyer la demande</Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.sendBtnTxt}>Envoyer la demande</Text>
+          )}
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -280,8 +371,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 18,
   },
-  
-  // VS Card Comparison
+
+  // VS Card
   vsCard: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -297,7 +388,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: '#E8E8E8',
     borderTopWidth: 5,
-    borderTopColor: '#C2185B', // Pink-red top border as template
+    borderTopColor: '#C2185B',
   },
   boxerProfile: {
     flex: 1,
@@ -351,7 +442,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20, // offset names height alignment
+    marginBottom: 20,
   },
   vsText: {
     color: '#fff',
@@ -403,6 +494,8 @@ const styles = StyleSheet.create({
   inputWithIconContainer: {
     position: 'relative',
     justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   calendarIcon: {
     position: 'absolute',
@@ -410,10 +503,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // Toggle Row
+  // Toggle
   toggleRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   toggleBtn: {
     flex: 1,
@@ -430,7 +523,7 @@ const styles = StyleSheet.create({
     borderColor: '#42A5F5',
   },
   toggleBtnTxt: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#8E8E93',
   },
