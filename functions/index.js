@@ -342,6 +342,7 @@ exports.getEvenements = onRequest({
   }
 });
 // ===== CLOUD FUNCTION v2: getMatchsPossibles =====
+// ===== CLOUD FUNCTION v2: getMatchsPossibles =====
 exports.getMatchsPossibles = onRequest({
   region: "europe-west9",
   secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
@@ -373,11 +374,26 @@ exports.getMatchsPossibles = onRequest({
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
-  const allRecords = await base("Matchs possibles").select().all();
-console.log('📦 Total records:', allRecords.length);
-
-// ← AJOUTE ICI
-console.log('🔬 Champs disponibles:', JSON.stringify(Object.keys(allRecords[0]?.fields || {})));
+    const allRecords = await base("Matchs possibles").select({
+      fields: [
+        "Email coach 1",
+        "Email coach 2",
+        "Boxeur 1",
+        "Boxeur 2",
+        "Nom et prénom boxeur 1",
+        "Nom et prénom boxeur 2 ",
+        "Photo du  boxeur",
+        "Photo boxeur 2 ",
+        "Palmares (from Boxeurs)",
+        "Palmares (from Palmares boxeur 2)",
+        "club Boxeur demandeur",
+        "club Boxeur 1",
+        "Affichage combat",
+        "Catégorie de poids",
+        "Sexe"
+      ]
+    }).all();
+    console.log('📦 Total records:', allRecords.length);
 
     const matchs = [];
     const seenAdversaires = new Set();
@@ -387,8 +403,8 @@ console.log('🔬 Champs disponibles:', JSON.stringify(Object.keys(allRecords[0]
 
       const emailCoach1 = Array.isArray(f["Email coach 1"]) ? f["Email coach 1"][0] : f["Email coach 1"] || "";
       const emailCoach2 = Array.isArray(f["Email coach 2"]) ? f["Email coach 2"][0] : f["Email coach 2"] || "";
-      const boxeur1Ids = Array.isArray(f["Boxeur 1"]) ? f["Boxeur 1"] : [];
-      const boxeur2Ids = Array.isArray(f["Boxeur 2"]) ? f["Boxeur 2"] : [];
+      const boxeur1Ids = Array.isArray(f["Boxeur 1"]) ? f["Boxeur 1"].map(b => b.id || b) : [];
+      const boxeur2Ids = Array.isArray(f["Boxeur 2"]) ? f["Boxeur 2"].map(b => b.id || b) : [];
 
       const isCoach1Match = emailCoach1.toLowerCase() === coachEmail.toLowerCase() && boxeur1Ids.includes(boxeurId);
       const isCoach2Match = emailCoach2.toLowerCase() === coachEmail.toLowerCase() && boxeur2Ids.includes(boxeurId);
@@ -397,32 +413,26 @@ console.log('🔬 Champs disponibles:', JSON.stringify(Object.keys(allRecords[0]
 
       const isCoach1 = isCoach1Match;
 
-      // Nom adversaire — calculé avant le filtre
       const adversaireNom = isCoach1
-        ? (f["Nom et prénom boxeur 2"] || "")
+        ? (f["Nom et prénom boxeur 2 "] || "")
         : (f["Nom et prénom boxeur 1"] || "");
 
-      // Ignorer si nom vide
       if (!adversaireNom || adversaireNom.trim() === '') continue;
 
-      // Dédupliquer par nom adversaire
       if (seenAdversaires.has(adversaireNom.trim())) continue;
       seenAdversaires.add(adversaireNom.trim());
 
-      // Club adversaire via champ lookup texte
       let adversaireClub = "";
       if (isCoach1) {
-        adversaireClub = Array.isArray(f["club Boxeur adversaire"]) ? f["club Boxeur adversaire"][0] : f["club Boxeur adversaire"] || "";
+        adversaireClub = Array.isArray(f["club Boxeur 1"]) ? f["club Boxeur 1"][0] : f["club Boxeur 1"] || "";
       } else {
         adversaireClub = Array.isArray(f["club Boxeur demandeur"]) ? f["club Boxeur demandeur"][0] : f["club Boxeur demandeur"] || "";
       }
 
-      // Photo adversaire
       const adversairePhoto = isCoach1
-        ? (f["Photo boxeur 2"] ? f["Photo boxeur 2"][0]?.url : null)
-        : (f["Photo du boxeur"] ? f["Photo du boxeur"][0]?.url : null);
+        ? (f["Photo boxeur 2 "] ? f["Photo boxeur 2 "][0]?.url : null)
+        : (f["Photo du  boxeur"] ? f["Photo du  boxeur"][0]?.url : null);
 
-      // Palmarès adversaire
       const palmaresStr = isCoach1
         ? (Array.isArray(f["Palmares (from Palmares boxeur 2)"]) ? f["Palmares (from Palmares boxeur 2)"][0] : f["Palmares (from Palmares boxeur 2)"] || "")
         : (Array.isArray(f["Palmares (from Boxeurs)"]) ? f["Palmares (from Boxeurs)"][0] : f["Palmares (from Boxeurs)"] || "");
@@ -433,7 +443,7 @@ console.log('🔬 Champs disponibles:', JSON.stringify(Object.keys(allRecords[0]
         if (m) palmares = { vic: m[1], def: m[2], nuls: m[3], ko: m[4] };
       }
 
-      console.log('✅ Match:', adversaireNom, '| club:', adversaireClub, '| palmares:', palmaresStr);
+      console.log('✅ Match:', adversaireNom, '| club:', adversaireClub);
 
       matchs.push({
         id: record.id,
@@ -455,7 +465,6 @@ console.log('🔬 Champs disponibles:', JSON.stringify(Object.keys(allRecords[0]
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
-
 
 // ===== CLOUD FUNCTION v2: addDemandeMatch =====
 exports.addDemandeMatch = onRequest({
@@ -525,9 +534,5 @@ exports.addDemandeMatch = onRequest({
     console.error("❌ Erreur addDemandeMatch:", error.response ? JSON.stringify(error.response.data) : error.message);
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
-  jsconsole.log('🔑 boxeurId reçu:', boxeurId);
-console.log('📧 coachEmail:', coachEmail);
-
-const allRecords = await base("Matchs possibles").select().all();
-console.log('🔬 Champs disponibles:', JSON.stringify(Object.keys(allRecords[0]?.fields || {})));
+ 
 });

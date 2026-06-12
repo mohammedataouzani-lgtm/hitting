@@ -65,7 +65,7 @@ export default function AdversairesPotentielsScreen({ navigation, route }) {
     try {
       const auth = getAuth();
       const idToken = await auth.currentUser.getIdToken();
-
+console.log('📤 Envoi de la requête avec boxeurId:', boxer.id);
       const response = await fetch(
         `https://europe-west9-hitting-23de9.cloudfunctions.net/getMatchsPossibles?boxeurId=${boxer.id}`,
         {
