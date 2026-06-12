@@ -289,7 +289,7 @@ exports.addEvenement = onRequest({
   }
 });
 
-// ===== CLOUD FUNCTION v2: getEvenements =====
+
 // ===== CLOUD FUNCTION v2: getEvenements =====
 exports.getEvenements = onRequest({
   region: "europe-west9",
@@ -341,7 +341,7 @@ exports.getEvenements = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
-// ===== CLOUD FUNCTION v2: getMatchsPossibles =====
+
 // ===== CLOUD FUNCTION v2: getMatchsPossibles =====
 exports.getMatchsPossibles = onRequest({
   region: "europe-west9",
@@ -396,7 +396,7 @@ exports.getMatchsPossibles = onRequest({
     console.log('📦 Total records:', allRecords.length);
 
     const matchs = [];
-    const seenAdversaires = new Set();
+    const seenAdversaireIds = new Set();
 
     for (const record of allRecords) {
       const f = record.fields || {};
@@ -405,29 +405,31 @@ exports.getMatchsPossibles = onRequest({
       const emailCoach2 = Array.isArray(f["Email coach 2"]) ? f["Email coach 2"][0] : f["Email coach 2"] || "";
       const boxeur1Ids = Array.isArray(f["Boxeur 1"]) ? f["Boxeur 1"].map(b => b.id || b) : [];
       const boxeur2Ids = Array.isArray(f["Boxeur 2"]) ? f["Boxeur 2"].map(b => b.id || b) : [];
+      console.log('🔬 boxeur1Ids:', boxeur1Ids, '| boxeur2Ids:', boxeur2Ids, '| f["Boxeur 1"]:', JSON.stringify(f["Boxeur 1"]));
 
       const isCoach1Match = emailCoach1.toLowerCase() === coachEmail.toLowerCase() && boxeur1Ids.includes(boxeurId);
       const isCoach2Match = emailCoach2.toLowerCase() === coachEmail.toLowerCase() && boxeur2Ids.includes(boxeurId);
 
       if (!isCoach1Match && !isCoach2Match) continue;
-
+console.log('🎯 Record passé le filtre | isCoach1:', isCoach1Match, '| isCoach2:', isCoach2Match, '| adversaireId:', f["Boxeur 2"]?.[0]?.id, f["Boxeur 1"]?.[0]?.id);
       const isCoach1 = isCoach1Match;
 
       const adversaireNom = isCoach1
         ? (f["Nom et prénom boxeur 2 "] || "")
         : (f["Nom et prénom boxeur 1"] || "");
 
-      if (!adversaireNom || adversaireNom.trim() === '') continue;
+   const adversaireId = isCoach1
+  ? (boxeur2Ids[0] || null)
+  : (boxeur1Ids[0] || null);
 
-      if (seenAdversaires.has(adversaireNom.trim())) continue;
-      seenAdversaires.add(adversaireNom.trim());
+if (!adversaireNom || adversaireNom.trim() === '') continue;
+const pairKey = [boxeurId, adversaireId].sort().join('-');
+if (!adversaireId || seenAdversaireIds.has(pairKey)) continue;
+seenAdversaireIds.add(pairKey);
 
       let adversaireClub = "";
-      if (isCoach1) {
-        adversaireClub = Array.isArray(f["club Boxeur 1"]) ? f["club Boxeur 1"][0] : f["club Boxeur 1"] || "";
-      } else {
-        adversaireClub = Array.isArray(f["club Boxeur demandeur"]) ? f["club Boxeur demandeur"][0] : f["club Boxeur demandeur"] || "";
-      }
+    
+adversaireClub = Array.isArray(f["club Boxeur demandeur"]) ? f["club Boxeur demandeur"][0] : f["club Boxeur demandeur"] || "";
 
       const adversairePhoto = isCoach1
         ? (f["Photo boxeur 2 "] ? f["Photo boxeur 2 "][0]?.url : null)
