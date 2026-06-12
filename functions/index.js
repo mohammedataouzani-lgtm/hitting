@@ -373,8 +373,11 @@ exports.getMatchsPossibles = onRequest({
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
-    const allRecords = await base("Matchs possibles").select().all();
-    console.log('📦 Total records:', allRecords.length);
+  const allRecords = await base("Matchs possibles").select().all();
+console.log('📦 Total records:', allRecords.length);
+
+// ← AJOUTE ICI
+console.log('🔬 Champs disponibles:', JSON.stringify(Object.keys(allRecords[0]?.fields || {})));
 
     const matchs = [];
     const seenAdversaires = new Set();
@@ -522,4 +525,9 @@ exports.addDemandeMatch = onRequest({
     console.error("❌ Erreur addDemandeMatch:", error.response ? JSON.stringify(error.response.data) : error.message);
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
+  jsconsole.log('🔑 boxeurId reçu:', boxeurId);
+console.log('📧 coachEmail:', coachEmail);
+
+const allRecords = await base("Matchs possibles").select().all();
+console.log('🔬 Champs disponibles:', JSON.stringify(Object.keys(allRecords[0]?.fields || {})));
 });
