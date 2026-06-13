@@ -167,7 +167,7 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
             clubAdversaire: match.adversaireClub || '',
             categorieDemandeur: boxer.poids || '',
             categorieAdversaire: match.categoriePoids || '',
-            typeCombat,
+          typeCombat: typeCombat.replace(/['"]+/g, '')
           }),
         }
       );
@@ -230,7 +230,7 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
 
           <Text style={f.fieldLabel}>Type de combat</Text>
           <View style={f.toggleRow}>
-            {['Gala', 'Sparring', 'Combat'].map((t) => (
+           {['Gala', 'Sparring'].map((type) => (
               <TouchableOpacity
                 key={t}
                 style={[f.toggleBtn, typeCombat === t && f.toggleBtnActive]}

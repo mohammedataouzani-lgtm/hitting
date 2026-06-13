@@ -489,27 +489,38 @@ exports.addDemandeMatch = onRequest({
   try {
     await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
 
-    const {
-      nomBoxeur, prenomBoxeur,
-      nomAdversaire, prenomAdversaire,
-      affichageCombat, dateSouhaitee,
-      adresse, message,
-      emailCoach1, emailCoach2,
-      clubBoxeur, clubAdversaire,
-      categorieDemandeur, categorieAdversaire,
-      typeCombat,
-    } = req.body;
+const {
+  nomBoxeur, prenomBoxeur,
+  nomAdversaire, prenomAdversaire,
+  affichageCombat, dateSouhaitee,
+  adresse, message,
+  emailCoach1, emailCoach2,
+  clubBoxeur, clubAdversaire,
+  categorieDemandeur, categorieAdversaire,
+  typeCombat, // <--- Ici
+} = req.body;
 
    const apiKey = process.env.AIRTABLE_SECRET_KEY;
 const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
+const cleanType = (typeof typeCombat === 'string') ? typeCombat.replace(/['"]+/g, '') : "Gala";
+
+// Juste avant de construire les fields, loggeons ce qu'on a reçu
+console.log("DEBUG: typeCombat reçu du front-end =", JSON.stringify(typeCombat));
 
 const fields = {
   "Nom de mon boxeur": nomBoxeur || "",
   "Nom du boxeur adversaire": nomAdversaire || "",
-  "Prénom du boxeur adversaire": prenomAdversaire || "",
+  "Message": message || "",
+  "Adresse du combat": adresse || "",
+  // ON FORCE LE TABLEAU AVEC UNE VALEUR DURE POUR TESTER
+ "Type combat": typeCombat || "Gala",
+  "Statut": "En attente",
+  "Date demande": new Date().toISOString().substring(0, 10),
 };
-
-
+if (dateSouhaitee) {
+  const d = new Date(dateSouhaitee);
+  if (!isNaN(d.getTime())) fields["Date souhaitée"] = d.toISOString().split('T')[0];
+}
 if (emailCoach2) fields["Email coach 2"] = emailCoach2;
 
 console.log('📤 Fields envoyés à Airtable:', JSON.stringify(fields));

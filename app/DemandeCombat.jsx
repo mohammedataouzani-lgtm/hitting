@@ -215,7 +215,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>Type de combat</Text>
           <View style={styles.toggleRow}>
-            {['Gala', 'Sparring', 'Combat'].map((type) => (
+            {['Gala', 'Sparring'].map((type) => (
               <TouchableOpacity
                 key={type}
                 activeOpacity={0.8}
