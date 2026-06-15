@@ -445,7 +445,7 @@ adversaireClub = Array.isArray(f["club Boxeur demandeur"]) ? f["club Boxeur dema
         if (m) palmares = { vic: m[1], def: m[2], nuls: m[3], ko: m[4] };
       }
 
-      console.log('✅ Match:', adversaireNom, '| club:', adversaireClub);
+     console.log('✅ Match:', adversaireNom, '| club:', adversaireClub);
 
       matchs.push({
         id: record.id,
@@ -455,8 +455,11 @@ adversaireClub = Array.isArray(f["club Boxeur demandeur"]) ? f["club Boxeur dema
         adversairePhoto,
         sexe: f["Sexe"] || "",
         categoriePoids: f["Catégorie de poids"] || "",
+        emailCoach2: isCoach1 ? emailCoach2 : emailCoach1,
         palmares,
       });
+
+      console.log('📧 emailCoach2 calculé:', isCoach1 ? emailCoach2 : emailCoach1, '| emailCoach1 brut:', emailCoach1, '| emailCoach2 brut:', emailCoach2);
     }
 
     console.log('🎯 Matchs uniques trouvés:', matchs.length);
@@ -508,14 +511,20 @@ const cleanType = (typeof typeCombat === 'string') ? typeCombat.replace(/['"]+/g
 console.log("DEBUG: typeCombat reçu du front-end =", JSON.stringify(typeCombat));
 
 const fields = {
-  "Nom de mon boxeur": nomBoxeur || "",
+    "Nom de mon boxeur": nomBoxeur || "",
+  "Prénom de mon boxeur": prenomBoxeur || "",
   "Nom du boxeur adversaire": nomAdversaire || "",
+  "Prénom du boxeur adversaire": prenomAdversaire || "",
   "Message": message || "",
   "Adresse du combat": adresse || "",
-  // ON FORCE LE TABLEAU AVEC UNE VALEUR DURE POUR TESTER
- "Type combat": typeCombat || "Gala",
+  "Email Coach 1": emailCoach1 || "",
+  "Club du boxeur": clubBoxeur || "",
+  "Club boxeur adversaire": clubAdversaire || "",
+  "Catégorie de poids demandeur": Array.isArray(categorieDemandeur) ? categorieDemandeur[0] : categorieDemandeur || "",
+  "Catégorie de poids adversaire": Array.isArray(categorieAdversaire) ? categorieAdversaire[0] : categorieAdversaire || "",
+  "Type combat": typeCombat || "Gala",
   "Statut": "En attente",
-  "Date demande": new Date().toISOString().substring(0, 10),
+  "Date demande": new Date().toISOString().split('T')[0],
 };
 if (dateSouhaitee) {
   const d = new Date(dateSouhaitee);
