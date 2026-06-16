@@ -766,3 +766,141 @@ exports.getNotifications = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
+
+// ===== CLOUD FUNCTION v2: getCombatsATraiter =====
+exports.getCombatsATraiter = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
+    const coachEmail = coachDoc.data().email;
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    const now = new Date();
+
+    const records = await base("Résultats").select().all();
+
+    const combatsATraiter = records
+      .map((record) => {
+        const f = record.fields || {};
+        return {
+          id: record.id,
+          combattants: f["Combattants + date"] || "",
+          dateCombat: f["Date du combat"] || "",
+          typeCombat: f["Type de combat"] || "",
+          statut: f["Statut"] || "",
+          emailCoachA: Array.isArray(f["Email coach A"]) ? (f["Email coach A"][0] || "") : (f["Email coach A"] || ""),
+emailCoachB: Array.isArray(f["Email coach B"]) ? (f["Email coach B"][0] || "") : (f["Email coach B"] || ""),
+        boxeurA: Array.isArray(f["Boxeur A"]) ? (f["Boxeur A"][0]?.name || f["Boxeur A"][0] || "") : (f["Boxeur A"] || ""),
+boxeurB: Array.isArray(f["Boxeur B"]) ? (f["Boxeur B"][0]?.name || f["Boxeur B"][0] || "") : (f["Boxeur B"] || ""),
+          scoreSaisiCoachA: f["Score saisi par Coach A"] || null,
+          scoreSaisiCoachB: f["Score saisi par Coach B"] || null,
+        };
+      })
+      .filter((c) => {
+        const isCoachA = c.emailCoachA.toLowerCase() === coachEmail.toLowerCase();
+        const isCoachB = c.emailCoachB.toLowerCase() === coachEmail.toLowerCase();
+        if (!isCoachA && !isCoachB) return false;
+
+        // Déjà saisi par ce coach ?
+        if (isCoachA && c.scoreSaisiCoachA) return false;
+        if (isCoachB && c.scoreSaisiCoachB) return false;
+
+        // Date du combat + 8h doit être passée
+        if (!c.dateCombat) return false;
+        const dateLimite = new Date(c.dateCombat);
+        dateLimite.setHours(dateLimite.getHours() + 8);
+        return dateLimite <= now;
+      })
+      .map((c) => ({
+        ...c,
+        role: c.emailCoachA.toLowerCase() === coachEmail.toLowerCase() ? 'A' : 'B',
+      }));
+
+    return res.status(200).json({ success: true, combatsATraiter });
+
+  } catch (error) {
+    console.error("❌ Erreur getCombatsATraiter:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});
+
+// ===== CLOUD FUNCTION v2: submitResultatCombat =====
+exports.submitResultatCombat = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") {
+    res.set("Access-Control-Allow-Methods", "POST");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    return res.status(204).send("");
+  }
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+
+    const { resultatId, role, scoreBoxeur, round, typeVictoire, commentaire } = req.body;
+
+    if (!resultatId) return res.status(400).json({ error: "resultatId manquant" });
+    if (!role || !["A", "B"].includes(role)) return res.status(400).json({ error: "role invalide" });
+
+    const apiKey = process.env.AIRTABLE_SECRET_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
+
+    const fields = {};
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    if (role === "A") {
+      fields["Score Boxeur A"] = scoreBoxeur != null ? parseInt(scoreBoxeur) : null;
+      fields["Round Coach A"] = round != null ? parseInt(round) : null;
+      fields["Type de victoire Coach A"] = typeVictoire || "";
+      fields["Commentaire Coach A"] = commentaire || "";
+      fields["Score saisi par Coach A"] = todayStr;
+    } else {
+      fields["Score Boxeur B"] = scoreBoxeur != null ? parseInt(scoreBoxeur) : null;
+      fields["Round Coach B"] = round != null ? parseInt(round) : null;
+      fields["Type de victoire Coach B"] = typeVictoire || "";
+      fields["Commentaire Coach B"] = commentaire || "";
+      fields["Score saisi par Coach B"] = todayStr;
+    }
+
+    console.log('📤 Submit résultat:', resultatId, '| fields:', JSON.stringify(fields));
+
+    await axios.patch(
+      `https://api.airtable.com/v0/${baseId}/Résultats/${resultatId}`,
+      { fields },
+      { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
+    );
+
+    return res.status(200).json({ success: true });
+
+  } catch (error) {
+    console.error("❌ Erreur submitResultatCombat:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});
