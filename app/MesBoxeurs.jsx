@@ -178,6 +178,8 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
 
   if (!visible) return null;
 
+
+
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -332,6 +334,8 @@ export default function MesBoxeursScreen({ navigation, route }) {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [boxeurToEdit, setBoxeurToEdit] = useState(null);
+  const [filterSexe, setFilterSexe] = useState(null);
+  const [filterPoids, setFilterPoids] = useState(null);
 
   React.useEffect(() => {
     if (route.params?.openAddSheet) {
@@ -375,7 +379,14 @@ export default function MesBoxeursScreen({ navigation, route }) {
     }
   };
 
-  const filteredBoxeurs = boxeurs.filter((b) => b.nom.toLowerCase().includes(search.toLowerCase()));
+ const categoriesPoidsDisponibles = [...new Set(boxeurs.map((b) => b.poids).filter(Boolean))];
+
+const filteredBoxeurs = boxeurs.filter((b) => {
+  const matchSearch = b.nom.toLowerCase().includes(search.toLowerCase());
+  const matchSexe = !filterSexe || b.sexe === filterSexe;
+  const matchPoids = !filterPoids || b.poids === filterPoids;
+  return matchSearch && matchSexe && matchPoids;
+});
   const handleAddBoxeur = (newBoxeur) => { setBoxeurs((prev) => [newBoxeur, ...prev]); };
   const handleEditBoxeur = (boxer) => { setBoxeurToEdit(boxer); setEditSheetVisible(true); };
   const handleSaveBoxeur = (updatedBoxeur) => { setBoxeurs((prev) => prev.map((b) => (b.id === updatedBoxeur.id ? updatedBoxeur : b))); };
@@ -403,6 +414,42 @@ export default function MesBoxeursScreen({ navigation, route }) {
           </View>
           <TouchableOpacity style={s.filterBtn}><Text style={s.filterIcon}>☰</Text></TouchableOpacity>
         </View>
+        <ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  contentContainerStyle={s.filtersRow}
+>
+  <TouchableOpacity
+    style={[s.chip, !filterSexe && !filterPoids && s.chipActive]}
+    onPress={() => { setFilterSexe(null); setFilterPoids(null); }}
+  >
+    <Text style={[s.chipTxt, !filterSexe && !filterPoids && s.chipTxtActive]}>Tous</Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    style={[s.chip, filterSexe === 'H' && s.chipActive]}
+    onPress={() => setFilterSexe(filterSexe === 'H' ? null : 'H')}
+  >
+    <Text style={[s.chipTxt, filterSexe === 'H' && s.chipTxtActive]}>Hommes</Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    style={[s.chip, filterSexe === 'F' && s.chipActive]}
+    onPress={() => setFilterSexe(filterSexe === 'F' ? null : 'F')}
+  >
+    <Text style={[s.chipTxt, filterSexe === 'F' && s.chipTxtActive]}>Femmes</Text>
+  </TouchableOpacity>
+
+  {categoriesPoidsDisponibles.map((cat) => (
+    <TouchableOpacity
+      key={cat}
+      style={[s.chip, filterPoids === cat && s.chipActive]}
+      onPress={() => setFilterPoids(filterPoids === cat ? null : cat)}
+    >
+      <Text style={[s.chipTxt, filterPoids === cat && s.chipTxtActive]}>{cat}</Text>
+    </TouchableOpacity>
+  ))}
+</ScrollView>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.listContent}>
           {filteredBoxeurs.map((boxer) => (
             <BoxerCard key={boxer.id} boxer={boxer} onEdit={handleEditBoxeur} onPress={(b) => navigation.navigate('FicheBoxeur', { boxer: b })} />
@@ -485,4 +532,18 @@ const s = StyleSheet.create({
   submitBtn: { borderRadius: 14, overflow: 'hidden', shadowColor: '#E53935', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6 },
   submitGradient: { height: 54, alignItems: 'center', justifyContent: 'center' },
   submitTxt: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+  filtersRow: { paddingHorizontal: 18, paddingBottom: 12, gap: 8 },
+chip: {
+  height: 36,
+  paddingHorizontal: 16,
+  borderRadius: 18,
+  backgroundColor: '#F5F5F5',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderWidth: 1,
+  borderColor: '#ECECEC',
+},
+chipActive: { backgroundColor: '#111', borderColor: '#111' },
+chipTxt: { fontSize: 13, fontWeight: '700', color: '#555' },
+chipTxtActive: { color: '#fff' },
 });
