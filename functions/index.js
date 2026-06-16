@@ -886,7 +886,9 @@ exports.submitResultatCombat = onRequest({
       fields["Round Coach B"] = round != null ? parseInt(round) : null;
       fields["Type de victoire Coach B"] = typeVictoire || "";
       fields["Commentaire Coach B"] = commentaire || "";
-      fields["Score saisi par Coach B"] = todayStr;
+     if (scoreBoxeur == null || scoreBoxeur === "") {
+  return res.status(400).json({ error: "scoreBoxeur manquant" });
+}
     }
 
     console.log('📤 Submit résultat:', resultatId, '| fields:', JSON.stringify(fields));
@@ -901,6 +903,107 @@ exports.submitResultatCombat = onRequest({
 
   } catch (error) {
     console.error("❌ Erreur submitResultatCombat:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});
+
+// ===== CLOUD FUNCTION v2: getDashboardStats =====
+exports.getDashboardStats = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
+    const coachEmail = coachDoc.data().email;
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    const records = await base("Résultats").select().all();
+
+    const extractStr = (val) => Array.isArray(val) ? (val[0]?.name || val[0] || "") : (val || "");
+
+    let totalFights = 0;
+    let totalWins = 0;
+    let totalDefeats = 0;
+    let totalDraws = 0;
+    let totalKos = 0;
+    const boxeursActifsSet = new Set();
+
+    for (const record of records) {
+      const f = record.fields || {};
+
+      const emailCoachA = extractStr(f["Email coach A"]).toLowerCase();
+      const emailCoachB = extractStr(f["Email coach B"]).toLowerCase();
+      const isCoachA = emailCoachA === coachEmail.toLowerCase();
+      const isCoachB = emailCoachB === coachEmail.toLowerCase();
+
+      if (!isCoachA && !isCoachB) continue;
+
+      const scoreA = f["Score Boxeur A"];
+      const scoreB = f["Score Boxeur B"];
+      const scoresValides = scoreA != null && scoreA !== "" && scoreB != null && scoreB !== "";
+
+      if (!scoresValides) continue;
+
+      totalFights++;
+
+      // ↓↓↓ NOUVEAU BLOC — remplace l'ancienne logique basée sur "Gagnant" ↓↓↓
+      const monScore = isCoachA ? scoreA : scoreB;
+      const scoreAdverse = isCoachA ? scoreB : scoreA;
+      const monTypeVictoire = isCoachA ? (f["Type de victoire Coach A"] || "") : (f["Type de victoire Coach B"] || "");
+      const typeVictoireAdverse = isCoachA ? (f["Type de victoire Coach B"] || "") : (f["Type de victoire Coach A"] || "");
+
+      const monIdBoxeur = extractStr(isCoachA ? f["Boxeur A"] : f["Boxeur B"]);
+      if (monIdBoxeur) boxeursActifsSet.add(monIdBoxeur);
+
+      if (monScore === scoreAdverse) {
+        totalDraws++;
+      } else if (monScore > scoreAdverse) {
+        totalWins++;
+        if (monTypeVictoire === "KO" || monTypeVictoire === "TKO") totalKos++;
+      } else {
+        totalDefeats++;
+        if (typeVictoireAdverse === "KO" || typeVictoireAdverse === "TKO") totalKos++;
+      }
+      // ↑↑↑ FIN DU NOUVEAU BLOC ↑↑↑
+    }
+
+    const pct = (n) => totalFights > 0 ? Math.round((n / totalFights) * 100) : 0;
+
+    return res.status(200).json({
+      success: true,
+      stats: {
+        totalFights,
+        totalWins,
+        totalDefeats,
+        totalDraws,
+        totalKos,
+        victoryRate: pct(totalWins),
+        defeatRate: pct(totalDefeats),
+        drawRate: pct(totalDraws),
+        koRate: pct(totalKos),
+        activeBoxers: boxeursActifsSet.size,
+      },
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur getDashboardStats:", error.response ? JSON.stringify(error.response.data) : error.message);
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });

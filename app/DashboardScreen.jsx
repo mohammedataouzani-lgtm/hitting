@@ -195,7 +195,7 @@ function BilanBottomSheet({ visible, onClose, stats }) {
 
         <ScrollView showsVerticalScrollIndicator={false} bounces={false} style={bs.scrollContent}>
           <Text style={bs.title}>Bilan saison</Text>
-          <Text style={bs.subtitle}>{stats.saison || '2025 --- 2026'} • {stats.activeBoxers || 0} boxeurs actifs</Text>
+          <Text style={bs.subtitle}>{stats.saison || '2025 -- 2026'} • {stats.activeBoxers || 0} boxeurs actifs</Text>
 
           <View style={bs.chartRow}>
             <Svg width={svgSize} height={svgSize}>
@@ -272,29 +272,44 @@ export default function DashboardScreen({ navigation }) {
 
         const db = getFirestore();
         const snapshot = await getDoc(doc(db, 'coaches', user.uid));
+        const idToken = await user.getIdToken();
+
+        let baseData = {
+          firstName: 'Coach',
+          clubName: 'Pas de club associé',
+        };
         if (snapshot.exists()) {
           const data = snapshot.data();
-          setCoachData({
+          baseData = {
             firstName: data.firstName || 'Coach',
             clubName: data.clubName || 'Pas de club associé',
-            totalFights: data.totalFights ?? 0,
-            victoryRate: data.victoryRate ?? 0,
-            nextEvent: data.nextEvent || null,
-            defeatRate: data.defeatRate || 0,
-            drawRate: data.drawRate || 0,
-            koRate: data.koRate || 0,
-            totalWins: data.totalWins || 0,
-            totalDefeats: data.totalDefeats || 0,
-            totalDraws: data.totalDraws || 0,
-            totalKos: data.totalKos || 0,
-            activeBoxers: data.activeBoxers || 0,
-            saison: data.saison || '2025 --- 2026',
-          });
+          };
         }
 
+        // Fetch stats dynamiques (combats, taux de victoire, bilan saison)
+        const statsResponse = await fetch(
+          'https://europe-west9-hitting-23de9.cloudfunctions.net/getDashboardStats',
+          { headers: { 'Authorization': `Bearer ${idToken}` } }
+        );
+        const statsData = await statsResponse.json();
+        const stats = statsData.success ? statsData.stats : {};
+
+        setCoachData({
+          ...baseData,
+          totalFights: stats.totalFights ?? 0,
+          victoryRate: stats.victoryRate ?? 0,
+          defeatRate: stats.defeatRate ?? 0,
+          drawRate: stats.drawRate ?? 0,
+          koRate: stats.koRate ?? 0,
+          totalWins: stats.totalWins ?? 0,
+          totalDefeats: stats.totalDefeats ?? 0,
+          totalDraws: stats.totalDraws ?? 0,
+          totalKos: stats.totalKos ?? 0,
+          activeBoxers: stats.activeBoxers ?? 0,
+          saison: '2025 -- 2026',
+        });
+
         // Fetch événements
-        const auth2 = getAuth();
-        const idToken = await auth2.currentUser.getIdToken();
         const evtResponse = await fetch(
           'https://europe-west9-hitting-23de9.cloudfunctions.net/getEvenements',
           { headers: { 'Authorization': `Bearer ${idToken}` } }
