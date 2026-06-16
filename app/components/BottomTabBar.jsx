@@ -21,7 +21,7 @@ const TABS = [
   { key: 'boxeurs',   icon: '👥', route: 'MesBoxeurs' },
   { key: 'plus',      icon: '+',  route: null },
   { key: 'profil',    icon: '👤', route: 'Profil' },
-   { key: 'notifs',    icon: '🔔', route: 'DemandesMatch' },
+  { key: 'notifs', icon: '🔔', route: 'Notifications' },
 ];
 
 export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {

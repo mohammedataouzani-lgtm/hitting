@@ -679,3 +679,90 @@ exports.updateDemandeMatch = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
+
+// ===== CLOUD FUNCTION v2: getNotifications =====
+exports.getNotifications = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
+    const coachData = coachDoc.data();
+    const coachEmail = coachData.email;
+    const airtableCoachId = coachData.airtableRecordId;
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    // ── Demandes reçues en attente ──
+  // ── Demandes en attente (envoyées + reçues) ──
+    const demandesRecords = await base("Demandedematch").select().all();
+    const demandesEnAttente = demandesRecords
+      .map((record) => {
+        const f = record.fields || {};
+        return {
+          id: record.id,
+          emailCoach1: f["Email Coach 1"] || "",
+          emailCoach2: f["Email coach 2"] || "",
+          statut: f["Statut"] || "En attente",
+          nomBoxeur: f["Nom de mon boxeur"] || "",
+          prenomBoxeur: f["Prénom de mon boxeur"] || "",
+          nomAdversaire: f["Nom du boxeur adversaire"] || "",
+          prenomAdversaire: f["Prénom du boxeur adversaire"] || "",
+          dateDemande: f["Date demande"] || "",
+        };
+      })
+      .filter((d) => d.statut === "En attente")
+      .filter((d) =>
+        d.emailCoach1.toLowerCase() === coachEmail.toLowerCase() ||
+        d.emailCoach2.toLowerCase() === coachEmail.toLowerCase()
+      )
+      .map((d) => ({
+        ...d,
+        type: d.emailCoach2.toLowerCase() === coachEmail.toLowerCase() ? 'recue' : 'envoyee',
+      }));
+
+    // ── Boxeurs validés ──
+    let boxeursValides = [];
+    if (airtableCoachId) {
+      const boxeursRecords = await base("Boxeurs en attente").select({
+        filterByFormula: `AND(FIND("${airtableCoachId}", ARRAYJOIN({Liaison vers Coach})), {Statut de validation} = "Validé")`
+      }).all();
+
+      boxeursValides = boxeursRecords.map((record) => {
+        const f = record.fields || {};
+        return {
+          id: record.id,
+          nom: f["Nom"] || "",
+          prenom: f["Prénom"] || "",
+          dateValidation: f["Date de naissance"] || "",
+        };
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      demandesEnAttente,
+      boxeursValides,
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur getNotifications:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});

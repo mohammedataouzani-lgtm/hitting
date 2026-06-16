@@ -14,6 +14,7 @@ import SplashScreen from './app/SplashScreen';
 import AdversairesPotentielsScreen from './app/AdversairesPotentiels';
 import DemandeCombatScreen from './app/DemandeCombat';
 import DemandesMatchScreen from './app/DemandesMatchScreen';
+import NotificationsScreen from './app/NotificationsScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -38,6 +39,7 @@ export default function App() {
           <Stack.Screen name="AdversairesPotentiels" component={AdversairesPotentielsScreen} />
           <Stack.Screen name="DemandeCombat" component={DemandeCombatScreen} />
           <Stack.Screen name="DemandesMatch" component={DemandesMatchScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>
