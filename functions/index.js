@@ -1007,3 +1007,92 @@ exports.getDashboardStats = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
+
+exports.getHistoriqueCombats = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
+    const coachEmail = coachDoc.data().email;
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    const records = await base("Résultats").select().all();
+
+    const extractStr = (val) => Array.isArray(val) ? (val[0]?.name || val[0] || "") : (val || "");
+
+    const combats = [];
+
+    for (const record of records) {
+      const f = record.fields || {};
+
+      const emailCoachA = extractStr(f["Email coach A"]).toLowerCase();
+      const emailCoachB = extractStr(f["Email coach B"]).toLowerCase();
+      const isCoachA = emailCoachA === coachEmail.toLowerCase();
+      const isCoachB = emailCoachB === coachEmail.toLowerCase();
+
+      if (!isCoachA && !isCoachB) continue;
+
+      const scoreA = f["Score Boxeur A"];
+      const scoreB = f["Score Boxeur B"];
+      const scoresValides = scoreA != null && scoreA !== "" && scoreB != null && scoreB !== "";
+
+      if (!scoresValides) continue;
+
+      const monScore = isCoachA ? scoreA : scoreB;
+      const scoreAdverse = isCoachA ? scoreB : scoreA;
+      const monTypeVictoire = isCoachA ? (f["Type de victoire Coach A"] || "") : (f["Type de victoire Coach B"] || "");
+      const typeVictoireAdverse = isCoachA ? (f["Type de victoire Coach B"] || "") : (f["Type de victoire Coach A"] || "");
+
+      let resultat;
+      let typeVictoireGagnant;
+      if (monScore === scoreAdverse) {
+        resultat = "Match nul";
+        typeVictoireGagnant = "";
+      } else if (monScore > scoreAdverse) {
+        resultat = "Victoire";
+        typeVictoireGagnant = monTypeVictoire;
+      } else {
+        resultat = "Défaite";
+        typeVictoireGagnant = typeVictoireAdverse;
+      }
+
+      combats.push({
+        id: record.id,
+        titre: f["Combattants + date"] || "",
+        date: f["Date du combat"] || "",
+        typeCombat: f["Type de combat"] || "",
+        monScore,
+        scoreAdverse,
+        resultat,
+        typeVictoire: typeVictoireGagnant,
+        statut: f["Statut"] || "",
+      });
+    }
+
+    combats.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    return res.status(200).json({ success: true, combats });
+
+  } catch (error) {
+    console.error("❌ Erreur getHistoriqueCombats:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});
