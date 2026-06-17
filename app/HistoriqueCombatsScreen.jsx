@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   SafeAreaView,
+  TouchableOpacity,
 } from 'react-native';
 import { useAuth } from '../AuthContext'; // ⚠️ adapte le chemin/nom selon ton AuthContext
 
@@ -49,34 +50,35 @@ function CombatCard({ combat }) {
   );
 }
 
-export default function HistoriqueCombatsScreen() {
+export default function HistoriqueCombatsScreen({ navigation }) {
   const { user } = useAuth();
   const [combats, setCombats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-const fetchHistorique = useCallback(async () => {
-  if (!user) {
-    setLoading(false);
-    setRefreshing(false);
-    return;
-  }
-  try {
-    const token = await user.getIdToken();
-    const response = await fetch(API_URL, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await response.json();
-    if (data.success) {
-      setCombats(data.combats);
+  const fetchHistorique = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
     }
-  } catch (error) {
-    console.error('❌ Erreur récupération historique:', error);
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-}, [user]);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(API_URL, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setCombats(data.combats);
+      }
+    } catch (error) {
+      console.error('❌ Erreur récupération historique:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchHistorique();
   }, [fetchHistorique]);
@@ -89,6 +91,12 @@ const fetchHistorique = useCallback(async () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Text style={styles.backIcon}>←</Text>
+            <Text style={styles.backTxt}>Retour</Text>
+          </TouchableOpacity>
+        </View>
         <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#C9A227" />
       </SafeAreaView>
     );
@@ -96,6 +104,12 @@ const fetchHistorique = useCallback(async () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backIcon}>←</Text>
+          <Text style={styles.backTxt}>Retour</Text>
+        </TouchableOpacity>
+      </View>
       <Text style={styles.header}>Historique des combats</Text>
 
       <FlatList
@@ -114,7 +128,11 @@ const fetchHistorique = useCallback(async () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F0E6' }, // beige, à ajuster selon ta charte
-  header: { fontSize: 22, fontWeight: '700', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, color: '#222' },
+  headerRow: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  backIcon: { fontSize: 20, color: '#222', fontWeight: '600' },
+  backTxt: { fontSize: 16, color: '#222', fontWeight: '600' },
+  header: { fontSize: 22, fontWeight: '700', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8, color: '#222' },
   listContent: { paddingHorizontal: 16, paddingBottom: 24 },
   card: {
     backgroundColor: '#FFFFFF',

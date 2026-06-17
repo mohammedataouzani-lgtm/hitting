@@ -709,8 +709,7 @@ exports.getNotifications = onRequest({
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
-    // ── Demandes reçues en attente ──
-  // ── Demandes en attente (envoyées + reçues) ──
+    // ── Demandes en attente (envoyées + reçues) ──
     const demandesRecords = await base("Demandedematch").select().all();
     const demandesEnAttente = demandesRecords
       .map((record) => {
@@ -737,28 +736,37 @@ exports.getNotifications = onRequest({
         type: d.emailCoach2.toLowerCase() === coachEmail.toLowerCase() ? 'recue' : 'envoyee',
       }));
 
-    // ── Boxeurs validés ──
+    // ── Boxeurs (validés + en attente) ──
     let boxeursValides = [];
+    let boxeursEnAttente = [];
     if (airtableCoachId) {
-      const boxeursRecords = await base("Boxeurs en attente").select({
-        filterByFormula: `AND(FIND("${airtableCoachId}", ARRAYJOIN({Liaison vers Coach})), {Statut de validation} = "Validé")`
-      }).all();
+      const boxeursRecords = await base("Boxeurs en attente").select().all();
 
-      boxeursValides = boxeursRecords.map((record) => {
+      for (const record of boxeursRecords) {
         const f = record.fields || {};
-        return {
+        const coachIds = Array.isArray(f["Liaison vers Coach"]) ? f["Liaison vers Coach"] : [];
+        if (!coachIds.includes(airtableCoachId)) continue;
+
+        const statutValidation = f["Statut de validation"] || "";
+        const boxeur = {
           id: record.id,
           nom: f["Nom"] || "",
           prenom: f["Prénom"] || "",
-          dateValidation: f["Date de naissance"] || "",
         };
-      });
+
+        if (statutValidation === "Validé") {
+          boxeursValides.push({ ...boxeur, dateValidation: f["Date de naissance"] || "" });
+        } else if (statutValidation === "En attente") {
+          boxeursEnAttente.push(boxeur);
+        }
+      }
     }
 
     return res.status(200).json({
       success: true,
       demandesEnAttente,
       boxeursValides,
+      boxeursEnAttente,
     });
 
   } catch (error) {
@@ -766,7 +774,6 @@ exports.getNotifications = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
-
 // ===== CLOUD FUNCTION v2: getCombatsATraiter =====
 exports.getCombatsATraiter = onRequest({
   region: "europe-west9",

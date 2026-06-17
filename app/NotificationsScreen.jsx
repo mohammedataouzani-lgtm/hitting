@@ -63,6 +63,25 @@ function BoxeurValideCard({ boxeur }) {
 }
 
 // ─────────────────────────────────────────────
+// CARTE NOTIFICATION - BOXEUR EN ATTENTE
+// ─────────────────────────────────────────────
+function BoxeurEnAttenteCard({ boxeur }) {
+  return (
+    <View style={s.notifCard}>
+      <View style={[s.notifIconWrap, { backgroundColor: '#FFF8E1' }]}>
+        <Text style={s.notifIcon}>⏳</Text>
+      </View>
+      <View style={s.notifTextWrap}>
+        <Text style={s.notifTitle}>Boxeur en attente</Text>
+        <Text style={s.notifSubtitle} numberOfLines={1}>
+          {boxeur.prenom} {boxeur.nom} en attente de validation
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────
 // CARTE NOTIFICATION - RÉSULTAT À SAISIR
 // ─────────────────────────────────────────────
 function ResultatNotifCard({ combat, onPress }) {
@@ -214,6 +233,7 @@ function ResultatForm({ visible, combat, onClose, onSubmit, loading }) {
 export default function NotificationsScreen({ navigation }) {
   const [demandes, setDemandes] = useState([]);
   const [boxeursValides, setBoxeursValides] = useState([]);
+  const [boxeursEnAttente, setBoxeursEnAttente] = useState([]);
   const [combatsATraiter, setCombatsATraiter] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -241,6 +261,7 @@ export default function NotificationsScreen({ navigation }) {
       if (notifData.success) {
         setDemandes(notifData.demandesEnAttente || []);
         setBoxeursValides(notifData.boxeursValides || []);
+        setBoxeursEnAttente(notifData.boxeursEnAttente || []);
       }
       if (combatsData.success) {
         setCombatsATraiter(combatsData.combatsATraiter || []);
@@ -307,7 +328,7 @@ export default function NotificationsScreen({ navigation }) {
     }
   };
 
-  const isEmpty = demandes.length === 0 && boxeursValides.length === 0 && combatsATraiter.length === 0;
+  const isEmpty = demandes.length === 0 && boxeursValides.length === 0 && boxeursEnAttente.length === 0 && combatsATraiter.length === 0;
 
   return (
     <View style={s.container}>
@@ -361,6 +382,15 @@ export default function NotificationsScreen({ navigation }) {
                   demande={demande}
                   onPress={() => navigation.navigate('DemandesMatch')}
                 />
+              ))}
+            </View>
+          )}
+
+          {boxeursEnAttente.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sectionLabel}>BOXEURS EN ATTENTE ({boxeursEnAttente.length})</Text>
+              {boxeursEnAttente.map((boxeur) => (
+                <BoxeurEnAttenteCard key={boxeur.id} boxeur={boxeur} />
               ))}
             </View>
           )}
