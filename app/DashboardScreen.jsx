@@ -370,10 +370,15 @@ export default function DashboardScreen({ navigation }) {
               <Text style={[styles.statValue, styles.statGreen]}>{coachData.victoryRate}%</Text>
             </View>
           </View>
-          <LinearGradient colors={['#F44336', '#FF9800', '#FFC107', '#43A047']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.progressBar} />
-          <TouchableOpacity onPress={() => setBilanVisible(true)}>
-            <Text style={styles.detailsTxt}>Détails</Text>
-          </TouchableOpacity>
+        <LinearGradient colors={['#F44336', '#FF9800', '#FFC107', '#43A047']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.progressBar} />
+          <View style={styles.statsActionsRow}>
+            <TouchableOpacity onPress={() => setBilanVisible(true)}>
+              <Text style={styles.detailsTxt}>Détails</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('HistoriqueCombats')}>
+              <Text style={styles.detailsTxt}>Voir l'historique</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
@@ -531,6 +536,7 @@ const styles = StyleSheet.create({
   statGreen: { color: '#43A047' },
   progressBar: { height: 8, borderRadius: 4, marginBottom: 11 },
   detailsTxt: { textAlign: 'center', fontSize: 13, color: '#888', fontWeight: '600', paddingTop: 2 },
+  statsActionsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 2 },
   content: { backgroundColor: '#fff', paddingBottom: 30 },
   section: { paddingHorizontal: 18, paddingTop: 22, paddingBottom: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },

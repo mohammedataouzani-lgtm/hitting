@@ -8,10 +8,9 @@ import {
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
-import axios from 'axios';
 import { useAuth } from '../AuthContext'; // ⚠️ adapte le chemin/nom selon ton AuthContext
 
-const API_URL = 'https://europe-west9-TON_PROJET.cloudfunctions.net/getHistoriqueCombats'; // ⚠️ à compléter
+const API_URL = 'https://europe-west9-hitting-23de9.cloudfunctions.net/getHistoriqueCombats';
 
 const RESULTAT_STYLES = {
   Victoire: { backgroundColor: '#DFF5E1', color: '#1E7A34', label: 'Victoire' },
@@ -64,11 +63,12 @@ const fetchHistorique = useCallback(async () => {
   }
   try {
     const token = await user.getIdToken();
-    const response = await axios.get(API_URL, {
+    const response = await fetch(API_URL, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (response.data.success) {
-      setCombats(response.data.combats);
+    const data = await response.json();
+    if (data.success) {
+      setCombats(data.combats);
     }
   } catch (error) {
     console.error('❌ Erreur récupération historique:', error);
@@ -77,7 +77,6 @@ const fetchHistorique = useCallback(async () => {
     setRefreshing(false);
   }
 }, [user]);
-
   useEffect(() => {
     fetchHistorique();
   }, [fetchHistorique]);
