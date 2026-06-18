@@ -1,0 +1,161 @@
+[debug] [2026-06-18T13:23:49.773Z] ----------------------------------------------------------------------
+[debug] [2026-06-18T13:23:49.784Z] Command:       /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/bin/node /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/bin/firebase deploy --only functions:getEvenements
+[debug] [2026-06-18T13:23:49.785Z] CLI Version:   15.18.0
+[debug] [2026-06-18T13:23:49.785Z] Platform:      darwin
+[debug] [2026-06-18T13:23:49.785Z] Node Version:  v20.20.2
+[debug] [2026-06-18T13:23:49.785Z] Time:          Thu Jun 18 2026 15:23:49 GMT+0200 (heure d’été d’Europe centrale)
+[debug] [2026-06-18T13:23:49.785Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-06-18T13:23:49.789Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-06-18T13:23:57.443Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-06-18T13:23:57.443Z] > authorizing via signed-in user (hitting.contact@gmail.com)
+[debug] [2026-06-18T13:23:57.443Z] [iam] checking project hitting-23de9 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2026-06-18T13:23:57.444Z] Checked if tokens are valid: false, expires at: 1779647987047
+[debug] [2026-06-18T13:23:57.445Z] Checked if tokens are valid: false, expires at: 1779647987047
+[debug] [2026-06-18T13:23:57.445Z] > refreshing access token with scopes: []
+[debug] [2026-06-18T13:23:57.446Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-06-18T13:23:57.447Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-18T13:23:57.557Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-06-18T13:23:57.557Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-18T13:23:57.613Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/hitting-23de9:testIamPermissions [none]
+[debug] [2026-06-18T13:23:57.613Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/hitting-23de9:testIamPermissions  x-goog-user-project=hitting-23de9
+[debug] [2026-06-18T13:23:57.613Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/hitting-23de9:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-06-18T13:23:57.741Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-06-18T13:23:57.741Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2026-06-18T13:23:58.317Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/hitting-23de9:testIamPermissions 200
+[debug] [2026-06-18T13:23:58.317Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/hitting-23de9:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-06-18T13:23:58.318Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:23:58.318Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:23:58.318Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/hitting-23de9/serviceAccounts/hitting-23de9@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2026-06-18T13:23:58.319Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/hitting-23de9/serviceAccounts/hitting-23de9@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-06-18T13:23:59.040Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/hitting-23de9/serviceAccounts/hitting-23de9@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2026-06-18T13:23:59.040Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/hitting-23de9/serviceAccounts/hitting-23de9@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[info] 
+[info] === Deploying to 'hitting-23de9'...
+[info] 
+[info] i  deploying functions 
+[debug] [2026-06-18T13:23:59.047Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:23:59.047Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:23:59.048Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudresourcemanager.googleapis.com [none]
+[debug] [2026-06-18T13:23:59.048Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudresourcemanager.googleapis.com  x-goog-user-project=hitting-23de9
+[debug] [2026-06-18T13:23:59.878Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudresourcemanager.googleapis.com 200
+[debug] [2026-06-18T13:23:59.879Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudresourcemanager.googleapis.com [omitted]
+[debug] [2026-06-18T13:23:59.907Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:23:59.907Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:23:59.908Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/hitting-23de9 [none]
+[debug] [2026-06-18T13:24:00.115Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/hitting-23de9 200
+[debug] [2026-06-18T13:24:00.115Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/hitting-23de9 {"projectNumber":"380253921077","projectId":"hitting-23de9","lifecycleState":"ACTIVE","name":"Hitting","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-04-19T13:27:05.558Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[debug] [2026-06-18T13:24:00.118Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:24:00.118Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:24:00.118Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:24:00.118Z] Checked if tokens are valid: true, expires at: 1781792636558
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[debug] [2026-06-18T13:24:00.119Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:24:00.119Z] Checked if tokens are valid: true, expires at: 1781792636558
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2026-06-18T13:24:00.119Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:24:00.119Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:24:00.120Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudfunctions.googleapis.com [none]
+[debug] [2026-06-18T13:24:00.120Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudfunctions.googleapis.com  x-goog-user-project=hitting-23de9
+[debug] [2026-06-18T13:24:00.120Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/runtimeconfig.googleapis.com [none]
+[debug] [2026-06-18T13:24:00.120Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/runtimeconfig.googleapis.com  x-goog-user-project=hitting-23de9
+[debug] [2026-06-18T13:24:00.122Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudbuild.googleapis.com [none]
+[debug] [2026-06-18T13:24:00.122Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudbuild.googleapis.com  x-goog-user-project=hitting-23de9
+[debug] [2026-06-18T13:24:00.125Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/artifactregistry.googleapis.com [none]
+[debug] [2026-06-18T13:24:00.125Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/artifactregistry.googleapis.com  x-goog-user-project=hitting-23de9
+[debug] [2026-06-18T13:24:00.571Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudfunctions.googleapis.com 200
+[debug] [2026-06-18T13:24:00.571Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudfunctions.googleapis.com [omitted]
+[info] ✔  functions: required API cloudfunctions.googleapis.com is enabled 
+[debug] [2026-06-18T13:24:00.921Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/runtimeconfig.googleapis.com 200
+[debug] [2026-06-18T13:24:00.921Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/runtimeconfig.googleapis.com [omitted]
+[debug] [2026-06-18T13:24:00.957Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudbuild.googleapis.com 200
+[debug] [2026-06-18T13:24:00.957Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/cloudbuild.googleapis.com [omitted]
+[info] ✔  functions: required API cloudbuild.googleapis.com is enabled 
+[debug] [2026-06-18T13:24:00.985Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/artifactregistry.googleapis.com 200
+[debug] [2026-06-18T13:24:00.985Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/hitting-23de9/services/artifactregistry.googleapis.com [omitted]
+[info] ✔  artifactregistry: required API artifactregistry.googleapis.com is enabled 
+[debug] [2026-06-18T13:24:01.011Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:24:01.011Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:24:01.012Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/hitting-23de9/adminSdkConfig [none]
+[debug] [2026-06-18T13:24:01.490Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/hitting-23de9/adminSdkConfig 200
+[debug] [2026-06-18T13:24:01.490Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/hitting-23de9/adminSdkConfig {"projectId":"hitting-23de9","storageBucket":"hitting-23de9.firebasestorage.app"}
+[debug] [2026-06-18T13:24:01.491Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:24:01.491Z] Checked if tokens are valid: true, expires at: 1781792636558
+[debug] [2026-06-18T13:24:01.492Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/hitting-23de9/configs [none]
+[debug] [2026-06-18T13:24:02.245Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/hitting-23de9/configs 200
+[debug] [2026-06-18T13:24:02.245Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/hitting-23de9/configs {}
+[debug] [2026-06-18T13:24:02.249Z] Validating nodejs source
+[warn] ⚠  functions: Couldn't find firebase-functions package in your source code. Have you run 'npm install'? 
+[debug] [2026-06-18T13:24:02.251Z] getFunctionsSDKVersion encountered error: Cannot find module 'firebase-functions'
+Require stack:
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/versioning.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/prepare.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorShared.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/frameworks/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/hosting/prepare.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/hosting/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/commands/deploy.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/commands/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/bin/cli.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/bin/firebase.js {"code":"MODULE_NOT_FOUND","requireStack":["/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/versioning.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/index.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/prepare.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorShared.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/frameworks/index.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/hosting/prepare.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/hosting/index.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/index.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/commands/deploy.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/commands/index.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/index.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/bin/cli.js","/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/bin/firebase.js"]}
+[debug] [2026-06-18T13:24:02.255Z] checkFunctionsSDKVersion encountered error: Invalid Version:  {}
+[debug] [2026-06-18T13:24:02.256Z] > [functions] package.json contents: {
+  "name": "hitting-functions",
+  "description": "Cloud Functions for Hitting app",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "airtable": "^0.12.2",
+    "axios": "^1.6.0",
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^5.0.0"
+  },
+  "devDependencies": {
+    "firebase-functions-test": "^3.1.0"
+  }
+}
+[debug] [2026-06-18T13:24:02.257Z] Building nodejs source
+[info] i  functions: Loading and analyzing source code for codebase default to determine what to deploy 
+[debug] [2026-06-18T13:24:02.258Z] Could not parse firebase-functions version '' into semver.
+[debug] [2026-06-18T13:24:02.260Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-06-18T13:24:02.372Z] Error: Cannot find module 'firebase-functions'
+Require stack:
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/prepare.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorShared.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/frameworks/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/hosting/prepare.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/hosting/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/commands/deploy.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/commands/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/index.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/bin/cli.js
+- /Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/bin/firebase.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Function.resolve (node:internal/modules/helpers:193:19)
+    at Delegate.findFunctionsBinary (/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js:101:33)
+    at Delegate.spawnFunctionsProcess (/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js:131:30)
+    at Delegate.serveAdmin (/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js:152:35)
+    at Delegate.discoverBuild (/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js:192:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async loadCodebases (/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/prepare.js:491:33)
+    at async prepare (/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/functions/prepare.js:80:24)
+    at async chain (/Users/mohammedataouzani/.nvm/versions/node/v20.20.2/lib/node_modules/firebase-tools/lib/deploy/index.js:45:9)
+[error] 
+[error] Error: An unexpected error has occurred.

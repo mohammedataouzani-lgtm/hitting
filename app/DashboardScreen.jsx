@@ -39,13 +39,8 @@ const EVENT_STYLE = {
   gala: { bg: '#EF5350', text: '#fff' },
   sparring: { bg: '#4CAF50', text: '#fff' },
   combat: { bg: '#42A5F5', text: '#fff' },
+  evenement: { bg: '#5C6BC0', text: '#fff' }, // générique, tant qu'il n'existe pas de champ "Type" sur les Événements
 };
-
-const MARCH_EVENTS = [
-  { day: 2, type: 'sparring' },
-  { day: 11, type: 'gala' },
-  { day: 15, type: 'combat' },
-];
 
 function getDaysInMonth(month, year) {
   return new Date(year, month + 1, 0).getDate();
@@ -247,8 +242,9 @@ function BilanBottomSheet({ visible, onClose, stats }) {
 // DASHBOARD SCREEN
 // ─────────────────────────────────────────────
 export default function DashboardScreen({ navigation }) {
-  const [month, setMonth] = useState(2);
-  const [year, setYear] = useState(2026);
+  const today = new Date();
+  const [month, setMonth] = useState(today.getMonth());
+  const [year, setYear] = useState(today.getFullYear());
   const [bilanVisible, setBilanVisible] = useState(false);
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -326,8 +322,16 @@ export default function DashboardScreen({ navigation }) {
   }, [navigation]);
 
   const calCells = buildCalendarGrid(month, year);
-  const activeEvents = month === 2 && year === 2026 ? MARCH_EVENTS : [];
-  const getEventType = (day) => activeEvents.find(e => e.day === day)?.type || null;
+  const activeEvents = evenements
+    .filter((e) => e.dateRaw)
+    .map((e) => {
+      const d = new Date(e.dateRaw);
+      return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear() };
+    })
+    .filter((e) => e.evMonth === month && e.evYear === year);
+  const getEventType = (day) => (activeEvents.some((e) => e.day === day) ? 'evenement' : null);
+  const isToday = (day, current) =>
+    current && day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
@@ -459,9 +463,7 @@ export default function DashboardScreen({ navigation }) {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Calendrier</Text>
               <View style={styles.legendPills}>
-                <View style={styles.pillGala}><Text style={styles.pillGalaTxt}>Gala</Text></View>
-                <View style={styles.pillSparring}><Text style={styles.pillSparringTxt}>Sparring</Text></View>
-                <View style={styles.pillCombat}><Text style={styles.pillCombatTxt}>Combat</Text></View>
+                <View style={styles.pillEvenement}><Text style={styles.pillEvenementTxt}>Événement</Text></View>
               </View>
             </View>
 
@@ -485,11 +487,21 @@ export default function DashboardScreen({ navigation }) {
                 {calCells.map(({ day, current }, i) => {
                   const evType = current ? getEventType(day) : null;
                   const evStyle = evType ? EVENT_STYLE[evType] : null;
+                  const todayCell = isToday(day, current);
                   return (
                     <TouchableOpacity key={i} activeOpacity={evStyle ? 0.7 : 1} disabled={!evStyle}
                       onPress={() => evStyle && navigation.navigate('Evenements')} style={styles.calCell}>
-                      <View style={[styles.calNum, evStyle && { backgroundColor: evStyle.bg }]}>
-                        <Text style={[styles.calNumTxt, !current && styles.calNumOther, evStyle && { color: evStyle.text, fontWeight: '700' }]}>
+                      <View style={[
+                        styles.calNum,
+                        evStyle && { backgroundColor: evStyle.bg },
+                        todayCell && !evStyle && styles.calNumToday,
+                      ]}>
+                        <Text style={[
+                          styles.calNumTxt,
+                          !current && styles.calNumOther,
+                          evStyle && { color: evStyle.text, fontWeight: '700' },
+                          todayCell && !evStyle && styles.calNumTodayTxt,
+                        ]}>
                           {day}
                         </Text>
                       </View>
@@ -571,12 +583,8 @@ const styles = StyleSheet.create({
   infoTxt: { fontSize: 13, color: '#999', fontWeight: '700' },
   calSection: { paddingHorizontal: 18, paddingBottom: 16 },
   legendPills: { flexDirection: 'row', gap: 6 },
-  pillGala: { backgroundColor: '#FFEBEE', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
-  pillGalaTxt: { fontSize: 10, fontWeight: '700', color: '#E53935' },
-  pillSparring: { backgroundColor: '#E8F5E9', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
-  pillSparringTxt: { fontSize: 10, fontWeight: '700', color: '#43A047' },
-  pillCombat: { backgroundColor: '#E3F2FD', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
-  pillCombatTxt: { fontSize: 10, fontWeight: '700', color: '#1E88E5' },
+  pillEvenement: { backgroundColor: '#EAEBF8', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
+  pillEvenementTxt: { fontSize: 10, fontWeight: '700', color: '#5C6BC0' },
   calWidget: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 0.5, borderColor: '#E5E5E5', padding: 14 },
   calNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   navBtn: { paddingHorizontal: 10, paddingVertical: 4 },
@@ -592,6 +600,8 @@ const styles = StyleSheet.create({
   calNum: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   calNumTxt: { fontSize: 14, color: '#222', fontWeight: '400' },
   calNumOther: { color: '#CCC' },
+  calNumToday: { borderWidth: 2, borderColor: '#2B5BB8' },
+  calNumTodayTxt: { color: '#2B5BB8', fontWeight: '700' },
 });
 
 // ─── Styles Bilan Sheet ───────────────────────────────────────────────────────

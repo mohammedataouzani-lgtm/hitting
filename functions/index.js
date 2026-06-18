@@ -724,6 +724,7 @@ exports.getNotifications = onRequest({
           nomAdversaire: f["Nom du boxeur adversaire"] || "",
           prenomAdversaire: f["Prénom du boxeur adversaire"] || "",
           dateDemande: f["Date demande"] || "",
+          dateRaw: f["Date et heure"] || "",
         };
       })
       .filter((d) => d.statut === "En attente")
