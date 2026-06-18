@@ -1,398 +1,368 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Platform,
-  StatusBar,
+  View, Text, StyleSheet, Image, TouchableOpacity, ScrollView,
+  StatusBar, Dimensions, Modal, Animated, Platform, Pressable,
+  TextInput, Alert, ActivityIndicator, KeyboardAvoidingView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getAuth } from 'firebase/auth';
+import * as ImagePicker from 'expo-image-picker';
 
-// ─── Données mock combats ────────────────────────────────────────────────────
-const MOCK_COMBATS = [
-  {
-    id: '1',
-    adversaire: 'Nassima Benali',
-    date: '14 mar. 25',
-    club: 'Boxing Paris 15',
-    resultat: 'N',       // N = Nul, V = Victoire, D = Défaite
-    detail: 'Par points', // ne pas mettre de points  
-    ville: 'Paris',
-  },
-  {
-    id: '2',
-    adversaire: 'Nora Girard',
-    date: '02 jan. 25',
-    club: 'ABC Marseille',
-    resultat: 'V',
-    detail: 'K.O 3e round',
-    ville: 'Marseille',
-  },
-  {
-    id: '3',
-    adversaire: 'Maria Santos',
-    date: '18 oct. 24',
-    club: 'Boxing Lyon Nord',
-    resultat: 'N',
-    detail: 'Par points',
-    ville: 'Lyon',
-  },
-  {
-    id: '4',
-    adversaire: 'Elise Duchamp',
-    date: '05 sep. 24',
-    club: 'Gym Bordeaux Sud',
-    resultat: 'V',
-    detail: 'Nul',
-    ville: 'Bordeaux',
-  },
-  {
-    id: '5',
-    adversaire: 'Naima Ouzani',
-    date: '26 aou. 24',
-    club: 'Gym Bordeaux Sud',
-    resultat: 'D',
-    detail: 'Nul',
-    ville: 'Bordeaux',
-  },
-];
+const { width, height } = Dimensions.get('window');
+const SHEET_HEIGHT = height * 0.85;
 
-// ─── Couleur du badge selon le résultat ──────────────────────────────────────
-function getBadgeColor(resultat) {
-  switch (resultat) {
-    case 'V': return '#43A047'; // vert
-    case 'D': return '#E53935'; // rouge
-    case 'N': return '#FFC107'; // jaune/orange
-    default:  return '#999';
-  }
-}
+// ─────────────────────────────────────────────
+// EDIT SHEET
+// ─────────────────────────────────────────────
+function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
+  const slideAnim = useRef(new Animated.Value(height)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
 
-// ─── Composant ligne combat ──────────────────────────────────────────────────
-function CombatRow({ combat }) {
-  const badgeColor = getBadgeColor(combat.resultat);
+  const [photoBoxeur, setPhotoBoxeur] = useState(null);
+  const [nom, setNom] = useState('');
+  const [prenom, setPrenom] = useState('');
+  const [victoires, setVictoires] = useState('');
+  const [defaites, setDefaites] = useState('');
+  const [nuls, setNuls] = useState('');
+  const [ko, setKo] = useState('');
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (boxer && visible) {
+      const parts = boxer.nom.split(' ');
+      setPrenom(parts[0] || '');
+      setNom(parts.slice(1).join(' ') || '');
+      setVictoires(String(boxer.vic ?? ''));
+      setDefaites(String(boxer.def ?? ''));
+      setNuls(String(boxer.nuls ?? ''));
+      setKo(String(boxer.ko ?? ''));
+      setPhotoBoxeur(null);
+      setErrors({});
+    }
+  }, [boxer, visible]);
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }),
+        Animated.timing(backdropAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, { toValue: height, duration: 300, useNativeDriver: true }),
+        Animated.timing(backdropAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible]);
+
+  const handleClose = () => { setErrors({}); onClose(); };
+
+  const validate = () => {
+    const e = {};
+    if (!nom.trim()) e.nom = true;
+    if (!prenom.trim()) e.prenom = true;
+    return e;
+  };
+
+  const handleSubmit = async () => {
+    const e = validate();
+    if (Object.keys(e).length > 0) { setErrors(e); return; }
+    setLoading(true);
+    try {
+      const auth = getAuth();
+      const idToken = await auth.currentUser.getIdToken();
+      const response = await fetch('https://europe-west9-hitting-23de9.cloudfunctions.net/updateBoxeur', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({
+          boxeurId: boxer.id, nom, prenom,
+          victoires: victoires ? parseInt(victoires) : 0,
+          defaites: defaites ? parseInt(defaites) : 0,
+          nuls: nuls ? parseInt(nuls) : 0,
+          ko: ko ? parseInt(ko) : 0,
+          photoBoxeurBase64: photoBoxeur ? photoBoxeur.base64 : null,
+        }),
+      });
+      if (!response.ok) throw new Error('Erreur serveur');
+      onSave({
+        ...boxer,
+        nom: `${prenom} ${nom}`,
+        vic: victoires ? parseInt(victoires) : boxer.vic,
+        def: defaites ? parseInt(defaites) : boxer.def,
+        nuls: nuls ? parseInt(nuls) : boxer.nuls,
+        ko: ko ? parseInt(ko) : boxer.ko,
+        avatar: photoBoxeur ? photoBoxeur.uri : boxer.avatar,
+      });
+      Alert.alert('✅ Modifié', 'Les informations du boxeur ont été mises à jour.');
+      handleClose();
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de modifier le boxeur. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!visible) return null;
 
   return (
-    <View style={styles.combatRow}>
-      {/* Badge résultat */}
-      <View style={[styles.combatBadge, { backgroundColor: badgeColor + '22', borderColor: badgeColor }]}>
-        <Text style={[styles.combatBadgeTxt, { color: badgeColor }]}>{combat.resultat}</Text>
-      </View>
+    <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Animated.View style={[es.backdrop, { opacity: backdropAnim }]}>
+          <Pressable style={{ flex: 1 }} onPress={handleClose} />
+        </Animated.View>
+        <Animated.View style={[es.sheet, { transform: [{ translateY: slideAnim }] }]}>
+          <View style={es.handleBar} />
+          <View style={es.sheetHeader}>
+            <TouchableOpacity onPress={handleClose} style={es.closeBtn}>
+              <Text style={es.closeBtnTxt}>✕</Text>
+            </TouchableOpacity>
+            <Text style={es.sheetTitle}>Modifier le boxeur</Text>
+            <View style={{ width: 36 }} />
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={es.sheetBody} keyboardShouldPersistTaps="handled">
+            <TouchableOpacity style={es.photoBtn} activeOpacity={0.7} onPress={async () => {
+              const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
+              const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true });
+              if (!result.canceled) setPhotoBoxeur(result.assets[0]);
+            }}>
+              <LinearGradient colors={['#5C6BC0', '#3949AB']} style={es.photoBtnInner}>
+                {photoBoxeur ? (
+                  <Image source={{ uri: photoBoxeur.uri }} style={{ width: 72, height: 72, borderRadius: 36 }} />
+                ) : boxer?.avatar ? (
+                  <Image source={{ uri: boxer.avatar }} style={{ width: 72, height: 72, borderRadius: 36 }} />
+                ) : (
+                  <><Text style={es.photoIcon}>⬆</Text><Text style={es.photoLabel}>Photo</Text></>
+                )}
+              </LinearGradient>
+              <Text style={es.photoHint}>Appuyer pour changer la photo</Text>
+            </TouchableOpacity>
 
-      {/* Infos adversaire */}
-      <View style={styles.combatInfo}>
-        <Text style={styles.combatAdversaire}>{combat.adversaire}</Text>
-        <Text style={styles.combatDetail}>
-          {combat.club} · {combat.detail}, <Text style={styles.combatVille}>{combat.ville}</Text>
-        </Text>
-      </View>
+            <Text style={es.sectionLabel}>IDENTITÉ</Text>
+            <View style={es.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={es.fieldLabel}>Nom *</Text>
+                <TextInput style={[es.input, errors.nom && es.inputError]} placeholder="Dupont" placeholderTextColor="#C0C0C0" value={nom} onChangeText={(v) => { setNom(v); setErrors(p => ({ ...p, nom: false })); }} />
+              </View>
+              <View style={{ width: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={es.fieldLabel}>Prénom *</Text>
+                <TextInput style={[es.input, errors.prenom && es.inputError]} placeholder="Jean" placeholderTextColor="#C0C0C0" value={prenom} onChangeText={(v) => { setPrenom(v); setErrors(p => ({ ...p, prenom: false })); }} />
+              </View>
+            </View>
 
-      {/* Date */}
-      <Text style={styles.combatDate}>{combat.date}</Text>
-    </View>
+            <Text style={es.sectionLabel}>PALMARÈS</Text>
+            <View style={es.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={es.fieldLabel}>Victoires</Text>
+                <TextInput style={es.input} placeholder="0" placeholderTextColor="#C0C0C0" value={victoires} onChangeText={setVictoires} keyboardType="numeric" />
+              </View>
+              <View style={{ width: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={es.fieldLabel}>Défaites</Text>
+                <TextInput style={es.input} placeholder="0" placeholderTextColor="#C0C0C0" value={defaites} onChangeText={setDefaites} keyboardType="numeric" />
+              </View>
+            </View>
+            <View style={es.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={es.fieldLabel}>Nuls</Text>
+                <TextInput style={es.input} placeholder="0" placeholderTextColor="#C0C0C0" value={nuls} onChangeText={setNuls} keyboardType="numeric" />
+              </View>
+              <View style={{ width: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={es.fieldLabel}>K.O</Text>
+                <TextInput style={es.input} placeholder="0" placeholderTextColor="#C0C0C0" value={ko} onChangeText={setKo} keyboardType="numeric" />
+              </View>
+            </View>
+
+            <TouchableOpacity onPress={handleSubmit} activeOpacity={0.85} style={es.submitBtn} disabled={loading}>
+              <LinearGradient colors={['#EF5350', '#E53935']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={es.submitGradient}>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={es.submitTxt}>Enregistrer les modifications</Text>}
+              </LinearGradient>
+            </TouchableOpacity>
+            <View style={{ height: 32 }} />
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
-// ─── Composant principal ─────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// FICHE BOXEUR
+// ─────────────────────────────────────────────
 export default function FicheBoxeurScreen({ navigation, route }) {
-  const boxer = route.params?.boxer;
+  const [boxer, setBoxer] = useState(route.params.boxer);
+  const [editVisible, setEditVisible] = useState(false);
 
-  if (!boxer) {
-    return (
-      <View style={styles.container}>
-        <Text>Aucun boxeur sélectionné</Text>
-      </View>
-    );
-  }
+  const isFemme = boxer.sexe === 'F';
+  const accentColor = isFemme ? '#E91E63' : '#2196F3';
+  const totalCombats = (boxer.vic || 0) + (boxer.def || 0) + (boxer.nuls || 0);
+  const winRate = totalCombats > 0 ? Math.round(((boxer.vic || 0) / totalCombats) * 100) : 0;
+
+  const stats = [
+    { label: 'Victoires', value: boxer.vic ?? 0, color: '#4CAF50' },
+    { label: 'Défaites', value: boxer.def ?? 0, color: '#F44336' },
+    { label: 'Nuls', value: boxer.nuls ?? 0, color: '#FF9800' },
+    { label: 'K.O', value: boxer.ko ?? 0, color: '#9C27B0' },
+  ];
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <View style={s.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* ── HEADER ─────────────────────────────────────────────────── */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Fiche boxeur</Text>
-        <TouchableOpacity style={styles.editHeaderBtn}>
-          <Text style={styles.editHeaderIcon}>✏️</Text>
-        </TouchableOpacity>
-      </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* ── CARTE PROFIL ──────────────────────────────────────────── */}
-        <View style={styles.profileCard}>
-          <Image source={{ uri: boxer.avatar }} style={styles.profileAvatar} />
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{boxer.nom}</Text>
-            <Text style={styles.profileMeta}>
-              {boxer.categorie} · {boxer.poids} · {boxer.kg}
-            </Text>
+        {/* HERO */}
+        <View style={s.hero}>
+          <Image source={{ uri: boxer.avatar }} style={s.heroBg} blurRadius={8} />
+          <LinearGradient colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.75)']} style={StyleSheet.absoluteFillObject} />
+          <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+            <Text style={s.backIcon}>←</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.editBtn} onPress={() => setEditVisible(true)}>
+            <Text style={s.editIcon}>✏️</Text>
+          </TouchableOpacity>
+          <View style={s.heroContent}>
+            <View style={[s.avatarWrapper, { borderColor: accentColor }]}>
+              <Image source={{ uri: boxer.avatar }} style={s.avatar} />
+            </View>
+            <Text style={s.name}>{boxer.nom}</Text>
+            <View style={s.badgeRow}>
+              <View style={[s.badge, { backgroundColor: accentColor }]}>
+                <Text style={s.badgeTxt}>{boxer.sexe === 'F' ? 'Femme' : 'Homme'}</Text>
+              </View>
+              {boxer.categorie ? (
+                <View style={[s.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                  <Text style={s.badgeTxt}>{boxer.categorie}</Text>
+                </View>
+              ) : null}
+            </View>
           </View>
         </View>
 
-        {/* ── STATISTIQUES RAPIDES ───────────────────────────────────── */}
-        <View style={styles.quickStats}>
-          {[
-            { label: 'VIC.', value: boxer.vic, color: '#43A047' },
-            { label: 'DEF.', value: boxer.def, color: '#E53935' },
-            { label: 'NULS', value: boxer.nuls, color: '#FFC107' },
-            { label: 'K.O', value: boxer.ko, color: '#42A5F5' },
-          ].map(({ label, value, color }) => (
-            <View key={label} style={styles.quickStatItem}>
-              <Text style={[styles.quickStatVal, { color }]}>{value}</Text>
-              <Text style={styles.quickStatLbl}>{label}</Text>
-            </View>
-          ))}
+        {/* INFOS */}
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>INFORMATIONS</Text>
+          <View style={s.infoGrid}>
+            <InfoRow icon="⚖️" label="Catégorie de poids" value={boxer.poids || '—'} />
+            <InfoRow icon="🏋️" label="Poids" value={boxer.kg || '—'} />
+            <InfoRow icon="🥊" label="Total combats" value={String(totalCombats)} />
+            <InfoRow icon="📊" label="Taux de victoire" value={`${winRate} %`} />
+          </View>
         </View>
 
-        {/* ── DERNIERS COMBATS ──────────────────────────────────────── */}
-        <View style={styles.combatsSection}>
-          <Text style={styles.combatsTitle}>Derniers combats</Text>
-
-          {MOCK_COMBATS.map((combat) => (
-            <CombatRow key={combat.id} combat={combat} />
-          ))}
+        {/* PALMARÈS */}
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>PALMARÈS</Text>
+          <View style={s.statsGrid}>
+            {stats.map(({ label, value, color }) => (
+              <View key={label} style={s.statCard}>
+                <Text style={[s.statValue, { color }]}>{value}</Text>
+                <Text style={s.statLabel}>{label}</Text>
+                <View style={[s.statBar, { backgroundColor: color + '22' }]}>
+                  <View style={[s.statBarFill, {
+                    backgroundColor: color,
+                    width: totalCombats > 0 ? `${Math.round((value / totalCombats) * 100)}%` : '0%',
+                  }]} />
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
 
-        {/* ── BOUTON TROUVER UN ADVERSAIRE ──────────────────────────── */}
+        {/* BOUTON TROUVER UN ADVERSAIRE */}
         <TouchableOpacity
+          style={s.adversaireBtn}
           activeOpacity={0.85}
-          style={styles.findBtn}
-          onPress={() => navigation.navigate('MatchingBoxeur', { boxer })}
+          onPress={() => navigation.navigate('AdversairesPotentiels', { boxer })}
         >
-          <LinearGradient
-            colors={['#EF5350', '#E53935']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.findGradient}
-          >
-            <Text style={styles.findTxt}>Trouver un adversaire</Text>
+          <LinearGradient colors={['#EF5350', '#E53935']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.adversaireBtnGradient}>
+            <Text style={s.adversaireBtnTxt}>🥊  Trouver un adversaire</Text>
           </LinearGradient>
         </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
       </ScrollView>
+
+      <EditBoxeurSheet
+        visible={editVisible}
+        onClose={() => setEditVisible(false)}
+        boxer={boxer}
+        onSave={(updated) => setBoxer(updated)}
+      />
     </View>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAF9F6',
-  },
+function InfoRow({ icon, label, value }) {
+  return (
+    <View style={s.infoRow}>
+      <Text style={s.infoIcon}>{icon}</Text>
+      <View style={s.infoTexts}>
+        <Text style={s.infoLabel}>{label}</Text>
+        <Text style={s.infoValue}>{value}</Text>
+      </View>
+    </View>
+  );
+}
 
-  // HEADER
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 56 : (StatusBar.currentHeight ?? 24) + 16,
-    paddingHorizontal: 18,
-    paddingBottom: 14,
-    backgroundColor: '#FAF9F6',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 20,
-    color: '#222',
-    fontWeight: '600',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111',
-    letterSpacing: -0.3,
-  },
-  editHeaderBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#E3F2FD',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editHeaderIcon: {
-    fontSize: 16,
-  },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F8F8F8' },
+  hero: { height: 300, position: 'relative', justifyContent: 'flex-end' },
+  heroBg: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', resizeMode: 'cover' },
+  backBtn: { position: 'absolute', top: 56, left: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  backIcon: { fontSize: 20, color: '#fff', fontWeight: '700' },
+  editBtn: { position: 'absolute', top: 56, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  editIcon: { fontSize: 18 },
+  heroContent: { alignItems: 'center', paddingBottom: 28 },
+  avatarWrapper: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, marginBottom: 12, overflow: 'hidden' },
+  avatar: { width: '100%', height: '100%', resizeMode: 'cover' },
+  name: { fontSize: 24, fontWeight: '900', color: '#fff', marginBottom: 10, letterSpacing: 0.3 },
+  badgeRow: { flexDirection: 'row', gap: 8 },
+  badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  badgeTxt: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  section: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 16, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  sectionTitle: { fontSize: 11, fontWeight: '800', color: '#9E9E9E', letterSpacing: 1.2, marginBottom: 16 },
+  infoGrid: { gap: 14 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  infoIcon: { fontSize: 20, width: 28, textAlign: 'center' },
+  infoTexts: { flex: 1 },
+  infoLabel: { fontSize: 12, color: '#999', fontWeight: '500' },
+  infoValue: { fontSize: 15, color: '#111', fontWeight: '700', marginTop: 1 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  statCard: { width: (width - 32 - 40 - 12) / 2, backgroundColor: '#FAFAFA', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#F0F0F0' },
+  statValue: { fontSize: 32, fontWeight: '900', lineHeight: 36 },
+  statLabel: { fontSize: 12, color: '#888', fontWeight: '600', marginTop: 2, marginBottom: 8 },
+  statBar: { height: 4, borderRadius: 2, overflow: 'hidden' },
+  statBarFill: { height: '100%', borderRadius: 2 },
 
-  scrollContent: {
-    paddingHorizontal: 18,
-  },
+  // Bouton adversaire
+  adversaireBtn: { marginHorizontal: 16, marginTop: 24, borderRadius: 14, overflow: 'hidden', shadowColor: '#E53935', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6 },
+  adversaireBtnGradient: { height: 56, alignItems: 'center', justifyContent: 'center' },
+  adversaireBtnTxt: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
+});
 
-  // PROFIL CARD
-  profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 0.5,
-    borderColor: '#F0F0F0',
-  },
-  profileAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 14,
-    backgroundColor: '#E0E0E0',
-    marginRight: 14,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111',
-    marginBottom: 4,
-    letterSpacing: -0.3,
-  },
-  profileMeta: {
-    fontSize: 13,
-    color: '#888',
-    fontWeight: '500',
-  },
-
-  // QUICK STATS
-  quickStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingVertical: 14,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 0.5,
-    borderColor: '#F0F0F0',
-  },
-  quickStatItem: {
-    alignItems: 'center',
-  },
-  quickStatVal: {
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 28,
-  },
-  quickStatLbl: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#AAA',
-    letterSpacing: 0.5,
-    marginTop: 2,
-  },
-
-  // COMBATS SECTION
-  combatsSection: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 0.5,
-    borderColor: '#F0F0F0',
-  },
-  combatsTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111',
-    marginBottom: 16,
-    letterSpacing: -0.3,
-  },
-
-  // COMBAT ROW
-  combatRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#F0F0F0',
-  },
-  combatBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  combatBadgeTxt: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  combatInfo: {
-    flex: 1,
-  },
-  combatAdversaire: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 2,
-  },
-  combatDetail: {
-    fontSize: 12,
-    color: '#888',
-    fontWeight: '400',
-  },
-  combatVille: {
-    fontWeight: '700',
-    color: '#555',
-  },
-  combatDate: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#888',
-    marginLeft: 8,
-  },
-
-  // FIND BUTTON
-  findBtn: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: '#E53935',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  findGradient: {
-    height: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  findTxt: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 0.3,
-  },
+const es = StyleSheet.create({
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, height: SHEET_HEIGHT, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 20 },
+  handleBar: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#E0E0E0', alignSelf: 'center', marginTop: 12, marginBottom: 4 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: '#F0F0F0' },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
+  closeBtnTxt: { fontSize: 14, color: '#555', fontWeight: '700' },
+  sheetTitle: { fontSize: 17, fontWeight: '800', color: '#111', letterSpacing: 0.2 },
+  sheetBody: { paddingHorizontal: 20, paddingTop: 20 },
+  photoBtn: { alignSelf: 'center', marginBottom: 8, alignItems: 'center' },
+  photoBtnInner: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
+  photoIcon: { fontSize: 22, color: '#fff' },
+  photoLabel: { fontSize: 11, color: '#fff', fontWeight: '700', marginTop: 2 },
+  photoHint: { fontSize: 12, color: '#999', marginTop: 6, marginBottom: 20 },
+  sectionLabel: { fontSize: 11, fontWeight: '800', color: '#9E9E9E', letterSpacing: 1.2, marginBottom: 12, marginTop: 4 },
+  fieldLabel: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 8 },
+  input: { height: 48, borderRadius: 12, borderWidth: 1.5, borderColor: '#ECECEC', backgroundColor: '#FAFAFA', paddingHorizontal: 14, fontSize: 15, color: '#111', marginBottom: 16 },
+  inputError: { borderColor: '#EF5350', backgroundColor: '#FFF5F5' },
+  row: { flexDirection: 'row', alignItems: 'flex-start' },
+  submitBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 8, shadowColor: '#E53935', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6 },
+  submitGradient: { height: 54, alignItems: 'center', justifyContent: 'center' },
+  submitTxt: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
 });
