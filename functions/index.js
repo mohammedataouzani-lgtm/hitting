@@ -390,6 +390,8 @@ exports.getMatchsPossibles = onRequest({
         "club Boxeur 1",
         "Affichage combat",
         "Catégorie de poids",
+        "Nom club Boxeur 1",
+"Nom club Boxeur 2",
         "Sexe"
       ]
     }).all();
@@ -429,7 +431,9 @@ seenAdversaireIds.add(pairKey);
 
       let adversaireClub = "";
     
-adversaireClub = Array.isArray(f["club Boxeur demandeur"]) ? f["club Boxeur demandeur"][0] : f["club Boxeur demandeur"] || "";
+adversaireClub = isCoach1
+  ? (Array.isArray(f["Nom club Boxeur 2"]) ? f["Nom club Boxeur 2"][0] : f["Nom club Boxeur 2"] || "")
+  : (Array.isArray(f["Nom club Boxeur 1"]) ? f["Nom club Boxeur 1"][0] : f["Nom club Boxeur 1"] || "");
 
       const adversairePhoto = isCoach1
         ? (f["Photo boxeur 2 "] ? f["Photo boxeur 2 "][0]?.url : null)
@@ -586,6 +590,13 @@ exports.getDemandesMatch = onRequest({
 
     for (const record of allRecords) {
       const f = record.fields || {};
+
+      console.log('🏟️ Clubs fields:', JSON.stringify({
+  c1: f["club Boxeur 1"],
+  c2: f["club Boxeur 2"],
+  ca: f["club Boxeur adversaire"],
+  all_keys: Object.keys(f).filter(k => k.toLowerCase().includes('club'))
+}));
 
       const emailCoach1 = f["Email Coach 1"] || "";
       const emailCoach2 = f["Email coach 2"] || "";
