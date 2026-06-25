@@ -342,7 +342,6 @@ exports.getEvenements = onRequest({
   }
 });
 
-// ===== CLOUD FUNCTION v2: getMatchsPossibles =====
 exports.getMatchsPossibles = onRequest({
   region: "europe-west9",
   secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
@@ -367,13 +366,48 @@ exports.getMatchsPossibles = onRequest({
     const coachEmail = coachDoc.data().email;
 
     const boxeurId = req.query.boxeurId;
+    const dateSouhaitee = req.query.dateSouhaitee || null;
     if (!boxeurId) return res.status(400).json({ error: "boxeurId manquant" });
+    if (!dateSouhaitee) return res.status(400).json({ error: "dateSouhaitee manquante" });
 
-    console.log('🔍 Recherche matchs pour boxeurId:', boxeurId, '| coachEmail:', coachEmail);
+    console.log('🔍 Recherche matchs pour boxeurId:', boxeurId, '| coachEmail:', coachEmail, '| date:', dateSouhaitee);
 
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
+    // ── Fonction de normalisation des noms ──
+    const normalizeNom = (str) => str.toLowerCase().trim().split(/\s+/).sort().join(' ');
+
+    // ── Récupère les demandes actives (En attente + Accepté) à cette date ──
+    // Récupère TOUTES les demandes actives, sans filtrer par date dans Airtable
+const demandesRecords = await base("Demandedematch").select({
+  filterByFormula: `OR({Statut} = "En attente", {Statut} = "Accepté")`
+}).all();
+
+console.log('📋 Demandes actives trouvées (total):', demandesRecords.length);
+
+const pairesDejaDemandeesSet = new Set();
+for (const dem of demandesRecords) {
+  const fd = dem.fields || {};
+  const dateDemande = fd["Date souhaitée"] || "";
+
+  console.log('📅 Date demande brute:', dateDemande, '| dateSouhaitee cherchée:', dateSouhaitee);
+
+  // Filtre JS sur la date — compare les 10 premiers caractères (YYYY-MM-DD)
+  if (!dateDemande || !dateDemande.startsWith(dateSouhaitee)) continue;
+
+  const nomCompletBoxeur = normalizeNom(
+    `${fd["Prénom de mon boxeur"] || ""} ${fd["Nom de mon boxeur"] || ""}`
+  );
+  const nomCompletAdversaire = normalizeNom(
+    `${fd["Prénom du boxeur adversaire"] || ""} ${fd["Nom du boxeur adversaire"] || ""}`
+  );
+  const paire = [nomCompletBoxeur, nomCompletAdversaire].sort().join('|');
+  pairesDejaDemandeesSet.add(paire);
+  console.log('🚫 Paire bloquée:', paire);
+}
+
+    // ── Récupère tous les matchs possibles ──
     const allRecords = await base("Matchs possibles").select({
       fields: [
         "Email coach 1",
@@ -391,7 +425,7 @@ exports.getMatchsPossibles = onRequest({
         "Affichage combat",
         "Catégorie de poids",
         "Nom club Boxeur 1",
-"Nom club Boxeur 2",
+        "Nom club Boxeur 2",
         "Sexe"
       ]
     }).all();
@@ -407,33 +441,46 @@ exports.getMatchsPossibles = onRequest({
       const emailCoach2 = Array.isArray(f["Email coach 2"]) ? f["Email coach 2"][0] : f["Email coach 2"] || "";
       const boxeur1Ids = Array.isArray(f["Boxeur 1"]) ? f["Boxeur 1"].map(b => b.id || b) : [];
       const boxeur2Ids = Array.isArray(f["Boxeur 2"]) ? f["Boxeur 2"].map(b => b.id || b) : [];
-      console.log('🔬 boxeur1Ids:', boxeur1Ids, '| boxeur2Ids:', boxeur2Ids, '| f["Boxeur 1"]:', JSON.stringify(f["Boxeur 1"]));
 
       const isCoach1Match = emailCoach1.toLowerCase() === coachEmail.toLowerCase() && boxeur1Ids.includes(boxeurId);
       const isCoach2Match = emailCoach2.toLowerCase() === coachEmail.toLowerCase() && boxeur2Ids.includes(boxeurId);
 
       if (!isCoach1Match && !isCoach2Match) continue;
-console.log('🎯 Record passé le filtre | isCoach1:', isCoach1Match, '| isCoach2:', isCoach2Match, '| adversaireId:', f["Boxeur 2"]?.[0]?.id, f["Boxeur 1"]?.[0]?.id);
+
       const isCoach1 = isCoach1Match;
 
       const adversaireNom = isCoach1
         ? (f["Nom et prénom boxeur 2 "] || "")
         : (f["Nom et prénom boxeur 1"] || "");
 
-   const adversaireId = isCoach1
-  ? (boxeur2Ids[0] || null)
-  : (boxeur1Ids[0] || null);
+      const monNom = isCoach1
+        ? (f["Nom et prénom boxeur 1"] || "")
+        : (f["Nom et prénom boxeur 2 "] || "");
 
-if (!adversaireNom || adversaireNom.trim() === '') continue;
-const pairKey = [boxeurId, adversaireId].sort().join('-');
-if (!adversaireId || seenAdversaireIds.has(pairKey)) continue;
-seenAdversaireIds.add(pairKey);
+      const adversaireId = isCoach1
+        ? (boxeur2Ids[0] || null)
+        : (boxeur1Ids[0] || null);
+
+      if (!adversaireNom || adversaireNom.trim() === '') continue;
+
+      const pairKey = [boxeurId, adversaireId].sort().join('-');
+      if (!adversaireId || seenAdversaireIds.has(pairKey)) continue;
+      seenAdversaireIds.add(pairKey);
+
+      // ── Filtre : paire déjà demandée à cette date ? ──
+      const monNomNormalized = normalizeNom(monNom);
+      const adversaireNomNormalized = normalizeNom(adversaireNom);
+      const paireCle = [monNomNormalized, adversaireNomNormalized].sort().join('|');
+
+      if (pairesDejaDemandeesSet.has(paireCle)) {
+        console.log('🚫 Paire filtrée (déjà demandée):', paireCle);
+        continue;
+      }
 
       let adversaireClub = "";
-    
-adversaireClub = isCoach1
-  ? (Array.isArray(f["Nom club Boxeur 2"]) ? f["Nom club Boxeur 2"][0] : f["Nom club Boxeur 2"] || "")
-  : (Array.isArray(f["Nom club Boxeur 1"]) ? f["Nom club Boxeur 1"][0] : f["Nom club Boxeur 1"] || "");
+      adversaireClub = isCoach1
+        ? (Array.isArray(f["Nom club Boxeur 2"]) ? f["Nom club Boxeur 2"][0] : f["Nom club Boxeur 2"] || "")
+        : (Array.isArray(f["Nom club Boxeur 1"]) ? f["Nom club Boxeur 1"][0] : f["Nom club Boxeur 1"] || "");
 
       const adversairePhoto = isCoach1
         ? (f["Photo boxeur 2 "] ? f["Photo boxeur 2 "][0]?.url : null)
@@ -449,7 +496,7 @@ adversaireClub = isCoach1
         if (m) palmares = { vic: m[1], def: m[2], nuls: m[3], ko: m[4] };
       }
 
-     console.log('✅ Match:', adversaireNom, '| club:', adversaireClub);
+      console.log('✅ Match:', adversaireNom, '| club:', adversaireClub);
 
       matchs.push({
         id: record.id,
@@ -462,8 +509,6 @@ adversaireClub = isCoach1
         emailCoach2: isCoach1 ? emailCoach2 : emailCoach1,
         palmares,
       });
-
-      console.log('📧 emailCoach2 calculé:', isCoach1 ? emailCoach2 : emailCoach1, '| emailCoach1 brut:', emailCoach1, '| emailCoach2 brut:', emailCoach2);
     }
 
     console.log('🎯 Matchs uniques trouvés:', matchs.length);
@@ -496,142 +541,61 @@ exports.addDemandeMatch = onRequest({
   try {
     await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
 
-const {
-  nomBoxeur, prenomBoxeur,
-  nomAdversaire, prenomAdversaire,
-  affichageCombat, dateSouhaitee,
-  adresse, message,
-  emailCoach1, emailCoach2,
-  clubBoxeur, clubAdversaire,
-  categorieDemandeur, categorieAdversaire,
-  typeCombat, // <--- Ici
-} = req.body;
+    const {
+      nomBoxeur, prenomBoxeur,
+      nomAdversaire, prenomAdversaire,
+      affichageCombat, dateSouhaitee,
+      adresse, message,
+      emailCoach1, emailCoach2,
+      clubBoxeur, clubAdversaire,
+      categorieDemandeur, categorieAdversaire,
+      typeCombat,
+    } = req.body;
 
-   const apiKey = process.env.AIRTABLE_SECRET_KEY;
-const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
-const cleanType = (typeof typeCombat === 'string') ? typeCombat.replace(/['"]+/g, '') : "Gala";
+    const apiKey = process.env.AIRTABLE_SECRET_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
 
-// Juste avant de construire les fields, loggeons ce qu'on a reçu
-console.log("DEBUG: typeCombat reçu du front-end =", JSON.stringify(typeCombat));
+    console.log("DEBUG: typeCombat reçu =", JSON.stringify(typeCombat));
+    console.log("DEBUG: dateSouhaitee reçue =", dateSouhaitee);
 
-const fields = {
-    "Nom de mon boxeur": nomBoxeur || "",
-  "Prénom de mon boxeur": prenomBoxeur || "",
-  "Nom du boxeur adversaire": nomAdversaire || "",
-  "Prénom du boxeur adversaire": prenomAdversaire || "",
-  "Message": message || "",
-  "Adresse du combat": adresse || "",
-  "Email Coach 1": emailCoach1 || "",
-  "Club du boxeur": clubBoxeur || "",
-  "Club boxeur adversaire": clubAdversaire || "",
-  "Catégorie de poids demandeur": Array.isArray(categorieDemandeur) ? categorieDemandeur[0] : categorieDemandeur || "",
-  "Catégorie de poids adversaire": Array.isArray(categorieAdversaire) ? categorieAdversaire[0] : categorieAdversaire || "",
-  "Type combat": typeCombat || "Gala",
-  "Statut": "En attente",
-  "Date demande": new Date().toISOString().split('T')[0],
-};
-if (dateSouhaitee) {
-  const d = new Date(dateSouhaitee);
-  if (!isNaN(d.getTime())) fields["Date souhaitée"] = d.toISOString().split('T')[0];
-}
-if (emailCoach2) fields["Email coach 2"] = emailCoach2;
+    const fields = {
+      "Nom de mon boxeur": nomBoxeur || "",
+      "Prénom de mon boxeur": prenomBoxeur || "",
+      "Nom du boxeur adversaire": nomAdversaire || "",
+      "Prénom du boxeur adversaire": prenomAdversaire || "",
+      "Message": message || "",
+      "Adresse du combat": adresse || "",
+      "Email Coach 1": emailCoach1 || "",
+      "Club du boxeur": clubBoxeur || "",
+      "Club boxeur adversaire": clubAdversaire || "",
+      "Catégorie de poids demandeur": Array.isArray(categorieDemandeur) ? categorieDemandeur[0] : categorieDemandeur || "",
+      "Catégorie de poids adversaire": Array.isArray(categorieAdversaire) ? categorieAdversaire[0] : categorieAdversaire || "",
+      "Type combat": typeCombat || "Gala",
+      "Statut": "En attente",
+      "Date demande": new Date().toISOString().split('T')[0],
+    };
 
-console.log('📤 Fields envoyés à Airtable:', JSON.stringify(fields));
-
-const response = await axios.post(
-  `https://api.airtable.com/v0/${baseId}/Demandedematch`,
-  { fields },
-  { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
-);
-
-const record = response.data;
-
-    return res.status(200).json({ success: true, id: record.id });
-
- } catch (error) {
- console.error("❌ Erreur addDemandeMatch:", 
-  error.response ? JSON.stringify(error.response.data) : error.message
-);
-  return res.status(500).json({ error: "Erreur interne du serveur" });
-}
- 
-});
-// ===== CLOUD FUNCTION v2: getDemandesMatch =====
-exports.getDemandesMatch = onRequest({
-  region: "europe-west9",
-  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
-}, async (req, res) => {
-
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  if (req.method === "OPTIONS") return res.status(204).send("");
-
-  const authorizationHeader = req.headers.authorization;
-  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Non autorisé" });
-  }
-
-  try {
-    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
-    const uid = decoded.uid;
-
-    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
-    if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
-    const coachEmail = coachDoc.data().email;
-
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
-      .base(process.env.AIRTABLE_BASE_ID_SECURE);
-
-    const allRecords = await base("Demandedematch").select().all();
-
-    const envoyees = [];
-    const recues = [];
-
-    for (const record of allRecords) {
-      const f = record.fields || {};
-
-      console.log('🏟️ Clubs fields:', JSON.stringify({
-  c1: f["club Boxeur 1"],
-  c2: f["club Boxeur 2"],
-  ca: f["club Boxeur adversaire"],
-  all_keys: Object.keys(f).filter(k => k.toLowerCase().includes('club'))
-}));
-
-      const emailCoach1 = f["Email Coach 1"] || "";
-      const emailCoach2 = f["Email coach 2"] || "";
-
-      const demande = {
-        id: record.id,
-        idDemande: f["ID Demande"] || "",
-        nomBoxeur: f["Nom de mon boxeur"] || "",
-        prenomBoxeur: f["Prénom de mon boxeur"] || "",
-        nomAdversaire: f["Nom du boxeur adversaire"] || "",
-        prenomAdversaire: f["Prénom du boxeur adversaire"] || "",
-        dateSouhaitee: f["Date souhaitée"] || "",
-        dateDemande: f["Date demande"] || "",
-        adresse: f["Adresse du combat"] || "",
-        message: f["Message "] || f["Message"] || "",
-        statut: f["Statut"] || "En attente",
-        typeCombat: Array.isArray(f["Type combat"]) ? f["Type combat"][0] : f["Type combat"] || "",
-        clubBoxeur: f["Club du boxeur"] || "",
-        clubAdversaire: f["Club boxeur adversaire"] || "",
-        categorieDemandeur: f["Catégorie de poids demandeur"] || "",
-        categorieAdversaire: f["Catégorie de poids adversaire"] || "",
-        commentaireRefus: f["Commentaire du refus"] || "",
-      };
-
-      if (emailCoach1.toLowerCase() === coachEmail.toLowerCase()) {
-        envoyees.push(demande);
-      } else if (emailCoach2.toLowerCase() === coachEmail.toLowerCase()) {
-        recues.push(demande);
-      }
+    // ✅ La date arrive déjà en YYYY-MM-DD depuis le front — on l'utilise directement sans reconversion UTC
+    if (dateSouhaitee) {
+      fields["Date souhaitée"] = dateSouhaitee;
     }
 
-    return res.status(200).json({ success: true, envoyees, recues });
+    if (emailCoach2) fields["Email coach 2"] = emailCoach2;
+
+    console.log('📤 Fields envoyés à Airtable:', JSON.stringify(fields));
+
+    const response = await axios.post(
+      `https://api.airtable.com/v0/${baseId}/Demandedematch`,
+      { fields },
+      { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
+    );
+
+    return res.status(200).json({ success: true, id: response.data.id });
 
   } catch (error) {
-    console.error("❌ Erreur getDemandesMatch:", error.response ? JSON.stringify(error.response.data) : error.message);
+    console.error("❌ Erreur addDemandeMatch:",
+      error.response ? JSON.stringify(error.response.data) : error.message
+    );
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });

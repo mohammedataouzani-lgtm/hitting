@@ -18,7 +18,7 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function DemandeCombatScreen({ navigation, route }) {
-  const { boxer, adversaire } = route.params || {};
+  const { boxer, adversaire, dateSouhaitee: dateSouhaiteeParam } = route.params || {};
 
   if (!boxer || !adversaire) {
     return (
@@ -30,7 +30,13 @@ export default function DemandeCombatScreen({ navigation, route }) {
 
   const [monClub, setMonClub] = useState('');
   const [typeCombat, setTypeCombat] = useState('Gala');
-  const [dateSouhaitee, setDateSouhaitee] = useState(new Date());
+  const [dateSouhaitee, setDateSouhaitee] = useState(() => {
+    if (dateSouhaiteeParam) {
+      const [y, m, d] = dateSouhaiteeParam.split('-').map(Number);
+      return new Date(y, m - 1, d); // constructeur local, pas UTC
+    }
+    return new Date();
+  });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [adresse, setAdresse] = useState('');
   const [message, setMessage] = useState('');
@@ -43,6 +49,10 @@ export default function DemandeCombatScreen({ navigation, route }) {
 
   const formatDate = (date) =>
     `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+
+  // Construit la date au format YYYY-MM-DD sans conversion UTC
+  const toLocalDateStr = (date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
   useEffect(() => {
     const fetchCoachClub = async () => {
@@ -74,6 +84,8 @@ export default function DemandeCombatScreen({ navigation, route }) {
       const prenomAdversaire = nomParts[0] || '';
       const nomAdversaire = nomParts.slice(1).join(' ') || nomParts[0] || '';
 
+      const dateStr = toLocalDateStr(dateSouhaitee); // ← format local YYYY-MM-DD
+
       const response = await fetch(
         'https://europe-west9-hitting-23de9.cloudfunctions.net/addDemandeMatch',
         {
@@ -87,7 +99,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
             prenomBoxeur: boxer.prenom || '',
             nomAdversaire,
             prenomAdversaire,
-            dateSouhaitee: dateSouhaitee.toISOString(),
+            dateSouhaitee: dateStr, // ← YYYY-MM-DD sans UTC
             adresse,
             message,
             emailCoach1,
@@ -324,7 +336,6 @@ const styles = StyleSheet.create({
   backArrow: { fontSize: 22, color: '#222', fontWeight: '600' },
   backTxt: { fontSize: 16, fontWeight: '700', color: '#222' },
   scrollContent: { paddingHorizontal: 18 },
-
   vsCard: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -352,7 +363,6 @@ const styles = StyleSheet.create({
   vsBadgeContainer: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6 },
   vsCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   vsText: { color: '#fff', fontSize: 11, fontWeight: '900' },
-
   sectionHeading: { fontSize: 12, fontWeight: '800', color: '#8A8A8F', letterSpacing: 0.5, marginTop: 8, marginBottom: 12 },
   fieldGroup: { marginBottom: 16 },
   fieldLabel: { fontSize: 14, fontWeight: '700', color: '#3A3A3C', marginBottom: 8 },
@@ -369,7 +379,6 @@ const styles = StyleSheet.create({
   disabledInput: { backgroundColor: '#F2F2F7', borderColor: '#E5E5EA', color: '#8E8E93' },
   textArea: { height: 100, paddingTop: 12, paddingBottom: 12 },
   row: { flexDirection: 'row' },
-
   inputDate: {
     height: 48,
     backgroundColor: '#FFFFFF',
@@ -382,7 +391,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   inputDateTxt: { fontSize: 15, color: '#1C1C1E' },
-
   toggleRow: { flexDirection: 'row', gap: 8 },
   toggleBtn: {
     flex: 1,
@@ -397,7 +405,6 @@ const styles = StyleSheet.create({
   toggleBtnActive: { backgroundColor: '#E8F0FE', borderColor: '#42A5F5' },
   toggleBtnTxt: { fontSize: 13, fontWeight: '700', color: '#8E8E93' },
   toggleBtnTxtActive: { color: '#42A5F5' },
-
   sendBtn: {
     backgroundColor: '#B71C1C',
     height: 52,

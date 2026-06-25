@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { getAuth } from 'firebase/auth';
 import { AdversaireSheet } from './DemandeScreen';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width } = Dimensions.get('window');
 const SAFE_AREA_TOP = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight ?? 24);
@@ -52,22 +53,25 @@ function AdversaireCard({ match, onPress }) {
 export default function AdversairesPotentielsScreen({ navigation, route }) {
   const { boxer } = route.params;
   const [matchs, setMatchs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // false par défaut, pas de chargement initial
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [sheetVisible, setSheetVisible] = useState(false);
- 
+  const [dateSouhaitee, setDateSouhaitee] = useState(null); // ✅ dans le composant
+  const [showDatePicker, setShowDatePicker] = useState(false); // ✅ dans le composant
 
+  // ✅ Se déclenche uniquement quand une date est sélectionnée
   useEffect(() => {
-    fetchMatchs();
-  }, []);
+    if (dateSouhaitee) fetchMatchs(dateSouhaitee);
+  }, [dateSouhaitee]);
 
-  const fetchMatchs = async () => {
+  const fetchMatchs = async (date) => {
+    setLoading(true);
     try {
       const auth = getAuth();
       const idToken = await auth.currentUser.getIdToken();
-console.log('📤 Envoi de la requête avec boxeurId:', boxer.id);
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       const response = await fetch(
-        `https://europe-west9-hitting-23de9.cloudfunctions.net/getMatchsPossibles?boxeurId=${boxer.id}`,
+        `https://europe-west9-hitting-23de9.cloudfunctions.net/getMatchsPossibles?boxeurId=${boxer.id}&dateSouhaitee=${dateStr}`,
         {
           method: 'GET',
           headers: {
@@ -76,7 +80,6 @@ console.log('📤 Envoi de la requête avec boxeurId:', boxer.id);
           },
         }
       );
-
       const data = await response.json();
       if (data.success) setMatchs(data.matchs);
     } catch (error) {
@@ -120,42 +123,100 @@ console.log('📤 Envoi de la requête avec boxeurId:', boxer.id);
           </View>
         </View>
 
-        {/* Titre + compteur */}
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>Adversaires potentiels</Text>
-          {!loading && <Text style={s.sectionCount}>{matchs.length} résultat{matchs.length > 1 ? 's' : ''}</Text>}
+        {/* Sélecteur de date */}
+        <View style={s.datePickerRow}>
+          <Text style={s.datePickerLabel}>📅 Date souhaitée</Text>
+          <TouchableOpacity
+            style={s.datePickerBtn}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={[s.datePickerBtnTxt, !dateSouhaitee && s.datePickerPlaceholder]}>
+              {dateSouhaitee
+                ? dateSouhaitee.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                : 'Sélectionner une date pour voir les adversaires disponibles'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Liste */}
-        {loading ? (
+        {showDatePicker && (
+          <DateTimePicker
+            value={dateSouhaitee || new Date()}
+            mode="date"
+            display="default"
+            minimumDate={new Date()}
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) setDateSouhaitee(selectedDate);
+            }}
+          />
+        )}
+
+        {/* Titre + compteur */}
+        {dateSouhaitee && (
+          <View style={s.sectionHeader}>
+            <Text style={s.sectionTitle}>Adversaires potentiels</Text>
+            {!loading && (
+              <Text style={s.sectionCount}>
+                {matchs.length} résultat{matchs.length > 1 ? 's' : ''}
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Liste — 3 états distincts */}
+        {!dateSouhaitee ? (
+          // Pas encore de date sélectionnée
+          <View style={s.emptyContainer}>
+            <Text style={s.emptyEmoji}>📅</Text>
+            <Text style={s.emptyTxt}>Choisissez une date pour voir les adversaires disponibles</Text>
+          </View>
+        ) : loading ? (
+          // Chargement en cours
           <View style={s.loadingContainer}>
             <ActivityIndicator size="large" color="#E53935" />
             <Text style={s.loadingTxt}>Recherche en cours...</Text>
           </View>
         ) : matchs.length === 0 ? (
+          // Aucun adversaire disponible à cette date
           <View style={s.emptyContainer}>
             <Text style={s.emptyEmoji}>🥊</Text>
-            <Text style={s.emptyTxt}>Aucun adversaire trouvé</Text>
+            <Text style={s.emptyTxt}>Aucun adversaire disponible à cette date</Text>
+            <TouchableOpacity
+              style={s.changeDateBtn}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={s.changeDateBtnTxt}>Changer de date</Text>
+            </TouchableOpacity>
           </View>
         ) : (
+          // Résultats
           <View style={s.list}>
             {matchs.map((match) => (
-              <AdversaireCard key={match.id} match={match} onPress={() => { setSelectedMatch(match); setSheetVisible(true); }} />
+              <AdversaireCard
+                key={match.id}
+                match={match}
+                onPress={() => { setSelectedMatch(match); setSheetVisible(true); }}
+              />
             ))}
           </View>
         )}
+
       </ScrollView>
+
       <AdversaireSheet
         visible={sheetVisible}
         match={selectedMatch}
         boxer={boxer}
         onClose={() => setSheetVisible(false)}
-        onDemandePress={(match) => { 
-  setSheetVisible(false);
-  navigation.navigate('DemandeCombat', { boxer, adversaire: match }); 
-}}
+        onDemandePress={(match) => {
+          setSheetVisible(false);
+          navigation.navigate('DemandeCombat', {
+            boxer,
+            adversaire: match,
+            dateSouhaitee: dateSouhaitee?.toISOString().split('T')[0], // ✅ pré-remplit la date dans le formulaire
+          });
+        }}
       />
-     
     </View>
   );
 }
@@ -170,11 +231,18 @@ const s = StyleSheet.create({
   backTxt: { fontSize: 16, color: '#111', fontWeight: '600' },
 
   // Carte boxeur
-  boxerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 16, borderRadius: 16, padding: 14, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  boxerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 16, borderRadius: 16, padding: 14, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
   boxerAvatar: { width: 72, height: 72, borderRadius: 8, backgroundColor: '#E0E0E0', marginRight: 14, resizeMode: 'cover' },
   boxerInfo: { flex: 1 },
   boxerName: { fontSize: 17, fontWeight: '800', color: '#111', marginBottom: 3 },
   boxerMeta: { fontSize: 12, color: '#888', marginBottom: 10 },
+
+  // Sélecteur de date
+  datePickerRow: { paddingHorizontal: 16, marginBottom: 16 },
+  datePickerLabel: { fontSize: 13, fontWeight: '700', color: '#888', marginBottom: 8, letterSpacing: 0.5 },
+  datePickerBtn: { backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E0E0E0' },
+  datePickerBtnTxt: { fontSize: 15, fontWeight: '600', color: '#111' },
+  datePickerPlaceholder: { color: '#AAAAAA' },
 
   // Section header
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 },
@@ -185,7 +253,7 @@ const s = StyleSheet.create({
   list: { paddingHorizontal: 16, gap: 12 },
 
   // Carte adversaire
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, padding: 14, shadowColor: '#534b4b', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
   cardAvatar: { width: 72, height: 72, borderRadius: 8, backgroundColor: '#E0E0E0', marginRight: 12, resizeMode: 'cover' },
   cardInfo: { flex: 1 },
   cardName: { fontSize: 15, fontWeight: '800', color: '#111', marginBottom: 2 },
@@ -206,7 +274,9 @@ const s = StyleSheet.create({
   // États
   loadingContainer: { alignItems: 'center', paddingTop: 60, gap: 12 },
   loadingTxt: { color: '#888', fontSize: 14 },
-  emptyContainer: { alignItems: 'center', paddingTop: 60 },
+  emptyContainer: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTxt: { fontSize: 16, color: '#999', fontWeight: '600' },
+  emptyTxt: { fontSize: 16, color: '#999', fontWeight: '600', textAlign: 'center' },
+  changeDateBtn: { marginTop: 16, backgroundColor: '#E53935', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
+  changeDateBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });
