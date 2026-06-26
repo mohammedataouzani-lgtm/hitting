@@ -33,10 +33,11 @@ export default function DemandeCombatScreen({ navigation, route }) {
   const [dateSouhaitee, setDateSouhaitee] = useState(() => {
     if (dateSouhaiteeParam) {
       const [y, m, d] = dateSouhaiteeParam.split('-').map(Number);
-      return new Date(y, m - 1, d); // constructeur local, pas UTC
+      return new Date(y, m - 1, d);
     }
     return new Date();
   });
+  const [tempDate, setTempDate] = useState(dateSouhaitee);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [adresse, setAdresse] = useState('');
   const [message, setMessage] = useState('');
@@ -50,7 +51,6 @@ export default function DemandeCombatScreen({ navigation, route }) {
   const formatDate = (date) =>
     `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 
-  // Construit la date au format YYYY-MM-DD sans conversion UTC
   const toLocalDateStr = (date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
@@ -84,7 +84,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
       const prenomAdversaire = nomParts[0] || '';
       const nomAdversaire = nomParts.slice(1).join(' ') || nomParts[0] || '';
 
-      const dateStr = toLocalDateStr(dateSouhaitee); // ← format local YYYY-MM-DD
+      const dateStr = toLocalDateStr(dateSouhaitee);
 
       const response = await fetch(
         'https://europe-west9-hitting-23de9.cloudfunctions.net/addDemandeMatch',
@@ -99,7 +99,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
             prenomBoxeur: boxer.prenom || '',
             nomAdversaire,
             prenomAdversaire,
-            dateSouhaitee: dateStr, // ← YYYY-MM-DD sans UTC
+            dateSouhaitee: dateStr,
             adresse,
             message,
             emailCoach1,
@@ -133,10 +133,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FAF9F6" />
 
       <View style={styles.header}>
@@ -146,181 +143,223 @@ export default function DemandeCombatScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
-        {/* VS CARD */}
-        <View style={styles.vsCard}>
-          <View style={styles.boxerProfile}>
-            <Image
-              source={{ uri: boxer.photo || boxer.avatar || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' }}
-              style={styles.avatar}
-            />
-            <Text style={styles.boxerName} numberOfLines={2}>
-              {boxer.prenom} {boxer.nom}
-            </Text>
-            <View style={styles.statsMiniRow}>
-              {[{ l: 'VIC.', v: boxer.vic }, { l: 'DEF.', v: boxer.def }, { l: 'NULS', v: boxer.nuls }].map(({ l, v }) => (
-                <View key={l} style={styles.statMiniItem}>
-                  <Text style={styles.statMiniVal}>{v ?? '—'}</Text>
-                  <Text style={styles.statMiniLbl}>{l}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.vsBadgeContainer}>
-            <View style={styles.vsCircle}>
-              <Text style={styles.vsText}>VS</Text>
-            </View>
-          </View>
-
-          <View style={styles.boxerProfile}>
-            <Image
-              source={{ uri: adversaire.adversairePhoto || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' }}
-              style={styles.avatar}
-            />
-            <Text style={styles.boxerName} numberOfLines={2}>
-              {adversaire.adversaireNom}
-            </Text>
-            <View style={styles.statsMiniRow}>
-              {[{ l: 'VIC.', v: adversaire.palmares?.vic }, { l: 'DEF.', v: adversaire.palmares?.def }, { l: 'NULS', v: adversaire.palmares?.nuls }, { l: 'K.O', v: adversaire.palmares?.ko }].map(({ l, v }) => (
-                <View key={l} style={styles.statMiniItem}>
-                  <Text style={styles.statMiniVal}>{v ?? '—'}</Text>
-                  <Text style={styles.statMiniLbl}>{l}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* CLUBS */}
-        <Text style={styles.sectionHeading}>CLUBS</Text>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Mon club</Text>
-          <TextInput
-            style={[styles.input, styles.disabledInput]}
-            value={monClub}
-            editable={false}
-            placeholder="Chargement..."
-            placeholderTextColor="#A1A1A6"
-          />
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Club adversaire</Text>
-          <TextInput
-            style={[styles.input, styles.disabledInput]}
-            value={clubAdversaire}
-            editable={false}
-            placeholder="Club adverse"
-            placeholderTextColor="#A1A1A6"
-          />
-        </View>
-
-        {/* DÉTAILS DU COMBAT */}
-        <Text style={styles.sectionHeading}>DÉTAIL DU COMBAT</Text>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Type de combat</Text>
-          <View style={styles.toggleRow}>
-            {['Gala', 'Sparring'].map((type) => (
-              <TouchableOpacity
-                key={type}
-                activeOpacity={0.8}
-                onPress={() => setTypeCombat(type)}
-                style={[styles.toggleBtn, typeCombat === type && styles.toggleBtnActive]}
-              >
-                <Text style={[styles.toggleBtnTxt, typeCombat === type && styles.toggleBtnTxtActive]}>
-                  {type}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Dates */}
-        <View style={styles.row}>
-          <View style={[styles.fieldGroup, { flex: 1, marginRight: 10 }]}>
-            <Text style={styles.fieldLabel}>Date souhaitée</Text>
-            <TouchableOpacity
-              style={styles.inputDate}
-              onPress={() => setShowDatePicker(true)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.inputDateTxt}>{formatDate(dateSouhaitee)}</Text>
-              <Text style={{ fontSize: 16 }}>📅</Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={dateSouhaitee}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                minimumDate={new Date()}
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) setDateSouhaitee(selectedDate);
-                }}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* VS CARD */}
+          <View style={styles.vsCard}>
+            <View style={styles.boxerProfile}>
+              <Image
+                source={{ uri: boxer.photo || boxer.avatar || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' }}
+                style={styles.avatar}
               />
-            )}
+              <Text style={styles.boxerName} numberOfLines={2}>
+                {boxer.prenom} {boxer.nom}
+              </Text>
+              <View style={styles.statsMiniRow}>
+                {[{ l: 'VIC.', v: boxer.vic }, { l: 'DEF.', v: boxer.def }, { l: 'NULS', v: boxer.nuls }].map(({ l, v }) => (
+                  <View key={l} style={styles.statMiniItem}>
+                    <Text style={styles.statMiniVal}>{v ?? '—'}</Text>
+                    <Text style={styles.statMiniLbl}>{l}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.vsBadgeContainer}>
+              <View style={styles.vsCircle}>
+                <Text style={styles.vsText}>VS</Text>
+              </View>
+            </View>
+
+            <View style={styles.boxerProfile}>
+              <Image
+                source={{ uri: adversaire.adversairePhoto || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' }}
+                style={styles.avatar}
+              />
+              <Text style={styles.boxerName} numberOfLines={2}>
+                {adversaire.adversaireNom}
+              </Text>
+              <View style={styles.statsMiniRow}>
+                {[{ l: 'VIC.', v: adversaire.palmares?.vic }, { l: 'DEF.', v: adversaire.palmares?.def }, { l: 'NULS', v: adversaire.palmares?.nuls }, { l: 'K.O', v: adversaire.palmares?.ko }].map(({ l, v }) => (
+                  <View key={l} style={styles.statMiniItem}>
+                    <Text style={styles.statMiniVal}>{v ?? '—'}</Text>
+                    <Text style={styles.statMiniLbl}>{l}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
           </View>
 
-          <View style={[styles.fieldGroup, { flex: 1 }]}>
-            <Text style={styles.fieldLabel}>Date de demande</Text>
+          {/* CLUBS */}
+          <Text style={styles.sectionHeading}>CLUBS</Text>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Mon club</Text>
             <TextInput
               style={[styles.input, styles.disabledInput]}
-              value={dateDemande}
+              value={monClub}
               editable={false}
+              placeholder="Chargement..."
               placeholderTextColor="#A1A1A6"
             />
           </View>
-        </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Adresse du combat</Text>
-          <TextInput
-            style={styles.input}
-            value={adresse}
-            onChangeText={setAdresse}
-            placeholder="Adresse de la salle"
-            placeholderTextColor="#C7C7CC"
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Club adversaire</Text>
+            <TextInput
+              style={[styles.input, styles.disabledInput]}
+              value={clubAdversaire}
+              editable={false}
+              placeholder="Club adverse"
+              placeholderTextColor="#A1A1A6"
+            />
+          </View>
+
+          {/* DÉTAILS DU COMBAT */}
+          <Text style={styles.sectionHeading}>DÉTAIL DU COMBAT</Text>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Type de combat</Text>
+            <View style={styles.toggleRow}>
+              {['Gala', 'Sparring'].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  activeOpacity={0.8}
+                  onPress={() => setTypeCombat(type)}
+                  style={[styles.toggleBtn, typeCombat === type && styles.toggleBtnActive]}
+                >
+                  <Text style={[styles.toggleBtnTxt, typeCombat === type && styles.toggleBtnTxtActive]}>
+                    {type}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Dates */}
+          <View style={styles.row}>
+            <View style={[styles.fieldGroup, { flex: 1, marginRight: 10 }]}>
+              <Text style={styles.fieldLabel}>Date souhaitée</Text>
+              <TouchableOpacity
+                style={styles.inputDate}
+                onPress={() => { setTempDate(dateSouhaitee); setShowDatePicker(true); }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.inputDateTxt}>{formatDate(dateSouhaitee)}</Text>
+                <Text style={{ fontSize: 16 }}>📅</Text>
+              </TouchableOpacity>
+
+              {/* Android uniquement */}
+              {showDatePicker && Platform.OS === 'android' && (
+                <DateTimePicker
+                  value={dateSouhaitee}
+                  mode="date"
+                  display="default"
+                  minimumDate={new Date()}
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false);
+                    if (selectedDate) setDateSouhaitee(selectedDate);
+                  }}
+                />
+              )}
+            </View>
+
+            <View style={[styles.fieldGroup, { flex: 1 }]}>
+              <Text style={styles.fieldLabel}>Date de demande</Text>
+              <TextInput
+                style={[styles.input, styles.disabledInput]}
+                value={dateDemande}
+                editable={false}
+                placeholderTextColor="#A1A1A6"
+              />
+            </View>
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Adresse du combat</Text>
+            <TextInput
+              style={styles.input}
+              value={adresse}
+              onChangeText={setAdresse}
+              placeholder="Adresse de la salle"
+              placeholderTextColor="#C7C7CC"
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Message</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={message}
+              onChangeText={setMessage}
+              placeholder="Ajouter un message pour le coach adverse"
+              placeholderTextColor="#C7C7CC"
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* BOUTON ENVOI */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[styles.sendBtn, loading && { opacity: 0.6 }]}
+            onPress={handleSendRequest}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.sendBtnTxt}>Envoyer la demande</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* ✅ DatePicker iOS — position absolue, pas de Modal imbriqué */}
+      {showDatePicker && Platform.OS === 'ios' && (
+        <View style={styles.datePickerWrapper}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={() => setShowDatePicker(false)}
           />
+          <View style={styles.datePickerInner}>
+            <View style={styles.datePickerHeader}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.datePickerCancel}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => {
+                setDateSouhaitee(tempDate);
+                setShowDatePicker(false);
+              }}>
+                <Text style={styles.datePickerDone}>Confirmer</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+             display="inline"
+              minimumDate={new Date()}
+              onChange={(event, selectedDate) => {
+                if (selectedDate) setTempDate(selectedDate);
+              }}
+              locale="fr-FR"
+              style={{ backgroundColor: '#04053d' }}
+            />
+          </View>
         </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Message</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={message}
-            onChangeText={setMessage}
-            placeholder="Ajouter un message pour le coach adverse"
-            placeholderTextColor="#C7C7CC"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* BOUTON ENVOI */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={[styles.sendBtn, loading && { opacity: 0.6 }]}
-          onPress={handleSendRequest}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.sendBtnTxt}>Envoyer la demande</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+      )}
+    </View>
   );
 }
 
@@ -381,16 +420,16 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
   inputDate: {
     height: 48,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
+    backgroundColor: '#EEF4FF',
+    borderWidth: 1.5,
+    borderColor: '#42A5F5',
     borderRadius: 10,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  inputDateTxt: { fontSize: 15, color: '#1C1C1E' },
+  inputDateTxt: { fontSize: 15, color: '#1565C0', fontWeight: '700' },
   toggleRow: { flexDirection: 'row', gap: 8 },
   toggleBtn: {
     flex: 1,
@@ -419,4 +458,31 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   sendBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  // ✅ DatePicker iOS position absolue
+  datePickerWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+ datePickerInner: {
+  backgroundColor: '#071735',
+  borderTopLeftRadius: 20,
+  borderTopRightRadius: 20,
+  paddingBottom: 34,
+  paddingHorizontal: 10,
+},
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#910e70',
+  },
+  datePickerCancel: { fontSize: 16, color: '#999' },
+  datePickerDone: { fontSize: 16, color: '#1565C0', fontWeight: '700' },
 });

@@ -62,9 +62,7 @@ function AdversaireSheet({ visible, match, boxer, onClose, onDemandePress }) {
         <View style={s.handleBar} />
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetBody}>
-          {/* VS header */}
           <View style={s.vsRow}>
-            {/* Mon boxeur */}
             <View style={s.vsBoxeur}>
               <Image source={{ uri: boxer.avatar }} style={s.vsAvatar} />
               <Text style={s.vsName}>{boxer.nom}</Text>
@@ -75,10 +73,8 @@ function AdversaireSheet({ visible, match, boxer, onClose, onDemandePress }) {
               </View>
             </View>
 
-            {/* VS badge */}
             <View style={s.vsBadge}><Text style={s.vsBadgeTxt}>VS</Text></View>
 
-            {/* Adversaire */}
             <View style={s.vsBoxeur}>
               {match.adversairePhoto ? (
                 <Image source={{ uri: match.adversairePhoto }} style={s.vsAvatar} />
@@ -96,13 +92,11 @@ function AdversaireSheet({ visible, match, boxer, onClose, onDemandePress }) {
             </View>
           </View>
 
-          {/* Infos adversaire */}
           <View style={s.infoSection}>
             <InfoRow icon="⚖️" label="Catégorie" value={match.categoriePoids} />
             <InfoRow icon="🏟️" label="Club adversaire" value={match.adversaireClub} />
           </View>
 
-          {/* Bouton demande */}
           <TouchableOpacity
             style={s.demandeBtn}
             activeOpacity={0.85}
@@ -125,9 +119,13 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
   const [typeCombat, setTypeCombat] = useState('Gala');
   const [dateSouhaitee, setDateSouhaitee] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date()); // ✅ date temporaire avant confirmation
   const [adresse, setAdresse] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const toLocalDateStr = (date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -159,15 +157,16 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
             nomAdversaire,
             prenomAdversaire,
             affichageCombat: match.affichageCombat || `${boxer.nom} VS ${match.adversaireNom}`,
-            dateSouhaitee: dateSouhaitee.toISOString(),
+            dateSouhaitee: toLocalDateStr(dateSouhaitee), // ✅ format local sans UTC
             adresse,
             message,
             emailCoach1: coachData.email,
+            emailCoach2: match.emailCoach2 || '',
             clubBoxeur: coachData.clubName || '',
             clubAdversaire: match.adversaireClub || '',
             categorieDemandeur: boxer.poids || '',
             categorieAdversaire: match.categoriePoids || '',
-          typeCombat: typeCombat.replace(/['"]+/g, '')
+            typeCombat: typeCombat.replace(/['"]+/g, ''),
           }),
         }
       );
@@ -186,11 +185,6 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
 
   if (!visible || !match) return null;
 
-  const nomParts = boxer.nom.trim().split(' ');
-  const prenomBoxeur = nomParts[0] || '';
-  const adversaireParts = (match.adversaireNom || '').trim().split(' ');
-  const prenomAdversaire = adversaireParts[0] || '';
-
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -204,7 +198,6 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={f.body} keyboardShouldPersistTaps="handled">
 
-          {/* VS mini header */}
           <View style={f.vsRow}>
             <Image source={{ uri: boxer.avatar }} style={f.vsAvatar} />
             <View style={f.vsBadge}><Text style={f.vsBadgeTxt}>VS</Text></View>
@@ -218,25 +211,23 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
           </View>
           <Text style={f.vsNames}>{boxer.nom}  VS  {match.adversaireNom}</Text>
 
-          {/* CLUBS */}
           <Text style={f.sectionLabel}>CLUBS</Text>
           <Text style={f.fieldLabel}>Mon club</Text>
           <View style={f.inputReadOnly}><Text style={f.inputReadOnlyTxt}>{match.adversaireClub ? 'Mon club' : '—'}</Text></View>
           <Text style={f.fieldLabel}>Club adversaire</Text>
           <View style={f.inputReadOnly}><Text style={f.inputReadOnlyTxt}>{match.adversaireClub || '—'}</Text></View>
 
-          {/* DÉTAIL DU COMBAT */}
           <Text style={f.sectionLabel}>DÉTAIL DU COMBAT</Text>
 
           <Text style={f.fieldLabel}>Type de combat</Text>
           <View style={f.toggleRow}>
-           {['Gala', 'Sparring'].map((type) => (
+            {['Gala', 'Sparring'].map((type) => (
               <TouchableOpacity
-                key={t}
-                style={[f.toggleBtn, typeCombat === t && f.toggleBtnActive]}
-                onPress={() => setTypeCombat(t)}
+                key={type}
+                style={[f.toggleBtn, typeCombat === type && f.toggleBtnActive]}
+                onPress={() => setTypeCombat(type)}
               >
-                <Text style={[f.toggleTxt, typeCombat === t && f.toggleTxtActive]}>{t}</Text>
+                <Text style={[f.toggleTxt, typeCombat === type && f.toggleTxtActive]}>{type}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -244,20 +235,15 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
           <View style={f.dateRow}>
             <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={f.fieldLabel}>Date souhaitée</Text>
-              <TouchableOpacity style={f.inputDate} onPress={() => setShowDatePicker(true)}>
+              <TouchableOpacity
+                style={f.inputDate}
+                onPress={() => { setTempDate(dateSouhaitee); setShowDatePicker(true); }}
+              >
                 <Text style={f.inputDateTxt}>
                   {dateSouhaitee.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                 </Text>
                 <Text style={{ fontSize: 18 }}>📅</Text>
               </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={dateSouhaitee}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(e, d) => { setShowDatePicker(false); if (d) setDateSouhaitee(d); }}
-                />
-              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={f.fieldLabel}>Date de demande</Text>
@@ -290,7 +276,6 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
             textAlignVertical="top"
           />
 
-          {/* Bouton envoyer */}
           <TouchableOpacity onPress={handleSubmit} disabled={loading} style={f.submitBtn} activeOpacity={0.85}>
             <LinearGradient colors={['#EF5350', '#E53935']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={f.submitGradient}>
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={f.submitTxt}>Envoyer la demande</Text>}
@@ -300,6 +285,47 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ✅ DateTimePicker dans un Modal dédié pour iOS */}
+      {Platform.OS === 'ios' ? (
+        <Modal visible={showDatePicker} transparent animationType="slide">
+          <View style={f.dateModalOverlay}>
+            <View style={f.dateModalContainer}>
+              <View style={f.dateModalHeader}>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={f.dateModalCancel}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setDateSouhaitee(tempDate); setShowDatePicker(false); }}>
+                  <Text style={f.dateModalDone}>Confirmer</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={tempDate}
+                mode="date"
+                display="spinner"
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  if (selectedDate) setTempDate(selectedDate);
+                }}
+                locale="fr-FR"
+              />
+            </View>
+          </View>
+        </Modal>
+      ) : (
+        showDatePicker && (
+          <DateTimePicker
+            value={dateSouhaitee}
+            mode="date"
+            display="default"
+            minimumDate={new Date()}
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) setDateSouhaitee(selectedDate);
+            }}
+          />
+        )
+      )}
     </Modal>
   );
 }
@@ -363,8 +389,8 @@ const f = StyleSheet.create({
   textArea: { height: 100, paddingTop: 12, paddingBottom: 12 },
   inputReadOnly: { height: 48, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#E0E0E0', paddingHorizontal: 14, justifyContent: 'center', marginBottom: 16, opacity: 0.7 },
   inputReadOnlyTxt: { fontSize: 15, color: '#888' },
-  inputDate: { height: 48, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#E0E0E0', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  inputDateTxt: { fontSize: 15, color: '#111' },
+  inputDate: { height: 48, backgroundColor: '#EEF4FF', borderRadius: 10, borderWidth: 1.5, borderColor: '#42A5F5', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  inputDateTxt: { fontSize: 15, color: '#1565C0', fontWeight: '700' },
   toggleRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   toggleBtn: { paddingHorizontal: 20, height: 40, borderRadius: 10, borderWidth: 1.5, borderColor: '#E0E0E0', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   toggleBtnActive: { backgroundColor: '#111', borderColor: '#111' },
@@ -374,4 +400,10 @@ const f = StyleSheet.create({
   submitBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 8, shadowColor: '#E53935', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6 },
   submitGradient: { height: 54, alignItems: 'center', justifyContent: 'center' },
   submitTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  // ✅ Styles Modal DatePicker
+  dateModalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  dateModalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 34 },
+  dateModalHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: '#E0E0E0' },
+  dateModalCancel: { fontSize: 16, color: '#999' },
+  dateModalDone: { fontSize: 16, color: '#1565C0', fontWeight: '700' },
 });
