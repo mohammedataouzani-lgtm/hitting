@@ -8,7 +8,7 @@ import {
   StatusBar,
   Text,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuth } from 'firebase/auth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -36,21 +36,18 @@ export default function SplashScreen({ navigation }) {
       toValue: 1,
       duration: 2500,
       useNativeDriver: false,
-    }).start(async () => {
-      try {
-        const firebaseUID = await AsyncStorage.getItem('firebaseUID');
-        if (firebaseUID) {
-          navigation.replace('Dashboard');
-        } else {
-          navigation.replace('Login');
-        }
-      } catch (e) {
+    }).start(() => {
+      // ✅ Option B — vérifie l'état Firebase Auth réel
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        navigation.replace('Dashboard');
+      } else {
         navigation.replace('Login');
       }
     });
-  }, []); // ✅ fermeture du useEffect ici
+  }, []);
 
-  // ✅ progressWidth et return sont dans le composant, pas dans useEffect
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
