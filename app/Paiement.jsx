@@ -67,7 +67,7 @@ export default function OffresScreen({ navigation }) {
       `Vous allez souscrire à l'offre ${plan.label} à ${plan.price}.`,
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Confirmer', onPress: () => console.log(`Subscribe to ${plan.id}`) },
+        { text: 'Confirmer', onPress: () => navigation.navigate('Dashboard') },
       ]
     );
   };

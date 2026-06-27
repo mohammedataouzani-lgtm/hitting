@@ -180,148 +180,159 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
 
 
 
-  return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <Animated.View style={[s.backdrop, { opacity: backdropAnim }]}>
-          <Pressable style={{ flex: 1 }} onPress={handleClose} />
-        </Animated.View>
+return (
+  <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
+    <Animated.View style={[s.backdrop, { opacity: backdropAnim }]}>
+      <Pressable style={{ flex: 1 }} onPress={handleClose} />
+    </Animated.View>
 
-        <Animated.View style={[s.sheet, { transform: [{ translateY: slideAnim }] }]}>
-          <View style={s.handleBar} />
-          <View style={s.sheetHeader}>
-            <TouchableOpacity onPress={handleClose} style={s.closeBtn}>
-              <Text style={s.closeBtnTxt}>✕</Text>
-            </TouchableOpacity>
-            <Text style={s.sheetTitle}>Ajouter un boxeur</Text>
-            <View style={{ width: 36 }} />
+    <Animated.View style={[s.sheet, { transform: [{ translateY: slideAnim }] }]}>
+      <View style={s.handleBar} />
+      <View style={s.sheetHeader}>
+        <TouchableOpacity onPress={handleClose} style={s.closeBtn}>
+          <Text style={s.closeBtnTxt}>✕</Text>
+        </TouchableOpacity>
+        <Text style={s.sheetTitle}>Ajouter un boxeur</Text>
+        <View style={{ width: 36 }} />
+      </View>
+
+      {/* ✅ KeyboardAvoidingView DANS la sheet, pas autour du Modal */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.sheetBody}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
+          {/* ... tout le contenu du formulaire reste identique ... */}
+          <TouchableOpacity style={s.photoBtn} activeOpacity={0.7} onPress={async () => {
+            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
+            });
+            if (!result.canceled) setPhotoBoxeur(result.assets[0]);
+          }}>
+            <LinearGradient colors={['#5C6BC0', '#3949AB']} style={s.photoBtnInner}>
+              {photoBoxeur ? (
+                <Image source={{ uri: photoBoxeur.uri }} style={{ width: 72, height: 72, borderRadius: 36 }} />
+              ) : (
+                <><Text style={s.photoIcon}>⬆</Text><Text style={s.photoLabel}>Photo</Text></>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <Text style={s.sectionLabel}>IDENTITÉ</Text>
+          <View style={s.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.fieldLabel}>Nom *</Text>
+              <TextInput style={[s.input, errors.nom && s.inputError]} placeholder="Dupont" placeholderTextColor="#C0C0C0" value={nom} onChangeText={(v) => { setNom(v); setErrors(p => ({ ...p, nom: false })); }} />
+            </View>
+            <View style={{ width: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.fieldLabel}>Prénom *</Text>
+              <TextInput style={[s.input, errors.prenom && s.inputError]} placeholder="Jean" placeholderTextColor="#C0C0C0" value={prenom} onChangeText={(v) => { setPrenom(v); setErrors(p => ({ ...p, prenom: false })); }} />
+            </View>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetBody} keyboardShouldPersistTaps="handled">
-            <TouchableOpacity style={s.photoBtn} activeOpacity={0.7} onPress={async () => {
+          <Text style={s.fieldLabel}>Date de naissance</Text>
+          <View style={s.dateRow}>
+            <TextInput
+              style={[s.input, { flex: 1 }]} placeholder="jj/mm/aaaa" placeholderTextColor="#C0C0C0"
+              value={dateNaissance}
+              onChangeText={(text) => {
+                const cleaned = text.replace(/\D/g, '');
+                let formatted = cleaned;
+                if (cleaned.length >= 3 && cleaned.length <= 4) formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2)}`;
+                else if (cleaned.length >= 5) formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2,4)}/${cleaned.slice(4,8)}`;
+                setDateNaissance(formatted);
+              }}
+              keyboardType="numeric" maxLength={10}
+            />
+            <TouchableOpacity style={s.calendarBtn}><Text style={s.calendarIcon}>📅</Text></TouchableOpacity>
+          </View>
+
+          <Text style={s.fieldLabel}>Sexe *</Text>
+          <View style={[s.row, { marginBottom: 20 }]}>
+            {SEXES.map((s_) => (
+              <TouchableOpacity key={s_} style={[s.toggleBtn, { flex: 1, marginHorizontal: 4 }, sexe === s_ && s.toggleBtnActive, errors.sexe && s.toggleBtnError]} onPress={() => { setSexe(s_); setErrors(p => ({ ...p, sexe: false })); }}>
+                <Text style={[s.toggleTxt, sexe === s_ && s.toggleTxtActive]}>{s_}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={s.fieldLabel}>Numéro de licence FFBoxe</Text>
+          <TextInput style={[s.input, { marginBottom: 16 }]} placeholder="ex : 651289" placeholderTextColor="#C0C0C0" value={numeroLicence} onChangeText={setNumeroLicence} keyboardType="numeric" />
+
+          <Text style={s.fieldLabel}>Photo de la licence</Text>
+          <TouchableOpacity
+            style={[s.input, { height: 80, justifyContent: 'center', alignItems: 'center' }]}
+            onPress={async () => {
               const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
               if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
-              const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
-              });
-              if (!result.canceled) setPhotoBoxeur(result.assets[0]);
-            }}>
-              <LinearGradient colors={['#5C6BC0', '#3949AB']} style={s.photoBtnInner}>
-                {photoBoxeur ? (
-                  <Image source={{ uri: photoBoxeur.uri }} style={{ width: 72, height: 72, borderRadius: 36 }} />
-                ) : (
-                  <><Text style={s.photoIcon}>⬆</Text><Text style={s.photoLabel}>Photo</Text></>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
+              const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.7, base64: true });
+              if (!result.canceled) setPhotoLicence(result.assets[0]);
+            }}
+          >
+            {photoLicence ? (
+              <Image source={{ uri: photoLicence.uri }} style={{ width: 60, height: 60, borderRadius: 8 }} />
+            ) : (
+              <Text style={{ color: '#C0C0C0', fontSize: 15 }}>📷 Importer la photo de licence</Text>
+            )}
+          </TouchableOpacity>
 
-            <Text style={s.sectionLabel}>IDENTITÉ</Text>
-            <View style={s.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.fieldLabel}>Nom *</Text>
-                <TextInput style={[s.input, errors.nom && s.inputError]} placeholder="Dupont" placeholderTextColor="#C0C0C0" value={nom} onChangeText={(v) => { setNom(v); setErrors(p => ({ ...p, nom: false })); }} />
-              </View>
-              <View style={{ width: 12 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.fieldLabel}>Prénom *</Text>
-                <TextInput style={[s.input, errors.prenom && s.inputError]} placeholder="Jean" placeholderTextColor="#C0C0C0" value={prenom} onChangeText={(v) => { setPrenom(v); setErrors(p => ({ ...p, prenom: false })); }} />
-              </View>
+          <Text style={s.sectionLabel}>COMPÉTITION</Text>
+          <Text style={s.fieldLabel}>Niveau *</Text>
+          <View style={[s.row, { marginBottom: 20 }]}>
+            {NIVEAUX.map((n) => (
+              <TouchableOpacity key={n} style={[s.toggleBtn, { flex: 1, marginHorizontal: 3 }, niveau === n && s.toggleBtnActive, errors.niveau && s.toggleBtnError]} onPress={() => { setNiveau(n); setErrors(p => ({ ...p, niveau: false })); }}>
+                <Text style={[s.toggleTxt, niveau === n && s.toggleTxtActive]}>{n}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={s.fieldLabel}>Poids (kg)</Text>
+          <TextInput style={[s.input, { marginBottom: 16 }]} placeholder="ex : 75" placeholderTextColor="#C0C0C0" value={poids} onChangeText={setPoids} keyboardType="numeric" />
+
+          <Text style={s.sectionLabel}>PALMARÈS</Text>
+          <View style={s.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.fieldLabel}>Victoires</Text>
+              <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={victoires} onChangeText={setVictoires} keyboardType="numeric" />
             </View>
-
-            <Text style={s.fieldLabel}>Date de naissance</Text>
-            <View style={s.dateRow}>
-              <TextInput
-                style={[s.input, { flex: 1 }]} placeholder="jj/mm/aaaa" placeholderTextColor="#C0C0C0"
-                value={dateNaissance}
-                onChangeText={(text) => {
-                  const cleaned = text.replace(/\D/g, '');
-                  let formatted = cleaned;
-                  if (cleaned.length >= 3 && cleaned.length <= 4) formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2)}`;
-                  else if (cleaned.length >= 5) formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2,4)}/${cleaned.slice(4,8)}`;
-                  setDateNaissance(formatted);
-                }}
-                keyboardType="numeric" maxLength={10}
-              />
-              <TouchableOpacity style={s.calendarBtn}><Text style={s.calendarIcon}>📅</Text></TouchableOpacity>
+            <View style={{ width: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.fieldLabel}>Défaites</Text>
+              <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={defaites} onChangeText={setDefaites} keyboardType="numeric" />
             </View>
-
-            <Text style={s.fieldLabel}>Sexe *</Text>
-            <View style={[s.row, { marginBottom: 20 }]}>
-              {SEXES.map((s_) => (
-                <TouchableOpacity key={s_} style={[s.toggleBtn, { flex: 1, marginHorizontal: 4 }, sexe === s_ && s.toggleBtnActive, errors.sexe && s.toggleBtnError]} onPress={() => { setSexe(s_); setErrors(p => ({ ...p, sexe: false })); }}>
-                  <Text style={[s.toggleTxt, sexe === s_ && s.toggleTxtActive]}>{s_}</Text>
-                </TouchableOpacity>
-              ))}
+          </View>
+          <View style={s.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.fieldLabel}>Nuls</Text>
+              <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={nuls} onChangeText={setNuls} keyboardType="numeric" />
             </View>
-
-            <Text style={s.fieldLabel}>Numéro de licence FFBoxe</Text>
-            <TextInput style={[s.input, { marginBottom: 16 }]} placeholder="ex : 651289" placeholderTextColor="#C0C0C0" value={numeroLicence} onChangeText={setNumeroLicence} keyboardType="numeric" />
-
-            <Text style={s.fieldLabel}>Photo de la licence</Text>
-            <TouchableOpacity
-              style={[s.input, { height: 80, justifyContent: 'center', alignItems: 'center' }]}
-              onPress={async () => {
-                const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
-                const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.7, base64: true });
-                if (!result.canceled) setPhotoLicence(result.assets[0]);
-              }}
-            >
-              {photoLicence ? (
-                <Image source={{ uri: photoLicence.uri }} style={{ width: 60, height: 60, borderRadius: 8 }} />
-              ) : (
-                <Text style={{ color: '#C0C0C0', fontSize: 15 }}>📷 Importer la photo de licence</Text>
-              )}
-            </TouchableOpacity>
-
-            <Text style={s.sectionLabel}>COMPÉTITION</Text>
-            <Text style={s.fieldLabel}>Niveau *</Text>
-            <View style={[s.row, { marginBottom: 20 }]}>
-              {NIVEAUX.map((n) => (
-                <TouchableOpacity key={n} style={[s.toggleBtn, { flex: 1, marginHorizontal: 3 }, niveau === n && s.toggleBtnActive, errors.niveau && s.toggleBtnError]} onPress={() => { setNiveau(n); setErrors(p => ({ ...p, niveau: false })); }}>
-                  <Text style={[s.toggleTxt, niveau === n && s.toggleTxtActive]}>{n}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={{ width: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.fieldLabel}>K.O</Text>
+              <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={ko} onChangeText={setKo} keyboardType="numeric" />
             </View>
+          </View>
 
-            <Text style={s.fieldLabel}>Poids (kg)</Text>
-            <TextInput style={[s.input, { marginBottom: 16 }]} placeholder="ex : 75" placeholderTextColor="#C0C0C0" value={poids} onChangeText={setPoids} keyboardType="numeric" />
-
-            <Text style={s.sectionLabel}>PALMARÈS</Text>
-            <View style={s.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.fieldLabel}>Victoires</Text>
-                <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={victoires} onChangeText={setVictoires} keyboardType="numeric" />
-              </View>
-              <View style={{ width: 12 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.fieldLabel}>Défaites</Text>
-                <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={defaites} onChangeText={setDefaites} keyboardType="numeric" />
-              </View>
-            </View>
-            <View style={s.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.fieldLabel}>Nuls</Text>
-                <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={nuls} onChangeText={setNuls} keyboardType="numeric" />
-              </View>
-              <View style={{ width: 12 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.fieldLabel}>K.O</Text>
-                <TextInput style={s.input} placeholder="0" placeholderTextColor="#C0C0C0" value={ko} onChangeText={setKo} keyboardType="numeric" />
-              </View>
-            </View>
-
-            <TouchableOpacity onPress={handleSubmit} activeOpacity={0.85} style={s.submitBtn} disabled={loading}>
-              <LinearGradient colors={['#EF5350', '#E53935']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.submitGradient}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.submitTxt}>Enregistrer le boxeur</Text>}
-              </LinearGradient>
-            </TouchableOpacity>
-            <View style={{ height: 32 }} />
-          </ScrollView>
-        </Animated.View>
+          <TouchableOpacity onPress={handleSubmit} activeOpacity={0.85} style={s.submitBtn} disabled={loading}>
+            <LinearGradient colors={['#EF5350', '#E53935']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.submitGradient}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.submitTxt}>Enregistrer le boxeur</Text>}
+            </LinearGradient>
+          </TouchableOpacity>
+          <View style={{ height: 32 }} />
+        </ScrollView>
       </KeyboardAvoidingView>
-    </Modal>
-  );
+    </Animated.View>
+  </Modal>
+);
 }
 
 // ─────────────────────────────────────────────
