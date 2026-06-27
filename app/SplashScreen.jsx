@@ -18,7 +18,6 @@ export default function SplashScreen({ navigation }) {
   const logoScale = useRef(new Animated.Value(0.85)).current;
 
   useEffect(() => {
-    // Apparition du logo
     Animated.parallel([
       Animated.timing(logoOpacity, {
         toValue: 1,
@@ -33,17 +32,25 @@ export default function SplashScreen({ navigation }) {
       }),
     ]).start();
 
-    // Barre de chargement
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: 2500,
       useNativeDriver: false,
     }).start(async () => {
-      // Redirection vers Login après chargement
-      navigation.replace('Login');
+      try {
+        const firebaseUID = await AsyncStorage.getItem('firebaseUID');
+        if (firebaseUID) {
+          navigation.replace('Dashboard');
+        } else {
+          navigation.replace('Login');
+        }
+      } catch (e) {
+        navigation.replace('Login');
+      }
     });
-  }, []);
+  }, []); // ✅ fermeture du useEffect ici
 
+  // ✅ progressWidth et return sont dans le composant, pas dans useEffect
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
@@ -53,7 +60,6 @@ export default function SplashScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0A1628" />
 
-      {/* Logo centré */}
       <Animated.View
         style={[
           styles.logoWrapper,
@@ -68,7 +74,6 @@ export default function SplashScreen({ navigation }) {
         <Text style={styles.tagline}>RECHERCHER · TROUVER · BOXER</Text>
       </Animated.View>
 
-      {/* Barre de chargement en bas (style Deezer) */}
       <View style={styles.progressContainer}>
         <View style={styles.progressTrack}>
           <Animated.View style={[styles.progressBar, { width: progressWidth }]} />

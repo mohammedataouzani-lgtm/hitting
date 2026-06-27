@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
   };
 
 const logout = async () => {
-  const { logout: firebaseLogout } = await import('./services/firebase'); // ← ./ au lieu de ../
+  const { logout: firebaseLogout } = await import('./services/firebase'); 
   await firebaseLogout();
   setUser(null);
 };

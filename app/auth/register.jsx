@@ -190,32 +190,24 @@ export default function RegisterScreen({ navigation }) {
         ],
       },
     ];
-
-    const handlePayment = (plan) => {
-      Alert.alert(
-        'Confirmer votre abonnement',
-        `Vous allez souscrire à l'offre ${plan.label} à ${plan.price}.`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          {
-            text: 'Confirmer',
-            onPress: async () => {
-              setLoading(true);
-              try {
-                console.log(`Payment for ${plan.id} initiated`);
-                // TODO: Intégrer Stripe ou Adyen ici
-                await login(user.uid);
-              } catch (error) {
-                console.error('Erreur paiement:', error.message);
-                Alert.alert('Erreur', 'Le paiement a échoué');
-              } finally {
-                setLoading(false);
-              }
-            }
-          },
-        ]
-      );
-    };
+const handlePayment = (plan) => {
+  Alert.alert(
+    'Confirmer votre abonnement',
+    `Vous allez souscrire à l'offre ${plan.label} à ${plan.price}.`,
+    [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Confirmer',
+        onPress: () => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Dashboard' }],
+          });
+        }
+      },
+    ]
+  );
+};
 
     return (
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
