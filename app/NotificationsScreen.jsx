@@ -237,6 +237,7 @@ export default function NotificationsScreen({ navigation }) {
   const [combatsATraiter, setCombatsATraiter] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [boxeursRefuses, setBoxeursRefuses] = useState([]);
 
   const [resultatFormVisible, setResultatFormVisible] = useState(false);
   const [selectedCombat, setSelectedCombat] = useState(null);
@@ -262,6 +263,7 @@ export default function NotificationsScreen({ navigation }) {
         setDemandes(notifData.demandesEnAttente || []);
         setBoxeursValides(notifData.boxeursValides || []);
         setBoxeursEnAttente(notifData.boxeursEnAttente || []);
+        setBoxeursRefuses(notifData.boxeursRefuses || []);
       }
       if (combatsData.success) {
         setCombatsATraiter(combatsData.combatsATraiter || []);
@@ -328,7 +330,7 @@ export default function NotificationsScreen({ navigation }) {
     }
   };
 
-  const isEmpty = demandes.length === 0 && boxeursValides.length === 0 && boxeursEnAttente.length === 0 && combatsATraiter.length === 0;
+  const isEmpty = demandes.length === 0 && boxeursValides.length === 0 && boxeursEnAttente.length === 0 && combatsATraiter.length === 0; boxeursRefuses.length === 0;
 
   return (
     <View style={s.container}>
@@ -395,6 +397,16 @@ export default function NotificationsScreen({ navigation }) {
             </View>
           )}
 
+          {boxeursRefuses.length > 0 && (
+  <View style={s.section}>
+    <Text style={s.sectionLabel}>BOXEURS REFUSÉS ({boxeursRefuses.length})</Text>
+    {boxeursRefuses.map((boxeur) => (
+      <BoxeurRefuseCard key={boxeur.id} boxeur={boxeur} />
+    ))}
+  </View>
+)}
+
+
           {boxeursValides.length > 0 && (
             <View style={s.section}>
               <Text style={s.sectionLabel}>BOXEURS VALIDÉS ({boxeursValides.length})</Text>
@@ -418,7 +430,24 @@ export default function NotificationsScreen({ navigation }) {
     </View>
   );
 }
-
+function BoxeurRefuseCard({ boxeur }) {
+  return (
+    <View style={s.notifCard}>
+      <View style={[s.notifIconWrap, { backgroundColor: '#FFEBEE' }]}>
+        <Text style={s.notifIcon}>❌</Text>
+      </View>
+      <View style={s.notifTextWrap}>
+        <Text style={s.notifTitle}>Boxeur refusé</Text>
+        <Text style={s.notifSubtitle} numberOfLines={1}>
+          {boxeur.prenom} {boxeur.nom}
+        </Text>
+        <Text style={[s.notifSubtitle, { color: '#E53935', marginTop: 2 }]} numberOfLines={2}>
+          {boxeur.motifRefus}
+        </Text>
+      </View>
+    </View>
+  );
+}
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F0EB' },
 

@@ -82,7 +82,25 @@ exports.addBoxeurEnAttente = onRequest({
     let photoBoxeurUrl = null;
     if (photoBoxeurBase64) { try { const bucket = admin.storage().bucket(); const fileName = `boxeurs/${firebaseUID}_${Date.now()}.jpg`; const file = bucket.file(fileName); await file.save(Buffer.from(photoBoxeurBase64, 'base64'), { metadata: { contentType: 'image/jpeg' } }); await file.makePublic(); photoBoxeurUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`; } catch (photoError) { console.error('❌ Erreur upload photo du boxeur:', photoError.message); } }
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY }).base(process.env.AIRTABLE_BASE_ID_SECURE);
-    const record = await base("Boxeurs en attente").create({ "Nom": nom || "", "Prénom": prenom || "", "Date de naissance": dateNaissance ? (() => { const parts = dateNaissance.split('/'); if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`; return dateNaissance; })() : "", "Sexe": sexe || "", "Catégorie de poids": categoriePoids || "", "Poids": poids ? parseFloat(poids) : null, "Niveau": niveau || "", "Numéro de licence": numeroLicence ? parseInt(numeroLicence) : null, "Liaison vers Club": clubId ? [clubId] : [], "Liaison vers Coach": airtableCoachId ? [airtableCoachId] : [], "Photo de la licence": photoUrl ? [{ url: photoUrl }] : [], "Photo du boxeur": photoBoxeurUrl ? [{ url: photoBoxeurUrl }] : [], "Victoires": victoires || 0, "Défaites": defaites || 0, "Nuls": nuls || 0, "K.O": ko || 0 });
+   const record = await base("Boxeurs en attente").create({
+  "Nom": nom || "",
+  "Prénom": prenom || "",
+  "Date de naissance": dateNaissance ? (() => { const parts = dateNaissance.split('/'); if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`; return dateNaissance; })() : "",
+  "Sexe": sexe || "",
+  "Catégorie de poids": categoriePoids || "",
+  "Poids": poids ? parseFloat(poids) : null,
+  "Niveau": niveau || "",
+  "Numéro de licence": numeroLicence ? parseInt(numeroLicence) : null,
+  "Liaison vers Club": clubId ? [clubId] : [],
+  "Liaison vers Coach": airtableCoachId ? [airtableCoachId] : [],
+  "Photo de la licence": photoUrl ? [{ url: photoUrl }] : [],
+  "Photo du boxeur": photoBoxeurUrl ? [{ url: photoBoxeurUrl }] : [],
+  "Victoires": victoires || 0,
+  "Défaites": defaites || 0,
+  "Nuls": nuls || 0,
+  "K.O": ko || 0,
+  "Statut de validation": "En attente", // ✅ ajouté
+});
     return res.status(200).json({ success: true, id: record.id });
   } catch (error) {
     console.error("Erreur addBoxeurEnAttente:", error.response ? error.response.data : error.message);
@@ -712,9 +730,11 @@ exports.getNotifications = onRequest({
         type: d.emailCoach2.toLowerCase() === coachEmail.toLowerCase() ? 'recue' : 'envoyee',
       }));
 
-    // ── Boxeurs (validés + en attente) ──
+    // ── Boxeurs (validés + en attente + refusés) ──
     let boxeursValides = [];
     let boxeursEnAttente = [];
+    let boxeursRefuses = []; // ✅ déclaré ici
+
     if (airtableCoachId) {
       const boxeursRecords = await base("Boxeurs en attente").select().all();
 
@@ -734,6 +754,11 @@ exports.getNotifications = onRequest({
           boxeursValides.push({ ...boxeur, dateValidation: f["Date de naissance"] || "" });
         } else if (statutValidation === "En attente") {
           boxeursEnAttente.push(boxeur);
+        } else if (statutValidation === "Refusé") { // ✅ ajouté dans la même boucle
+          boxeursRefuses.push({
+            ...boxeur,
+            motifRefus: f["Motif du refus"] || "Aucun motif précisé",
+          });
         }
       }
     }
@@ -743,6 +768,7 @@ exports.getNotifications = onRequest({
       demandesEnAttente,
       boxeursValides,
       boxeursEnAttente,
+      boxeursRefuses, // ✅
     });
 
   } catch (error) {
