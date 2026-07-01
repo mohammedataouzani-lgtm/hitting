@@ -32,11 +32,36 @@ const SEXES = ['Homme', 'Femme'];
 
 function BoxerCard({ boxer, onEdit, onPress }) {
   const borderColor = boxer.sexe === 'F' ? '#E91E63' : '#2196F3';
+  
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={() => onPress && onPress(boxer)} style={[s.card, { borderLeftColor: borderColor }]}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => !boxer.enAttente && onPress && onPress(boxer)}
+      style={[
+        s.card,
+        { borderLeftColor: boxer.enAttente ? '#BDBDBD' : borderColor },
+        boxer.enAttente && { opacity: 0.5 } // ✅ grisé si en attente
+      ]}
+    >
       <Image source={{ uri: boxer.avatar }} style={s.avatar} />
       <View style={s.cardInfo}>
-        <Text style={s.cardName}>{boxer.nom}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={s.cardName}>{boxer.nom}</Text>
+          {boxer.enAttente && ( // ✅ badge
+            <View style={{
+              backgroundColor: '#FFF8E1',
+              borderRadius: 6,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderWidth: 1,
+              borderColor: '#F9A825',
+            }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#F9A825' }}>
+                En attente
+              </Text>
+            </View>
+          )}
+        </View>
         <Text style={s.cardMeta}>{boxer.categorie} · {boxer.poids} · {boxer.kg}</Text>
         <View style={s.statsRow}>
           {[{ label: 'VIC.', value: boxer.vic }, { label: 'DEF.', value: boxer.def }, { label: 'NULS', value: boxer.nuls }, { label: 'K.O', value: boxer.ko }].map(({ label, value }) => (
@@ -47,9 +72,14 @@ function BoxerCard({ boxer, onEdit, onPress }) {
           ))}
         </View>
       </View>
-      <TouchableOpacity style={[s.editBtn, { backgroundColor: borderColor + '18' }]} onPress={(e) => { e.stopPropagation(); onEdit && onEdit(boxer); }}>
-        <Text style={[s.editIcon, { color: borderColor }]}>✏️</Text>
-      </TouchableOpacity>
+      {!boxer.enAttente && ( // ✅ bouton édition masqué si en attente
+        <TouchableOpacity
+          style={[s.editBtn, { backgroundColor: borderColor + '18' }]}
+          onPress={(e) => { e.stopPropagation(); onEdit && onEdit(boxer); }}
+        >
+          <Text style={[s.editIcon, { color: borderColor }]}>✏️</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
@@ -162,6 +192,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
         def: defaites ? parseInt(defaites) : 0,
         nuls: nuls ? parseInt(nuls) : 0,
         ko: ko ? parseInt(ko) : 0,
+         enAttente: true,
         avatar: photoBoxeur ? photoBoxeur.uri : (sexe === 'Femme'
           ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face'
           : 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face'),
