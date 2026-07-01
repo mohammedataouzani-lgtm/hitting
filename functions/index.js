@@ -325,11 +325,18 @@ exports.getEvenements = onRequest({
   }
 
   try {
-    await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+
+    // ✅ Récupère l'email du coach pour filtrer ses combats
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
+    const coachEmail = coachDoc.data().email;
 
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
+    // ── Événements officiels ──
     const records = await base("Événements").select({
       sort: [{ field: "Date et heure", direction: "asc" }],
       filterByFormula: `OR({Statut} = "A venir", {Statut} = "En cours")`,
@@ -341,10 +348,10 @@ exports.getEvenements = onRequest({
         id: record.id,
         titre: f["Nom événement"] || "",
         dateFormatee: f["Date formatée"] || "",
+        dateRaw: f["Date et heure"] || "",
         adresse: f["Adresse"] || "",
-        club: f["Nom club organisateur"] || 
-              (Array.isArray(f["Nom du club (from Club organisateur)"]) ? f["Nom du club (from Club organisateur)"][0] : "") ||
-              "",
+        club: f["Nom club organisateur"] ||
+              (Array.isArray(f["Nom du club (from Club organisateur)"]) ? f["Nom du club (from Club organisateur)"][0] : "") || "",
         statut: f["Statut"] || "",
         contact: f["Contact"] || "",
         prix: f["Prix d'entrée"] ? `${f["Prix d'entrée"]} €` : "Gratuit",
@@ -352,7 +359,33 @@ exports.getEvenements = onRequest({
       };
     });
 
-    return res.status(200).json({ success: true, evenements });
+    // ── Demandes acceptées (Gala + Sparring) du coach ──
+    const demandesRecords = await base("Demandedematch").select({
+      filterByFormula: `{Statut} = "Accepté"`
+    }).all();
+
+    const combats = demandesRecords
+      .map(record => {
+        const f = record.fields || {};
+        return {
+          id: record.id,
+          titre: f["Affichage combat"] || "",
+          dateRaw: f["Date souhaitée"] || "",
+          dateFormatee: f["Date souhaitée"] ? new Date(f["Date souhaitée"]).toLocaleDateString('fr-FR') : "",
+          typeCombat: (f["Type combat"] || "").toLowerCase() === "sparring" ? "sparring" : "gala",
+          emailCoach1: f["Email Coach 1"] || "",
+          emailCoach2: f["Email coach 2"] || "",
+        };
+      })
+      .filter(c => c.dateRaw)
+      .filter(c =>
+        c.emailCoach1.toLowerCase() === coachEmail.toLowerCase() ||
+        c.emailCoach2.toLowerCase() === coachEmail.toLowerCase()
+      );
+
+    console.log(`📅 ${combats.length} combats trouvés pour ${coachEmail}`);
+
+    return res.status(200).json({ success: true, evenements, combats });
 
   } catch (error) {
     console.error("❌ Erreur getEvenements:", error.response ? JSON.stringify(error.response.data) : error.message);

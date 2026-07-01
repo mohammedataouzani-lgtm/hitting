@@ -28,6 +28,7 @@ import { doc, getDoc, getFirestore } from 'firebase/firestore';
 const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BOTTOM_SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.85;
 
+
 const MONTHS_FR = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
@@ -251,6 +252,7 @@ export default function DashboardScreen({ navigation }) {
   const [evenements, setEvenements] = useState([]);
   const carouselRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [combats, setCombats] = useState([]);
   const [coachData, setCoachData] = useState({
     firstName: 'Coach',
     clubName: 'Chargement du club...',
@@ -258,6 +260,7 @@ export default function DashboardScreen({ navigation }) {
     victoryRate: 0,
     nextEvent: null,
   });
+
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -306,12 +309,17 @@ export default function DashboardScreen({ navigation }) {
         });
 
         // Fetch événements
-        const evtResponse = await fetch(
-          'https://europe-west9-hitting-23de9.cloudfunctions.net/getEvenements',
-          { headers: { 'Authorization': `Bearer ${idToken}` } }
-        );
-        const evtData = await evtResponse.json();
-        if (evtData.success) setEvenements(evtData.evenements);
+      
+       const evtResponse = await fetch(
+  'https://europe-west9-hitting-23de9.cloudfunctions.net/getEvenements',
+  { headers: { 'Authorization': `Bearer ${idToken}` } }
+);
+const evtData = await evtResponse.json();
+console.log('📅 combats reçus:', JSON.stringify(evtData.combats));
+if (evtData.success) {
+  setEvenements(evtData.evenements);
+  setCombats(evtData.combats || []);
+}
       } catch (error) {
         console.error("Erreur Dashboard:", error);
       } finally {
@@ -322,14 +330,26 @@ export default function DashboardScreen({ navigation }) {
   }, [navigation]);
 
   const calCells = buildCalendarGrid(month, year);
-  const activeEvents = evenements
-    .filter((e) => e.dateRaw)
-    .map((e) => {
-      const d = new Date(e.dateRaw);
-      return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear() };
-    })
-    .filter((e) => e.evMonth === month && e.evYear === year);
-  const getEventType = (day) => (activeEvents.some((e) => e.day === day) ? 'evenement' : null);
+ const activeEvents = evenements
+  .filter(e => e.dateRaw)
+  .map(e => {
+    const d = new Date(e.dateRaw);
+    return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear(), type: 'evenement' };
+  })
+  .filter(e => e.evMonth === month && e.evYear === year);
+  const activeCombats = combats
+  .filter(c => c.dateRaw)
+  .map(c => {
+    const d = new Date(c.dateRaw);
+    return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear(), type: c.typeCombat };
+  })
+  .filter(c => c.evMonth === month && c.evYear === year);
+
+const allCalendarEvents = [...activeEvents, ...activeCombats];
+const getEventType = (day) => {
+  const found = allCalendarEvents.find(e => e.day === day);
+  return found ? found.type : null;
+};
   const isToday = (day, current) =>
     current && day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
@@ -463,8 +483,14 @@ export default function DashboardScreen({ navigation }) {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Calendrier</Text>
               <View style={styles.legendPills}>
-                <View style={styles.pillEvenement}><Text style={styles.pillEvenementTxt}>Événement</Text></View>
-              </View>
+  <View style={styles.pillEvenement}><Text style={styles.pillEvenementTxt}>Événement</Text></View>
+  <View style={[styles.pillEvenement, { backgroundColor: '#FFEBEE' }]}>
+    <Text style={[styles.pillEvenementTxt, { color: '#EF5350' }]}>Gala</Text>
+  </View>
+  <View style={[styles.pillEvenement, { backgroundColor: '#E8F5E9' }]}>
+    <Text style={[styles.pillEvenementTxt, { color: '#4CAF50' }]}>Sparring</Text>
+  </View>
+</View>
             </View>
 
             <View style={styles.calWidget}>
