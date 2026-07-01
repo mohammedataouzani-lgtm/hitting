@@ -201,12 +201,12 @@ export default function FicheBoxeurScreen({ navigation, route }) {
   const totalCombats = (boxer.vic || 0) + (boxer.def || 0) + (boxer.nuls || 0);
   const winRate = totalCombats > 0 ? Math.round(((boxer.vic || 0) / totalCombats) * 100) : 0;
 
-  const stats = [
-    { label: 'Victoires', value: boxer.vic ?? 0, color: '#4CAF50' },
-    { label: 'Défaites', value: boxer.def ?? 0, color: '#F44336' },
-    { label: 'Nuls', value: boxer.nuls ?? 0, color: '#FF9800' },
-    { label: 'K.O', value: boxer.ko ?? 0, color: '#9C27B0' },
-  ];
+const stats = [
+  { label: 'Victoires', value: boxer.vic ?? 0, color: '#43A047' },
+  { label: 'Défaites', value: boxer.def ?? 0, color: '#EF5350' },
+  { label: 'Nuls', value: boxer.nuls ?? 0, color: '#FF9800' },
+  { label: 'K.O', value: boxer.ko ?? 0, color: '#42A5F5' },
+];
 
   return (
     <View style={s.container}>
