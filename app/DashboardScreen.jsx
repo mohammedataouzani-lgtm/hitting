@@ -315,9 +315,10 @@ const notifRes = await fetch(
 const notifData = await notifRes.json();
 if (notifData.success) {
   const count = 
-    (notifData.demandesEnAttente?.length || 0) +
-    (notifData.boxeursEnAttente?.length || 0) +
-    (notifData.boxeursRefuses?.length || 0);
+ (notifData.demandesEnAttente?.length || 0) +
+  (notifData.boxeursEnAttente?.length || 0) +
+  (notifData.boxeursRefuses?.length || 0) +
+  (notifData.boxeursValides?.length || 0);
   setNotifCount(count);
 }
         // Fetch événements

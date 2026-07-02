@@ -360,12 +360,11 @@ exports.getEvenements = onRequest({
     });
 
     // ── Demandes acceptées (Gala + Sparring) du coach ──
-    const demandesRecords = await base("Demandedematch").select({
-      filterByFormula: `{Statut} = "Accepté"`
-    }).all();
+    const demandesAccepteesRecords = await base("Demandedematch").select({
+  filterByFormula: `{Statut} = "Accepté"`
+}).all();
 
-    const combats = demandesRecords
-      .map(record => {
+const combats = demandesAccepteesRecords.map(record => {
         const f = record.fields || {};
         return {
           id: record.id,
@@ -417,9 +416,8 @@ exports.getMatchsPossibles = onRequest({
     const coachEmail = coachDoc.data().email;
 
     const boxeurId = req.query.boxeurId;
-    const dateSouhaitee = req.query.dateSouhaitee || null;
-    if (!boxeurId) return res.status(400).json({ error: "boxeurId manquant" });
-    if (!dateSouhaitee) return res.status(400).json({ error: "dateSouhaitee manquante" });
+   const dateSouhaitee = req.query.dateSouhaitee || null;
+if (!boxeurId) return res.status(400).json({ error: "boxeurId manquant" });
 
     console.log('🔍 Recherche matchs pour boxeurId:', boxeurId, '| coachEmail:', coachEmail, '| date:', dateSouhaitee);
 
@@ -429,23 +427,21 @@ exports.getMatchsPossibles = onRequest({
     // ── Fonction de normalisation des noms ──
     const normalizeNom = (str) => str.toLowerCase().trim().split(/\s+/).sort().join(' ');
 
-    // ── Récupère les demandes actives (En attente + Accepté) à cette date ──
-    // Récupère TOUTES les demandes actives, sans filtrer par date dans Airtable
+
+
+// Après — filtre par date uniquement si dateSouhaitee est fournie
+// ── Récupère les demandes actives (En attente + Accepté) ──
 const demandesRecords = await base("Demandedematch").select({
   filterByFormula: `OR({Statut} = "En attente", {Statut} = "Accepté")`
 }).all();
-
-console.log('📋 Demandes actives trouvées (total):', demandesRecords.length);
 
 const pairesDejaDemandeesSet = new Set();
 for (const dem of demandesRecords) {
   const fd = dem.fields || {};
   const dateDemande = fd["Date souhaitée"] || "";
 
-  console.log('📅 Date demande brute:', dateDemande, '| dateSouhaitee cherchée:', dateSouhaitee);
-
-  // Filtre JS sur la date — compare les 10 premiers caractères (YYYY-MM-DD)
-  if (!dateDemande || !dateDemande.startsWith(dateSouhaitee)) continue;
+  // ✅ Si pas de date fournie, on ignore le filtre de date
+  if (dateSouhaitee && (!dateDemande || !dateDemande.startsWith(dateSouhaitee))) continue;
 
   const nomCompletBoxeur = normalizeNom(
     `${fd["Prénom de mon boxeur"] || ""} ${fd["Nom de mon boxeur"] || ""}`
@@ -455,7 +451,6 @@ for (const dem of demandesRecords) {
   );
   const paire = [nomCompletBoxeur, nomCompletAdversaire].sort().join('|');
   pairesDejaDemandeesSet.add(paire);
-  console.log('🚫 Paire bloquée:', paire);
 }
 
     // ── Récupère tous les matchs possibles ──
