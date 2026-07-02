@@ -253,6 +253,7 @@ export default function DashboardScreen({ navigation }) {
   const carouselRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [combats, setCombats] = useState([]);
+  const [notifCount, setNotifCount] = useState(0);
   const [coachData, setCoachData] = useState({
     firstName: 'Coach',
     clubName: 'Chargement du club...',
@@ -307,7 +308,18 @@ export default function DashboardScreen({ navigation }) {
           activeBoxers: stats.activeBoxers ?? 0,
           saison: '2025 -- 2026',
         });
-
+const notifRes = await fetch(
+  'https://europe-west9-hitting-23de9.cloudfunctions.net/getNotifications',
+  { headers: { 'Authorization': `Bearer ${idToken}` } }
+);
+const notifData = await notifRes.json();
+if (notifData.success) {
+  const count = 
+    (notifData.demandesEnAttente?.length || 0) +
+    (notifData.boxeursEnAttente?.length || 0) +
+    (notifData.boxeursRefuses?.length || 0);
+  setNotifCount(count);
+}
         // Fetch événements
       
        const evtResponse = await fetch(
@@ -545,6 +557,7 @@ const getEventType = (day) => {
         activeTab="dashboard"
         navigation={navigation}
         onPlusPress={() => setActionSheetVisible(true)}
+        notifCount={notifCount}
       />
 
       <BilanBottomSheet visible={bilanVisible} onClose={() => setBilanVisible(false)} stats={coachData} />
@@ -554,6 +567,7 @@ const getEventType = (day) => {
         onClose={() => setActionSheetVisible(false)}
         onAddBoxeur={handleAddBoxeur}
         onAddEvenement={handleAddEvenement}
+        
       />
     </View>
   );

@@ -5,13 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-// Hauteur de la barre de navigation Android (gesture bar)
-// Sur Android avec barre de navigation par gestes : ~34px
-// Sur Android avec boutons de navigation : ~48px
 const ANDROID_NAV_BAR_HEIGHT = 34;
 
 export const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 64 + ANDROID_NAV_BAR_HEIGHT;
@@ -21,13 +17,12 @@ const TABS = [
   { key: 'boxeurs',   icon: '👥', route: 'MesBoxeurs' },
   { key: 'plus',      icon: '+',  route: null },
   { key: 'profil',    icon: '👤', route: 'Profil' },
-  { key: 'notifs', icon: '🔔', route: 'Notifications' },
+  { key: 'notifs',    icon: '🔔', route: 'Notifications' },
 ];
 
-export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
+export default function BottomTabBar({ activeTab, navigation, onPlusPress, notifCount = 0 }) {
   return (
     <View style={styles.tabBar}>
-      {/* Zone des icônes */}
       <View style={styles.iconsRow}>
         {TABS.map((tab) => {
           if (tab.key === 'plus') {
@@ -56,16 +51,25 @@ export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
               style={styles.tabItem}
               onPress={() => tab.route && navigation?.navigate(tab.route)}
             >
-              <Text style={[styles.tabIcon, isActive && styles.tabIconActive]}>
-                {tab.icon}
-              </Text>
+              <View>
+                <Text style={[styles.tabIcon, isActive && styles.tabIconActive]}>
+                  {tab.icon}
+                </Text>
+                {/* ✅ Badge compteur sur la cloche */}
+                {tab.key === 'notifs' && notifCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeTxt}>
+                      {notifCount > 99 ? '99+' : notifCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
               {isActive && <View style={styles.tabActiveDot} />}
             </TouchableOpacity>
           );
         })}
       </View>
 
-      {/* Zone de padding pour la barre de navigation Android */}
       {Platform.OS === 'android' && (
         <View style={styles.androidSafeArea} />
       )}
@@ -135,9 +139,28 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     marginTop: -1,
   },
-  // Zone de padding Android pour la barre de navigation système
   androidSafeArea: {
     height: ANDROID_NAV_BAR_HEIGHT,
     backgroundColor: '#fff',
+  },
+  // ✅ Badge
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: '#E53935',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+  badgeTxt: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
   },
 });
