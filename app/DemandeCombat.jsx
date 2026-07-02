@@ -73,8 +73,17 @@ export default function DemandeCombatScreen({ navigation, route }) {
     fetchCoachClub();
   }, []);
 
-  const handleSendRequest = async () => {
-    try {
+ const handleSendRequest = async () => {
+  // ✅ Validation avant envoi
+  if (!message.trim()) {
+    Alert.alert("Champ manquant", "Veuillez ajouter un message pour le coach adverse.");
+    return;
+  }
+  if (!adresse.trim()) {
+    Alert.alert("Champ manquant", "Veuillez renseigner l'adresse du combat.");
+    return;
+  }
+  try {
       setLoading(true);
       const auth = getAuth();
       const idToken = await auth.currentUser.getIdToken();
@@ -283,7 +292,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Adresse du combat</Text>
+           <Text style={styles.fieldLabel}>Adresse du combat *</Text>
             <TextInput
               style={styles.input}
               value={adresse}
@@ -294,7 +303,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Message</Text>
+            <Text style={styles.fieldLabel}>Message *</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={message}

@@ -259,15 +259,16 @@ return (
 
           <Text style={s.sectionLabel}>IDENTITÉ</Text>
           <View style={s.row}>
+             <View style={{ flex: 1 }}>
+              <Text style={s.fieldLabel}>Prénom *</Text>
+              <TextInput style={[s.input, errors.prenom && s.inputError]} placeholder="Jean" placeholderTextColor="#C0C0C0" value={prenom} onChangeText={(v) => { setPrenom(v); setErrors(p => ({ ...p, prenom: false })); }} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={s.fieldLabel}>Nom *</Text>
               <TextInput style={[s.input, errors.nom && s.inputError]} placeholder="Dupont" placeholderTextColor="#C0C0C0" value={nom} onChangeText={(v) => { setNom(v); setErrors(p => ({ ...p, nom: false })); }} />
             </View>
             <View style={{ width: 12 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.fieldLabel}>Prénom *</Text>
-              <TextInput style={[s.input, errors.prenom && s.inputError]} placeholder="Jean" placeholderTextColor="#C0C0C0" value={prenom} onChangeText={(v) => { setPrenom(v); setErrors(p => ({ ...p, prenom: false })); }} />
-            </View>
+           
           </View>
 
           <Text style={s.fieldLabel}>Date de naissance</Text>
