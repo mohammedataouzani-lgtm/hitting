@@ -18,15 +18,17 @@ const SAFE_AREA_TOP = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight ?? 2
 // ─────────────────────────────────────────────
 function EventCard({ event, onPress }) {
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.dateBadge}>
-          <Text style={styles.dateDay}>{event.jour}</Text>
-          <Text style={styles.dateMonth}>{event.mois}</Text>
+    <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={[styles.card, event.isPast && styles.cardPast]}>
+      <View style={[styles.cardHeader, event.isPast && styles.cardHeaderPast]}>
+        <View style={[styles.dateBadge, event.isPast && styles.dateBadgePast]}>
+          <Text style={[styles.dateDay, event.isPast && styles.dateTxtPast]}>{event.jour}</Text>
+          <Text style={[styles.dateMonth, event.isPast && styles.dateTxtPast]}>{event.mois}</Text>
         </View>
         <Text style={styles.calendarIcon}>📅</Text>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>{event.status || event.statut}</Text>
+        <View style={[styles.statusBadge, event.isPast && styles.statusBadgePast]}>
+          <Text style={[styles.statusText, event.isPast && styles.statusTextPast]}>
+            {event.isPast ? 'Passé' : (event.status || event.statut)}
+          </Text>
         </View>
       </View>
       <View style={styles.cardBody}>
@@ -236,18 +238,18 @@ export default function EvenementsScreen({ navigation, route }) {
         { headers: { 'Authorization': `Bearer ${idToken}` } }
       );
       const data = await response.json();
-      if (data.success) {
+     if (data.success) {
         const months = ['JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'];
+        const now = new Date();
         const mapped = data.evenements.map(e => {
           let jour = '--', mois = '---';
-          if (e.dateFormatee) {
-            const d = new Date(e.dateFormatee);
-            if (!isNaN(d)) {
-              jour = String(d.getDate()).padStart(2, '0');
-              mois = months[d.getMonth()];
-            }
+          const d = e.dateRaw ? new Date(e.dateRaw) : (e.dateFormatee ? new Date(e.dateFormatee) : null);
+          if (d && !isNaN(d)) {
+            jour = String(d.getDate()).padStart(2, '0');
+            mois = months[d.getMonth()];
           }
-          return { ...e, jour, mois, dateText: e.dateFormatee, salle: e.adresse };
+          const isPast = d && !isNaN(d) ? d < now : false;
+          return { ...e, jour, mois, dateText: e.dateFormatee, salle: e.adresse, isPast };
         });
         setEvents(mapped);
       }
@@ -355,6 +357,12 @@ const styles = StyleSheet.create({
   input: { height: 48, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 10, paddingHorizontal: 14, fontSize: 15, color: '#1C1C1E', marginBottom: 8, justifyContent: 'center' },
   imagePicker: { padding: 15, backgroundColor: '#EEE', borderRadius: 10, alignItems: 'center', marginBottom: 8 },
   preview: { width: '100%', height: 160, borderRadius: 10, marginTop: 8, resizeMode: 'cover' },
+  cardPast: { opacity: 0.55 },
+  cardHeaderPast: { backgroundColor: '#9E9E9E' },
+  dateBadgePast: { backgroundColor: '#E0E0E0' },
+  dateTxtPast: { color: '#616161' },
+  statusBadgePast: { backgroundColor: '#E0E0E0' },
+  statusTextPast: { color: '#616161' },
 });
 
 const bs = StyleSheet.create({

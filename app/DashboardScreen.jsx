@@ -450,17 +450,22 @@ export default function DashboardScreen({ navigation }) {
         });
 
           
-       const evtResponse = await fetch(
+const evtResponse = await fetch(
   'https://europe-west9-hitting-23de9.cloudfunctions.net/getEvenements',
   { headers: { 'Authorization': `Bearer ${idToken}` } }
 );
 const evtData = await evtResponse.json();
 console.log('📅 combats reçus:', JSON.stringify(evtData.combats));
 if (evtData.success) {
-  setEvenements(evtData.evenements);
+  const now = new Date();
+  const evenementsAVenir = (evtData.evenements || []).filter(e => {
+    if (!e.dateRaw) return true;
+    const d = new Date(e.dateRaw);
+    return isNaN(d) || d >= now;
+  });
+  setEvenements(evenementsAVenir);
   setCombats(evtData.combats || []);
 }
-
 const notifResponse = await fetch(
   'https://europe-west9-hitting-23de9.cloudfunctions.net/getNotifications',
   { headers: { 'Authorization': `Bearer ${idToken}` } }

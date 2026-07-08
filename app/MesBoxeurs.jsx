@@ -108,6 +108,36 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
   const [nuls, setNuls] = useState('');
   const [ko, setKo] = useState('');
 
+  const handlePickPhotoBoxeur = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8, base64: true,
+    });
+    if (!result.canceled) setPhotoBoxeur(result.assets[0]);
+  };
+
+  const handleTakePhotoBoxeur = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à l'appareil photo."); return; }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true, aspect: [1, 1], quality: 0.8, base64: true,
+    });
+    if (!result.canceled) setPhotoBoxeur(result.assets[0]);
+  };
+
+  const handleChangePhotoBoxeur = () => {
+    Alert.alert(
+      'Photo du boxeur',
+      'Sélectionnez une option :',
+      [
+        { text: 'Prendre une photo 📷', onPress: handleTakePhotoBoxeur },
+        { text: 'Choisir depuis la bibliothèque 🖼️', onPress: handlePickPhotoBoxeur },
+        { text: 'Annuler', style: 'cancel' },
+      ]
+    );
+  };
+
   React.useEffect(() => {
     if (visible) {
       Animated.parallel([
@@ -242,23 +272,24 @@ return (
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
         >
-          {/* ... tout le contenu du formulaire reste identique ... */}
-          <TouchableOpacity style={s.photoBtn} activeOpacity={0.7} onPress={async () => {
-            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (!permission.granted) { Alert.alert('Permission requise', "Autorisez l'accès à vos photos."); return; }
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
-            });
-            if (!result.canceled) setPhotoBoxeur(result.assets[0]);
-          }}>
-            <LinearGradient colors={['#5C6BC0', '#3949AB']} style={s.photoBtnInner}>
+          
+       <View style={s.boxeurPhotoSection}>
+            <View style={s.boxeurPhotoContainer}>
               {photoBoxeur ? (
-                <Image source={{ uri: photoBoxeur.uri }} style={{ width: 72, height: 72, borderRadius: 36 }} />
+                <Image source={{ uri: photoBoxeur.uri }} style={s.boxeurPhoto} />
               ) : (
-                <><Text style={s.photoIcon}>⬆</Text><Text style={s.photoLabel}>Photo</Text></>
+                <View style={[s.boxeurPhoto, s.boxeurPhotoEmpty]} />
               )}
-            </LinearGradient>
-          </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleChangePhotoBoxeur}
+                style={s.boxeurPhotoEditBadge}
+              >
+                <Text style={s.avatarEditIcon}>✏️</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={s.boxeurPhotoLabel}>Photo</Text>
+          </View>
 
           <Text style={s.sectionLabel}>IDENTITÉ</Text>
           <View style={s.row}>
@@ -467,8 +498,9 @@ const filteredBoxeurs = boxeurs.filter((b) => {
           </View>
           <TouchableOpacity style={s.filterBtn}><Text style={s.filterIcon}>☰</Text></TouchableOpacity>
         </View>
-        <ScrollView
+          <ScrollView
   horizontal
+  style={s.filtersScroll}
   showsHorizontalScrollIndicator={false}
   contentContainerStyle={s.filtersRow}
 >
@@ -503,7 +535,7 @@ const filteredBoxeurs = boxeurs.filter((b) => {
     </TouchableOpacity>
   ))}
 </ScrollView>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.listContent}>
+        <ScrollView style={s.listScroll} showsVerticalScrollIndicator={false} contentContainerStyle={s.listContent}>
           {filteredBoxeurs.map((boxer) => (
             <BoxerCard key={boxer.id} boxer={boxer} onEdit={handleEditBoxeur} onPress={(b) => navigation.navigate('FicheBoxeur', { boxer: b })} />
           ))}
@@ -526,6 +558,8 @@ const HEADER_HEIGHT = 220;
 const SHEET_HEIGHT = height * 0.9;
 
 const s = StyleSheet.create({
+  filtersScroll: { flexGrow: 0, flexShrink: 0 },
+  listScroll: { flex: 1 },
   container: { flex: 1, backgroundColor: '#fff' },
   heroWrap: { width: '100%', height: HEADER_HEIGHT },
   heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
@@ -565,6 +599,25 @@ const s = StyleSheet.create({
   photoBtnInner: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   photoIcon: { fontSize: 22, color: '#fff' },
   photoLabel: { fontSize: 11, color: '#fff', fontWeight: '700', marginTop: 2, letterSpacing: 0.3 },
+boxeurPhotoSection: { alignItems: 'center', marginBottom: 24 },
+  boxeurPhotoContainer: { position: 'relative', width: 90, height: 90 },
+  boxeurPhotoLabel: { fontSize: 12, color: '#9E9E9E', fontWeight: '600', marginTop: 8 },
+  boxeurPhoto: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#E0E0E0' },
+  boxeurPhotoEmpty: { backgroundColor: '#E0E0E0' },
+  boxeurPhotoEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarEditIcon: { fontSize: 12, color: '#FFFFFF' },
   sectionLabel: { fontSize: 11, fontWeight: '800', color: '#9E9E9E', letterSpacing: 1.2, marginBottom: 12, marginTop: 4 },
   fieldLabel: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 8 },
   input: { height: 48, borderRadius: 12, borderWidth: 1.5, borderColor: '#ECECEC', backgroundColor: '#FAFAFA', paddingHorizontal: 14, fontSize: 15, color: '#111', marginBottom: 16 },
