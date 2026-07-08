@@ -9,6 +9,7 @@ import {
   Text,
 } from 'react-native';
 import { getAuth } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -31,18 +32,28 @@ export default function SplashScreen({ navigation }) {
         useNativeDriver: true,
       }),
     ]).start();
-
-    Animated.timing(progressAnim, {
+Animated.timing(progressAnim, {
       toValue: 1,
       duration: 2500,
       useNativeDriver: false,
-    }).start(() => {
+    }).start(async () => {
       // ✅ Option B — vérifie l'état Firebase Auth réel
       const auth = getAuth();
       const currentUser = auth.currentUser;
       if (currentUser) {
         navigation.replace('Dashboard');
-      } else {
+        return;
+      }
+
+      try {
+        const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+        if (!hasSeenOnboarding) {
+          navigation.replace('Onboarding');
+        } else {
+          navigation.replace('Login');
+        }
+      } catch (error) {
+        console.error('❌ Erreur lecture onboarding:', error);
         navigation.replace('Login');
       }
     });

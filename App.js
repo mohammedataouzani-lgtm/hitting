@@ -17,6 +17,7 @@ import DemandesMatchScreen from './app/DemandesMatchScreen';
 import NotificationsScreen from './app/NotificationsScreen';
 import HistoriqueCombatsScreen from './app/HistoriqueCombatsScreen';
 import { NotificationProvider } from './NotificationContext';
+import OnboardingScreen from './app/OnboardingScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -43,6 +44,7 @@ export default function App() {
           <Stack.Screen name="DemandesMatch" component={DemandesMatchScreen} />
            <Stack.Screen name="HistoriqueCombats" component={HistoriqueCombatsScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       </NotificationProvider>
