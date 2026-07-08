@@ -15,6 +15,8 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { getAuth } from 'firebase/auth';
+import { useFocusEffect } from '@react-navigation/native';
+import { useNotifications } from '../NotificationContext';
 
 const SAFE_AREA_TOP = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight ?? 24);
 
@@ -231,6 +233,13 @@ function ResultatForm({ visible, combat, onClose, onSubmit, loading }) {
 // SCREEN PRINCIPAL
 // ─────────────────────────────────────────────
 export default function NotificationsScreen({ navigation }) {
+  const { refreshNotifCount } = useNotifications();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshNotifCount();
+    }, [])
+  );
   const [demandes, setDemandes] = useState([]);
   const [boxeursValides, setBoxeursValides] = useState([]);
   const [boxeursEnAttente, setBoxeursEnAttente] = useState([]);
@@ -277,9 +286,24 @@ export default function NotificationsScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
-
+  fetchAll();
+  markAsSeen();
+}, [fetchAll]);
+const markAsSeen = async () => {
+  try {
+    const auth = getAuth();
+    const idToken = await auth.currentUser.getIdToken();
+    await fetch(
+      'https://europe-west9-hitting-23de9.cloudfunctions.net/markNotificationsSeen',
+      {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${idToken}` },
+      }
+    );
+  } catch (error) {
+    console.error('❌ Erreur markAsSeen:', error);
+  }
+};
   const openResultatForm = (combat) => {
     setSelectedCombat(combat);
     setResultatFormVisible(true);

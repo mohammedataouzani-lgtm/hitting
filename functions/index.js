@@ -727,12 +727,17 @@ exports.getNotifications = onRequest({
     const coachEmail = coachData.email;
     const airtableCoachId = coachData.airtableRecordId;
 
+    // ✅ Timestamp de dernière consultation (peut être null si jamais vu)
+    const notificationsLastSeenAt = coachData.notificationsLastSeenAt
+      ? coachData.notificationsLastSeenAt.toDate().toISOString()
+      : null;
+
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
     // ── Demandes en attente (envoyées + reçues) ──
     const demandesRecords = await base("Demandedematch").select().all();
-    const demandesEnAttente = demandesRecords
+ const demandesEnAttente = demandesRecords
       .map((record) => {
         const f = record.fields || {};
         return {
@@ -745,7 +750,8 @@ exports.getNotifications = onRequest({
           nomAdversaire: f["Nom du boxeur adversaire"] || "",
           prenomAdversaire: f["Prénom du boxeur adversaire"] || "",
           dateDemande: f["Date demande"] || "",
-          dateRaw: f["Date et heure"] || "",
+          dateSouhaitee: f["Date souhaitée (format)"] || f["Date souhaitée"] || "",
+          dateRaw: f["Date et heure"] || record._rawJson.createdTime,
         };
       })
       .filter((d) => d.statut === "En attente")
@@ -761,7 +767,7 @@ exports.getNotifications = onRequest({
     // ── Boxeurs (validés + en attente + refusés) ──
     let boxeursValides = [];
     let boxeursEnAttente = [];
-    let boxeursRefuses = []; // ✅ déclaré ici
+    let boxeursRefuses = [];
 
     if (airtableCoachId) {
       const boxeursRecords = await base("Boxeurs en attente").select().all();
@@ -772,17 +778,20 @@ exports.getNotifications = onRequest({
         if (!coachIds.includes(airtableCoachId)) continue;
 
         const statutValidation = f["Statut de validation"] || "";
+        const dateChangementStatut = f["Date changement statut"] || record._rawJson.createdTime;
+
         const boxeur = {
           id: record.id,
           nom: f["Nom"] || "",
           prenom: f["Prénom"] || "",
+          dateRaw: dateChangementStatut,
         };
 
         if (statutValidation === "Validé") {
-          boxeursValides.push({ ...boxeur, dateValidation: f["Date de naissance"] || "" });
+          boxeursValides.push({ ...boxeur, dateValidation: dateChangementStatut });
         } else if (statutValidation === "En attente") {
-          boxeursEnAttente.push(boxeur);
-        } else if (statutValidation === "Refusé") { // ✅ ajouté dans la même boucle
+          boxeursEnAttente.push({ ...boxeur, dateRaw: record._rawJson.createdTime });
+        } else if (statutValidation === "Refusé") {
           boxeursRefuses.push({
             ...boxeur,
             motifRefus: f["Motif du refus"] || "Aucun motif précisé",
@@ -793,14 +802,45 @@ exports.getNotifications = onRequest({
 
     return res.status(200).json({
       success: true,
+      notificationsLastSeenAt,
       demandesEnAttente,
       boxeursValides,
       boxeursEnAttente,
-      boxeursRefuses, // ✅
+      boxeursRefuses,
     });
 
   } catch (error) {
     console.error("❌ Erreur getNotifications:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});
+
+exports.markNotificationsSeen = onRequest({
+  region: "europe-west9",
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+
+    await admin.firestore().doc(`coaches/${uid}`).update({
+      notificationsLastSeenAt: admin.firestore.Timestamp.now(),
+    });
+
+    return res.status(200).json({ success: true });
+
+  } catch (error) {
+    console.error("❌ Erreur markNotificationsSeen:", error.message);
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });

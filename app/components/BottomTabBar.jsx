@@ -7,6 +7,7 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNotifications } from '../../NotificationContext';
 
 const ANDROID_NAV_BAR_HEIGHT = 34;
 
@@ -20,7 +21,8 @@ const TABS = [
   { key: 'notifs',    icon: '🔔', route: 'Notifications' },
 ];
 
-export default function BottomTabBar({ activeTab, navigation, onPlusPress, notifCount = 0 }) {
+export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
+  const { notifCount } = useNotifications();
   return (
     <View style={styles.tabBar}>
       <View style={styles.iconsRow}>

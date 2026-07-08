@@ -1,10 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useNotifications } from '../NotificationContext';
 import BottomTabBar, { TAB_BAR_HEIGHT } from './components/BottomTabBar';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -23,10 +26,10 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+
+
 
 const { width, height } = Dimensions.get('window');
-
 const NIVEAUX = ['Débutant', 'Espoir', 'Elite'];
 const SEXES = ['Homme', 'Femme'];
 
@@ -371,6 +374,13 @@ return (
 // SCREEN PRINCIPAL
 // ─────────────────────────────────────────────
 export default function MesBoxeursScreen({ navigation, route }) {
+  const { refreshNotifCount } = useNotifications();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshNotifCount();
+    }, [])
+  );
   const [search, setSearch] = useState('');
   const [boxeurs, setBoxeurs] = useState([]);
   const [loading, setLoading] = useState(true);

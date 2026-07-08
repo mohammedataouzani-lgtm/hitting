@@ -16,6 +16,7 @@ import DemandeCombatScreen from './app/DemandeCombat';
 import DemandesMatchScreen from './app/DemandesMatchScreen';
 import NotificationsScreen from './app/NotificationsScreen';
 import HistoriqueCombatsScreen from './app/HistoriqueCombatsScreen';
+import { NotificationProvider } from './NotificationContext';
 
 
 const Stack = createNativeStackNavigator();
@@ -23,11 +24,11 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   return (
     <AuthProvider>
+      <NotificationProvider>
       <NavigationContainer>
         <Stack.Navigator
           initialRouteName="Splash"
-          screenOptions={{ headerShown: false }}
-        >
+          screenOptions={{ headerShown: false }}        >
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
@@ -44,6 +45,7 @@ export default function App() {
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

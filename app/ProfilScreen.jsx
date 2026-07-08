@@ -17,10 +17,19 @@ import BottomTabBar from './components/BottomTabBar';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import { getCoachProfile, updateTelephone, updateCoachEmail, updateAvatar, deleteCoachAccount } from '../services/firebase';
+import { useFocusEffect } from '@react-navigation/native';
+import { useNotifications } from '../NotificationContext';
+import { useCallback } from 'react';
 
-const { width } = Dimensions.get('window');
 
 export default function ProfilScreen({ navigation }) {
+  const { refreshNotifCount } = useNotifications();
+
+ useFocusEffect(
+    useCallback(() => {
+      refreshNotifCount();
+    }, [])
+  );
   const [avatar, setAvatar] = React.useState(null);
   const [profile, setProfile] = React.useState(null);
   const [loading, setLoading] = React.useState(true);

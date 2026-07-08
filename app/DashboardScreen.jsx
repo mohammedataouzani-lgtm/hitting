@@ -1,6 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import BottomTabBar from './components/BottomTabBar';
-
 import {
   View,
   Text,
@@ -21,9 +20,10 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
-
+import { useFocusEffect } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
+import { useNotifications } from '../NotificationContext';
 
 const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BOTTOM_SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -62,6 +62,16 @@ function buildCalendarGrid(month, year) {
   let next = 1;
   while (cells.length % 7 !== 0) cells.push({ day: next++, current: false });
   return cells;
+}
+
+function formatDateSouhaitee(isoString) {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '';
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const year = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 // ─────────────────────────────────────────────
@@ -166,8 +176,8 @@ function BilanBottomSheet({ visible, onClose, stats }) {
   const rings = [
     { color: '#43A047', pct: victoryPct, r: 70, stroke: 14 },
     { color: '#EF5350', pct: defeatPct, r: 52, stroke: 12 },
-    { color: '#42A5F5', pct: drawPct, r: 36, stroke: 10 },
-    { color: '#FFC107', pct: koPct, r: 20, stroke: 8 },
+    { color: '#FFC107', pct: drawPct, r: 36, stroke: 10 },
+    { color: '#42A5F5', pct: koPct, r: 20, stroke: 8 },
   ];
 
   const svgSize = 180;
@@ -176,7 +186,7 @@ function BilanBottomSheet({ visible, onClose, stats }) {
   const statCards = [
     { emoji: '🏆', label: 'Victoires', count: stats.totalWins || 0, pct: victoryPct, bg: '#E8F5E9', barColor: '#43A047' },
     { emoji: '⚠️', label: 'Défaites', count: stats.totalDefeats || 0, pct: defeatPct, bg: '#FFEBEE', barColor: '#EF5350' },
-    { emoji: '🤝', label: 'Nuls', count: stats.totalDraws || 0, pct: drawPct, bg: '#FFF8E1', barColor: '#FF9800' },
+   { emoji: '🤝', label: 'Nuls', count: stats.totalDraws || 0, pct: drawPct, bg: '#FFF8E1', barColor: '#FFC107' },
     { emoji: '⚡', label: 'K.O', count: stats.totalKos || 0, pct: koPct, bg: '#E3F2FD', barColor: '#42A5F5' },
   ];
 
@@ -209,7 +219,7 @@ function BilanBottomSheet({ visible, onClose, stats }) {
               })}
             </Svg>
             <View style={bs.legend}>
-              {[{ color: '#43A047', label: 'Victoires' }, { color: '#EF5350', label: 'Défaites' }, { color: '#42A5F5', label: 'Nuls' }, { color: '#FFC107', label: 'K.O' }].map(({ color, label }) => (
+             {[{ color: '#43A047', label: 'Victoires' }, { color: '#EF5350', label: 'Défaites' }, { color: '#FFC107', label: 'Nuls' }, { color: '#42A5F5', label: 'K.O' }].map(({ color, label }) => (
                 <View key={label} style={bs.legendItem}>
                   <View style={[bs.legendDot, { borderColor: color }]} />
                   <Text style={bs.legendTxt}>{label}</Text>
@@ -243,6 +253,14 @@ function BilanBottomSheet({ visible, onClose, stats }) {
 // DASHBOARD SCREEN
 // ─────────────────────────────────────────────
 export default function DashboardScreen({ navigation }) {
+  const { refreshNotifCount } = useNotifications();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshNotifCount();
+    }, [])
+  );
+
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth());
   const [year, setYear] = useState(today.getFullYear());
@@ -253,7 +271,9 @@ export default function DashboardScreen({ navigation }) {
   const carouselRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [combats, setCombats] = useState([]);
-  const [notifCount, setNotifCount] = useState(0);
+  const [demandes, setDemandes] = useState([]);
+  const demandesCarouselRef = useRef(null);
+  const [activeDemandeSlide, setActiveDemandeSlide] = useState(0);
   const [coachData, setCoachData] = useState({
     firstName: 'Coach',
     clubName: 'Chargement du club...',
@@ -263,7 +283,8 @@ export default function DashboardScreen({ navigation }) {
   });
 
 
-  useEffect(() => {
+   useFocusEffect(
+    useCallback(() => {
     const fetchDashboardData = async () => {
       try {
         const auth = getAuth();
@@ -308,21 +329,8 @@ export default function DashboardScreen({ navigation }) {
           activeBoxers: stats.activeBoxers ?? 0,
           saison: '2025 -- 2026',
         });
-const notifRes = await fetch(
-  'https://europe-west9-hitting-23de9.cloudfunctions.net/getNotifications',
-  { headers: { 'Authorization': `Bearer ${idToken}` } }
-);
-const notifData = await notifRes.json();
-if (notifData.success) {
-  const count = 
- (notifData.demandesEnAttente?.length || 0) +
-  (notifData.boxeursEnAttente?.length || 0) +
-  (notifData.boxeursRefuses?.length || 0) +
-  (notifData.boxeursValides?.length || 0);
-  setNotifCount(count);
-}
-        // Fetch événements
-      
+
+          
        const evtResponse = await fetch(
   'https://europe-west9-hitting-23de9.cloudfunctions.net/getEvenements',
   { headers: { 'Authorization': `Bearer ${idToken}` } }
@@ -333,15 +341,27 @@ if (evtData.success) {
   setEvenements(evtData.evenements);
   setCombats(evtData.combats || []);
 }
+
+const notifResponse = await fetch(
+  'https://europe-west9-hitting-23de9.cloudfunctions.net/getNotifications',
+  { headers: { 'Authorization': `Bearer ${idToken}` } }
+);
+const notifData = await notifResponse.json();
+console.log('🔍 Demandes reçues:', JSON.stringify(notifData.demandesEnAttente));
+if (notifData.success) {
+  setDemandes(notifData.demandesEnAttente || []);
+}
       } catch (error) {
         console.error("Erreur Dashboard:", error);
       } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboardData();
-  }, [navigation]);
+         setLoading(false);
+        }
+       };
+      fetchDashboardData();
+    }, [])
+  );
 
+  
   const calCells = buildCalendarGrid(month, year);
  const activeEvents = evenements
   .filter(e => e.dateRaw)
@@ -490,7 +510,77 @@ const getEventType = (day) => {
               </>
             )}
           </View>
+{/* SUIVI DE DEMANDE — CARROUSEL */}
+<View style={styles.section}>
+  <View style={styles.sectionHeader}>
+    <Text style={styles.sectionTitle}>Suivi de demande</Text>
+    <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('DemandesMatch')} style={styles.voirRow}>
+      <Text style={styles.voirTxt}>Voir tout</Text>
+      <View style={styles.avatarCircle}><Text style={styles.avatarEmoji}>🤝</Text></View>
+    </TouchableOpacity>
+  </View>
 
+  {demandes.length === 0 ? (
+    <View style={styles.noEventCard}>
+      <Text style={styles.noEventText}>Aucune demande en cours. 🥊</Text>
+    </View>
+  ) : (
+    <>
+      <FlatList
+        ref={demandesCarouselRef}
+        data={demandes}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.id}
+        onScroll={(e) => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / (width - 36));
+          setActiveDemandeSlide(idx);
+        }}
+        scrollEventThrottle={16}
+        renderItem={({ item }) => {
+          const isRecue = item.type === 'recue';
+          return (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={[styles.demandeCard, { width: width - 36 }]}
+              onPress={() => navigation.navigate('DemandesMatch')}
+            >
+              <View style={styles.demandeBadges}>
+                <View style={[styles.badgeType, { backgroundColor: isRecue ? '#FFF8E1' : '#E3F2FD' }]}>
+                  <Text style={[styles.badgeTypeTxt, { color: isRecue ? '#F9A825' : '#1976D2' }]}>
+                    {isRecue ? '🥊 Demande reçue' : '📤 Demande envoyée'}
+                  </Text>
+                </View>
+                <View style={styles.badgeStatut}>
+                  <Text style={styles.badgeStatutTxt}>EN ATTENTE</Text>
+                </View>
+              </View>
+
+              <Text style={styles.demandeTitle}>{item.prenomBoxeur} {item.nomBoxeur}</Text>
+              <Text style={styles.demandeVsTxt}>vs</Text>
+              <Text style={styles.demandeAdversaire}>{item.prenomAdversaire} {item.nomAdversaire}</Text>
+
+                {item.dateSouhaitee && (
+                <View style={styles.demandeDateRow}>
+                  <Text style={styles.demandeDateIcon}>📅</Text>
+                  <Text style={styles.demandeDateTxt}>{formatDateSouhaitee(item.dateSouhaitee)}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        }}
+      />
+      {demandes.length > 1 && (
+        <View style={styles.carouselDots}>
+          {demandes.map((_, i) => (
+            <View key={i} style={[styles.dot, i === activeDemandeSlide && styles.dotActive]} />
+          ))}
+        </View>
+      )}
+    </>
+  )}
+</View>
           {/* CALENDRIER */}
           <View style={styles.calSection}>
             <View style={styles.sectionHeader}>
@@ -558,7 +648,6 @@ const getEventType = (day) => {
         activeTab="dashboard"
         navigation={navigation}
         onPlusPress={() => setActionSheetVisible(true)}
-        notifCount={notifCount}
       />
 
       <BilanBottomSheet visible={bilanVisible} onClose={() => setBilanVisible(false)} stats={coachData} />
@@ -604,6 +693,18 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ccc' },
   dotActive: { backgroundColor: '#E53935', width: 18 },
   noEventCard: { backgroundColor: '#F2F2F7', borderRadius: 16, padding: 20, alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#CCC' },
+  demandeCard: { backgroundColor: '#F2F2F7', borderRadius: 16, padding: 16, marginRight: 0 },
+  demandeBadges: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  badgeType: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeTypeTxt: { fontSize: 11, fontWeight: '700' },
+  badgeStatut: { backgroundColor: '#EAEBF8', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeStatutTxt: { fontSize: 11, fontWeight: '700', color: '#5C6BC0' },
+  demandeTitle: { fontSize: 17, fontWeight: '800', color: '#111', marginBottom: 2 },
+  demandeVsTxt: { fontSize: 13, color: '#999', fontWeight: '600', marginBottom: 2 },
+  demandeAdversaire: { fontSize: 17, fontWeight: '800', color: '#111' },
+  demandeDateRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  demandeDateIcon: { fontSize: 13 },
+  demandeDateTxt: { fontSize: 13, color: '#888', fontWeight: '500' },
   noEventText: { color: '#666', fontSize: 14, textAlign: 'center', fontWeight: '500' },
   eventBadges: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   badgeGala: { backgroundColor: '#EAEBF8', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
