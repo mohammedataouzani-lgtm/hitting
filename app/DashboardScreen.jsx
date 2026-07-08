@@ -248,6 +248,123 @@ function BilanBottomSheet({ visible, onClose, stats }) {
     </Modal>
   );
 }
+// ─────────────────────────────────────────────
+// DÉTAIL ÉVÉNEMENT BOTTOM SHEET
+// ─────────────────────────────────────────────
+const TYPE_LABEL = {
+  gala: 'Gala',
+  sparring: 'Sparring',
+  combat: 'Combat',
+  evenement: 'Événement',
+};
+
+function EvenementDetailBottomSheet({ visible, onClose, eventInfo, onVoirTout }) {
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+
+  const open = useCallback(() => {
+    Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+  }, [translateY]);
+
+  const close = useCallback(() => {
+    Animated.timing(translateY, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: true }).start(() => onClose());
+  }, [translateY, onClose]);
+
+  useEffect(() => {
+    if (visible) { translateY.setValue(SCREEN_HEIGHT); open(); }
+  }, [visible, open, translateY]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
+      onPanResponderMove: (_, g) => { if (g.dy > 0) translateY.setValue(g.dy); },
+      onPanResponderRelease: (_, g) => { if (g.dy > 120 || g.vy > 0.5) close(); else open(); },
+    })
+  ).current;
+
+  if (!visible || !eventInfo) return null;
+
+  const { type, data } = eventInfo;
+  const evStyle = EVENT_STYLE[type] || EVENT_STYLE.evenement;
+  const isCombat = type !== 'evenement';
+
+  return (
+    <Modal transparent visible={visible} animationType="none" onRequestClose={close}>
+      <TouchableWithoutFeedback onPress={close}>
+        <View style={eds.overlay} />
+      </TouchableWithoutFeedback>
+
+      <Animated.View style={[eds.sheet, { transform: [{ translateY }] }]} {...panResponder.panHandlers}>
+        <View style={eds.handleRow}><View style={eds.handle} /></View>
+
+        <View style={eds.badgeRow}>
+          <View style={[eds.typeBadge, { backgroundColor: evStyle.bg }]}>
+            <Text style={[eds.typeBadgeTxt, { color: evStyle.text }]}>{TYPE_LABEL[type] || 'Événement'}</Text>
+          </View>
+        </View>
+
+        {isCombat ? (
+          <>
+            <Text style={eds.title}>{data.combattants || `${data.boxeurA || ''} vs ${data.boxeurB || ''}`}</Text>
+            {data.dateFormatee ? (
+              <View style={eds.infoRow}>
+                <Text style={eds.infoIcon}>📅</Text>
+                <Text style={eds.infoTxt}>{data.dateFormatee}</Text>
+              </View>
+            ) : null}
+            {data.lieu ? (
+              <View style={eds.infoRow}>
+                <Text style={eds.infoIcon}>📍</Text>
+                <Text style={eds.infoTxt}>{data.lieu}</Text>
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {data.photo ? <Image source={{ uri: data.photo }} style={eds.image} /> : null}
+            <Text style={eds.title}>{data.titre}</Text>
+            <View style={eds.infoRow}>
+              <Text style={eds.infoIcon}>📅</Text>
+              <Text style={eds.infoTxt}>{data.dateFormatee}</Text>
+            </View>
+            <View style={eds.infoRow}>
+              <Text style={eds.infoIcon}>📍</Text>
+              <Text style={eds.infoTxt}>{data.adresse}</Text>
+            </View>
+            {data.prix ? (
+              <View style={eds.infoRow}>
+                <Text style={eds.infoIcon}>💶</Text>
+                <Text style={eds.infoTxt}>{data.prix}</Text>
+              </View>
+            ) : null}
+          </>
+        )}
+
+        <TouchableOpacity style={eds.voirBtn} activeOpacity={0.85} onPress={() => { close(); onVoirTout && onVoirTout(); }}>
+          <Text style={eds.voirBtnTxt}>Voir tous les événements</Text>
+        </TouchableOpacity>
+        <View style={{ height: 20 }} />
+      </Animated.View>
+    </Modal>
+  );
+}
+
+const eds = StyleSheet.create({
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 22, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 20 },
+  handleRow: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
+  handle: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#CCC' },
+  badgeRow: { flexDirection: 'row', marginBottom: 12 },
+  typeBadge: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 },
+  typeBadgeTxt: { fontSize: 12, fontWeight: '700' },
+  image: { width: '100%', height: 140, borderRadius: 12, marginBottom: 14, resizeMode: 'cover' },
+  title: { fontSize: 22, fontWeight: '900', color: '#111', marginBottom: 14, letterSpacing: -0.3 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  infoIcon: { fontSize: 15 },
+  infoTxt: { fontSize: 14, color: '#555', fontWeight: '500' },
+  voirBtn: { marginTop: 12, backgroundColor: '#2B5BB8', borderRadius: 14, height: 50, alignItems: 'center', justifyContent: 'center' },
+  voirBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
+});
 
 // ─────────────────────────────────────────────
 // DASHBOARD SCREEN
@@ -271,6 +388,8 @@ export default function DashboardScreen({ navigation }) {
   const carouselRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [combats, setCombats] = useState([]);
+  const [eventDetailVisible, setEventDetailVisible] = useState(false);
+  const [selectedEventDetail, setSelectedEventDetail] = useState(null);
   const [demandes, setDemandes] = useState([]);
   const demandesCarouselRef = useRef(null);
   const [activeDemandeSlide, setActiveDemandeSlide] = useState(0);
@@ -363,18 +482,18 @@ if (notifData.success) {
 
   
   const calCells = buildCalendarGrid(month, year);
- const activeEvents = evenements
+const activeEvents = evenements
   .filter(e => e.dateRaw)
   .map(e => {
     const d = new Date(e.dateRaw);
-    return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear(), type: 'evenement' };
+    return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear(), type: 'evenement', data: e };
   })
   .filter(e => e.evMonth === month && e.evYear === year);
   const activeCombats = combats
   .filter(c => c.dateRaw)
   .map(c => {
     const d = new Date(c.dateRaw);
-    return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear(), type: c.typeCombat };
+    return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear(), type: c.typeCombat, data: c };
   })
   .filter(c => c.evMonth === month && c.evYear === year);
 
@@ -383,6 +502,8 @@ const getEventType = (day) => {
   const found = allCalendarEvents.find(e => e.day === day);
   return found ? found.type : null;
 };
+const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || null;
+
   const isToday = (day, current) =>
     current && day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
@@ -470,11 +591,14 @@ const getEventType = (day) => {
                     setActiveSlide(idx);
                   }}
                   scrollEventThrottle={16}
-                  renderItem={({ item }) => (
+                 renderItem={({ item }) => (
                     <TouchableOpacity
                       activeOpacity={0.9}
                       style={[styles.eventCard, { width: width - 36 }]}
-                      onPress={() => navigation.navigate('Evenements')}
+                      onPress={() => {
+                        setSelectedEventDetail({ type: 'evenement', data: item });
+                        setEventDetailVisible(true);
+                      }}
                     >
                       {item.photo ? (
                         <Image source={{ uri: item.photo }} style={styles.eventCardImage} />
@@ -544,7 +668,10 @@ const getEventType = (day) => {
             <TouchableOpacity
               activeOpacity={0.9}
               style={[styles.demandeCard, { width: width - 36 }]}
-              onPress={() => navigation.navigate('DemandesMatch')}
+              onPress={() => {
+                setSelectedDemandeDetail({ type: 'demande', data: item });
+                setDemandeDetailVisible(true);
+              }}
             >
               <View style={styles.demandeBadges}>
                 <View style={[styles.badgeType, { backgroundColor: isRecue ? '#FFF8E1' : '#E3F2FD' }]}>
@@ -618,8 +745,15 @@ const getEventType = (day) => {
                   const evStyle = evType ? EVENT_STYLE[evType] : null;
                   const todayCell = isToday(day, current);
                   return (
-                    <TouchableOpacity key={i} activeOpacity={evStyle ? 0.7 : 1} disabled={!evStyle}
-                      onPress={() => evStyle && navigation.navigate('Evenements')} style={styles.calCell}>
+                  <TouchableOpacity key={i} activeOpacity={evStyle ? 0.7 : 1} disabled={!evStyle}
+                      onPress={() => {
+                        if (!evStyle) return;
+                        const found = getEventForDay(day);
+                        if (found) {
+                          setSelectedEventDetail(found);
+                          setEventDetailVisible(true);
+                        }
+                      }} style={styles.calCell}>
                       <View style={[
                         styles.calNum,
                         evStyle && { backgroundColor: evStyle.bg },
@@ -651,7 +785,12 @@ const getEventType = (day) => {
       />
 
       <BilanBottomSheet visible={bilanVisible} onClose={() => setBilanVisible(false)} stats={coachData} />
-
+  <EvenementDetailBottomSheet
+        visible={eventDetailVisible}
+        onClose={() => setEventDetailVisible(false)}
+        eventInfo={selectedEventDetail}
+        onVoirTout={() => navigation.navigate('Evenements')}
+      />
       <ActionSheet
         visible={actionSheetVisible}
         onClose={() => setActionSheetVisible(false)}
