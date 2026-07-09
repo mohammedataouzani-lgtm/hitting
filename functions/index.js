@@ -1006,10 +1006,20 @@ exports.getDashboardStats = onRequest({
 
     const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
     if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
-    const coachEmail = coachDoc.data().email;
+    const coachData = coachDoc.data();
+    const coachEmail = coachData.email;
+    const airtableCoachId = coachData.airtableRecordId;
 
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    // ── Effectif total de boxeurs du club (champ "Boxeurs 2" sur la table Coach) ──
+    let totalBoxeurs = 0;
+    if (airtableCoachId) {
+      const coachRecord = await base("Coach").find(airtableCoachId);
+      const boxeursLies = coachRecord.fields["Boxeurs 2"];
+      totalBoxeurs = Array.isArray(boxeursLies) ? boxeursLies.length : 0;
+    }
 
     const records = await base("Résultats").select().all();
 
@@ -1075,7 +1085,8 @@ exports.getDashboardStats = onRequest({
         defeatRate: pct(totalDefeats),
         drawRate: pct(totalDraws),
         koRate: pct(totalKos),
-        activeBoxers: boxeursActifsSet.size,
+       activeBoxers: boxeursActifsSet.size,
+        totalBoxeurs,
       },
     });
 
@@ -1106,10 +1117,23 @@ exports.getHistoriqueCombats = onRequest({
 
     const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
     if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
-    const coachEmail = coachDoc.data().email;
+    const coachData = coachDoc.data();
+    const coachEmail = coachData.email;
+    const airtableCoachId = coachData.airtableRecordId;
 
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    // ── Effectif total de boxeurs validés du club ──
+      let totalBoxeurs = 0;
+    if (airtableCoachId) {
+      const boxeursRecords = await base("Boxeurs").select().all();
+      totalBoxeurs = boxeursRecords.filter((record) => {
+        const f = record.fields || {};
+        const coachIds = Array.isArray(f["Liaison vers Coach"]) ? f["Liaison vers Coach"] : [];
+        return coachIds.includes(airtableCoachId);
+      }).length;
+    }
 
     const records = await base("Résultats").select().all();
 

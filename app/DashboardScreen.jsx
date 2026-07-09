@@ -201,7 +201,7 @@ function BilanBottomSheet({ visible, onClose, stats }) {
 
         <ScrollView showsVerticalScrollIndicator={false} bounces={false} style={bs.scrollContent}>
           <Text style={bs.title}>Bilan saison</Text>
-          <Text style={bs.subtitle}>{stats.saison || '2025 -- 2026'} • {stats.activeBoxers || 0} boxeurs actifs</Text>
+          <Text style={bs.subtitle}>{stats.saison || '2025 -- 2026'} • {stats.totalBoxeurs || 0} boxeurs</Text>
 
           <View style={bs.chartRow}>
             <Svg width={svgSize} height={svgSize}>
@@ -444,8 +444,9 @@ export default function DashboardScreen({ navigation }) {
           totalWins: stats.totalWins ?? 0,
           totalDefeats: stats.totalDefeats ?? 0,
           totalDraws: stats.totalDraws ?? 0,
-          totalKos: stats.totalKos ?? 0,
+              totalKos: stats.totalKos ?? 0,
           activeBoxers: stats.activeBoxers ?? 0,
+          totalBoxeurs: stats.totalBoxeurs ?? 0,
           saison: '2025 -- 2026',
         });
 
@@ -542,7 +543,7 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
         <Text style={styles.greet}>Bonjour {coachData.firstName}, 👋</Text>
         <Text style={styles.clubName}>{coachData.clubName}</Text>
 
-        <View style={styles.statsCard}>
+       <View style={styles.statsCard}>
           <View style={styles.statsRow}>
             <View>
               <Text style={styles.statLabel}>Total combats</Text>
@@ -817,6 +818,7 @@ const styles = StyleSheet.create({
   clubName: { fontSize: 14, color: 'rgba(255,255,255,0.85)', marginBottom: 20 },
   statsCard: { backgroundColor: 'rgba(255,255,255,0.97)', borderRadius: 18, padding: 16 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+   statBlock: { flex: 1 },
   statLabel: { fontSize: 12, color: '#888', marginBottom: 4, fontWeight: '500' },
   statValue: { fontSize: 36, fontWeight: '800', color: '#111', lineHeight: 40 },
   statGreen: { color: '#43A047' },
