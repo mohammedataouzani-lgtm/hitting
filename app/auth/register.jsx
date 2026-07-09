@@ -16,7 +16,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerWithEmail } from '../../services/firebase';
 import { createCoachFirestore } from '../../services/firebase';
-import { getAuth, sendEmailVerification } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { getClubsFromFirestore } from '../../services/firebase';
 import { useAuth } from '../../AuthContext';
 
@@ -35,6 +35,7 @@ export default function RegisterScreen({ navigation }) {
   
   // Step 2
   const [emailVerified, setEmailVerified] = useState(false);
+  const [code, setCode] = useState('');
   
   // Step 3
   const [clubs, setClubs] = useState([]);
@@ -65,10 +66,14 @@ export default function RegisterScreen({ navigation }) {
         Alert.alert('Erreur', 'Cet email existe peut-être déjà');
         return;
       }
-      const currentUser = firebaseResult.user;
+     const currentUser = firebaseResult.user;
       setUser(currentUser);
-      await sendEmailVerification(currentUser);
-      Alert.alert('Email de vérification envoyé', `Un lien de confirmation a été envoyé à ${email}.`);
+      const idToken = await currentUser.getIdToken();
+      await fetch(
+        'https://europe-west9-hitting-23de9.cloudfunctions.net/sendVerificationCode',
+        { method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` } }
+      );
+      Alert.alert('Code envoyé', `Un code à 6 chiffres a été envoyé à ${email}.`);
       setStep(2);
     } catch (error) {
       console.error('Erreur Step 1:', error);
@@ -79,13 +84,27 @@ export default function RegisterScreen({ navigation }) {
   };
 
   // ===== STEP 2 =====
-  const handleStep2CheckEmail = async () => {
+ // ===== STEP 2 =====
+  const handleVerifyCode = async () => {
+    if (code.length !== 6) {
+      Alert.alert('Erreur', 'Le code doit contenir 6 chiffres');
+      return;
+    }
     setLoading(true);
     try {
       const auth = getAuth();
       const currentUser = auth.currentUser;
-      await currentUser.reload();
-      if (currentUser.emailVerified) {
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch(
+        'https://europe-west9-hitting-23de9.cloudfunctions.net/verifyEmailCode',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+          body: JSON.stringify({ code }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         setEmailVerified(true);
         const clubsResult = await getClubsFromFirestore();
         if (clubsResult.success) {
@@ -93,11 +112,32 @@ export default function RegisterScreen({ navigation }) {
         }
         setStep(3);
       } else {
-        Alert.alert('Email non vérifié', "Clique sur le lien dans l'email pour vérifier ton adresse");
+        Alert.alert('Code incorrect', data.error || 'Vérifiez le code et réessayez');
+        setCode('');
       }
     } catch (error) {
-      console.error('Erreur Step 2:', error);
+      console.error('Erreur vérification code:', error);
       Alert.alert('Erreur', 'Une erreur est survenue');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setLoading(true);
+    try {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const idToken = await currentUser.getIdToken();
+      await fetch(
+        'https://europe-west9-hitting-23de9.cloudfunctions.net/sendVerificationCode',
+        { method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` } }
+      );
+      setCode('');
+      Alert.alert('Code renvoyé', `Un nouveau code a été envoyé à ${email}.`);
+    } catch (error) {
+      console.error('Erreur renvoi code:', error);
+      Alert.alert('Erreur', "Impossible de renvoyer le code");
     } finally {
       setLoading(false);
     }
@@ -282,21 +322,34 @@ const handlePayment = (plan) => {
   }
 
   // ===== RENDER STEP 2 =====
+ // ===== RENDER STEP 2 =====
+// ===== RENDER STEP 2 =====
   if (step === 2) {
     return (
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <Text style={styles.title}>Vérification email</Text>
-            <Text style={styles.subtitle}>Un lien de confirmation a été envoyé à {email}</Text>
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>Clique sur le lien dans ton email pour vérifier ton adresse.</Text>
-            </View>
-            <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleStep2CheckEmail} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>J'ai vérifié mon email</Text>}
+            <Text style={styles.subtitle}>Un code à 6 chiffres a été envoyé à {email}</Text>
+            <TextInput
+              style={[styles.input, styles.codeInput]}
+              placeholder="000000"
+              placeholderTextColor="#999"
+              value={code}
+              onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
+              keyboardType="number-pad"
+              maxLength={6}
+              editable={!loading}
+              textAlign="center"
+            />
+            <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleVerifyCode} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Vérifier le code</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleResendCode} disabled={loading}>
+              <Text style={styles.footerText}>Vous n'avez rien reçu ? <Text style={styles.footerLink}>Renvoyer le code</Text></Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setStep(1)} disabled={loading}>
-              <Text style={styles.footerText}>Retour</Text>
+              <Text style={[styles.footerText, { marginTop: 12 }]}>Retour</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -393,4 +446,5 @@ const styles = StyleSheet.create({
   bullet: { fontSize: 16, lineHeight: 22 },
   featureText: { fontSize: 14, lineHeight: 22, flex: 1 },
   helpText: { fontSize: 12, color: '#666', marginBottom: 12, marginTop: -8, paddingLeft: 4 },
+  codeInput: { fontSize: 28, fontWeight: '700', letterSpacing: 12, paddingVertical: 20 },
 });

@@ -1197,3 +1197,131 @@ exports.getHistoriqueCombats = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
+
+const nodemailer = require("nodemailer");
+
+function generateCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function getTransporter() {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
+}
+
+// ===== CLOUD FUNCTION v2: sendVerificationCode =====
+exports.sendVerificationCode = onRequest({
+  region: "europe-west9",
+  secrets: ["GMAIL_USER", "GMAIL_APP_PASSWORD"],
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+    const email = decoded.email;
+
+    const code = generateCode();
+    const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + 10 * 60 * 1000);
+
+    await admin.firestore().doc(`emailVerifications/${uid}`).set({
+      code,
+      email,
+      expiresAt,
+      attempts: 0,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const transporter = getTransporter();
+    await transporter.sendMail({
+      from: `"Hitting" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: "Votre code de vérification Hitting",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+          <h2 style="color: #E53935;">Vérification de votre email</h2>
+          <p>Voici votre code de vérification :</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; background: #F5F0EB; padding: 20px; text-align: center; border-radius: 12px; margin: 20px 0;">
+            ${code}
+          </div>
+          <p style="color: #888; font-size: 13px;">Ce code expire dans 10 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+        </div>
+      `,
+    });
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("❌ Erreur sendVerificationCode:", error.message);
+    return res.status(500).json({ error: "Erreur lors de l'envoi du code" });
+  }
+});
+
+// ===== CLOUD FUNCTION v2: verifyEmailCode =====
+exports.verifyEmailCode = onRequest({
+  region: "europe-west9",
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+    const { code } = req.body;
+
+    if (!code) return res.status(400).json({ success: false, error: "Code manquant" });
+
+    const docRef = admin.firestore().doc(`emailVerifications/${uid}`);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(400).json({ success: false, error: "Aucun code en attente. Redemandez un code." });
+    }
+
+    const data = docSnap.data();
+
+    if (data.expiresAt.toMillis() < Date.now()) {
+      await docRef.delete();
+      return res.status(400).json({ success: false, error: "Code expiré. Redemandez un code." });
+    }
+
+    if (data.attempts >= 5) {
+      await docRef.delete();
+      return res.status(400).json({ success: false, error: "Trop de tentatives. Redemandez un code." });
+    }
+
+    if (data.code !== code) {
+      await docRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
+      return res.status(400).json({ success: false, error: "Code incorrect." });
+    }
+
+    await admin.auth().updateUser(uid, { emailVerified: true });
+    await docRef.delete();
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("❌ Erreur verifyEmailCode:", error.message);
+    return res.status(500).json({ error: "Erreur lors de la vérification" });
+  }
+});

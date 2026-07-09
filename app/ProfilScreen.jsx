@@ -20,6 +20,7 @@ import { getCoachProfile, updateTelephone, updateCoachEmail, updateAvatar, delet
 import { useFocusEffect } from '@react-navigation/native';
 import { useNotifications } from '../NotificationContext';
 import { useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function ProfilScreen({ navigation }) {
@@ -47,6 +48,23 @@ export default function ProfilScreen({ navigation }) {
           text: "Se déconnecter",
           style: "destructive",
           onPress: () => logout()
+        }
+      ]
+    );
+  };
+const handleResetOnboarding = () => {
+    Alert.alert(
+      "Debug : revoir l'onboarding",
+      "Ça va vous déconnecter et réafficher l'onboarding au prochain lancement.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Confirmer",
+          onPress: async () => {
+            await AsyncStorage.removeItem('hasSeenOnboarding');
+            navigation.reset({ index: 0, routes: [{ name: 'Onboarding' }] });
+            logout();
+          }
         }
       ]
     );
@@ -294,6 +312,22 @@ export default function ProfilScreen({ navigation }) {
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+          activeOpacity={0.8}
+          style={[styles.logoutBtn, { backgroundColor: '#8E8E93', marginBottom: 10 }]}
+          onPress={handleResetOnboarding}
+        >
+          <Text style={styles.logoutBtnTxt}>🔧 Revoir l'onboarding (debug)</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.logoutBtn}
+          onPress={handleLogout}
+        >
+          <Text style={styles.logoutBtnTxt}>Se déconnecter</Text>
+        </TouchableOpacity>
+
          <TouchableOpacity
   activeOpacity={0.7}
   style={[styles.infoItem, styles.clickableItem]}
@@ -321,14 +355,6 @@ export default function ProfilScreen({ navigation }) {
   <Text style={styles.chevron}>›</Text>
 </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={styles.logoutBtn}
-          onPress={handleLogout}
-        >
-          <Text style={styles.logoutBtnTxt}>Se déconnecter</Text>
-        </TouchableOpacity>
 
       </ScrollView>
 
