@@ -646,6 +646,78 @@ exports.addDemandeMatch = onRequest({
   }
 });
 
+// ===== CLOUD FUNCTION v2: getDemandesMatch =====
+exports.getDemandesMatch = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
+    const coachEmail = coachDoc.data().email;
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    const allRecords = await base("Demandedematch").select().all();
+
+    const envoyees = [];
+    const recues = [];
+
+    for (const record of allRecords) {
+      const f = record.fields || {};
+
+      const emailCoach1 = f["Email Coach 1"] || "";
+      const emailCoach2 = f["Email coach 2"] || "";
+
+      const demande = {
+        id: record.id,
+        idDemande: f["ID Demande"] || "",
+        nomBoxeur: f["Nom de mon boxeur"] || "",
+        prenomBoxeur: f["Prénom de mon boxeur"] || "",
+        nomAdversaire: f["Nom du boxeur adversaire"] || "",
+        prenomAdversaire: f["Prénom du boxeur adversaire"] || "",
+        dateSouhaitee: f["Date souhaitée"] || "",
+        dateDemande: f["Date demande"] || "",
+        adresse: f["Adresse du combat"] || "",
+        message: f["Message "] || f["Message"] || "",
+        statut: f["Statut"] || "En attente",
+        typeCombat: Array.isArray(f["Type combat"]) ? f["Type combat"][0] : f["Type combat"] || "",
+        clubBoxeur: f["Club du boxeur"] || "",
+        clubAdversaire: f["Club boxeur adversaire"] || "",
+        categorieDemandeur: f["Catégorie de poids demandeur"] || "",
+        categorieAdversaire: f["Catégorie de poids adversaire"] || "",
+        commentaireRefus: f["Commentaire du refus"] || "",
+      };
+
+      if (emailCoach1.toLowerCase() === coachEmail.toLowerCase()) {
+        envoyees.push(demande);
+      } else if (emailCoach2.toLowerCase() === coachEmail.toLowerCase()) {
+        recues.push(demande);
+      }
+    }
+
+    return res.status(200).json({ success: true, envoyees, recues });
+
+  } catch (error) {
+    console.error("❌ Erreur getDemandesMatch:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+});
 // ===== CLOUD FUNCTION v2: updateDemandeMatch =====
 exports.updateDemandeMatch = onRequest({
   region: "europe-west9",
@@ -1323,5 +1395,77 @@ exports.verifyEmailCode = onRequest({
   } catch (error) {
     console.error("❌ Erreur verifyEmailCode:", error.message);
     return res.status(500).json({ error: "Erreur lors de la vérification" });
+  }
+});
+
+
+// ===== CLOUD FUNCTION v2: checkConflitBoxeur =====
+exports.checkConflitBoxeur = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+
+    const coachDoc = await admin.firestore().doc(`coaches/${uid}`).get();
+    if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
+    const coachEmail = coachDoc.data().email;
+
+    const { nom, prenom, date } = req.query;
+    if (!nom || !prenom || !date) {
+      return res.status(400).json({ error: "nom, prenom et date sont requis" });
+    }
+
+    const normalizeNom = (str) => str.toLowerCase().trim().split(/\s+/).sort().join(' ');
+    const monBoxeurNormalized = normalizeNom(`${prenom} ${nom}`);
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    const records = await base("Demandedematch").select({
+      filterByFormula: `OR({Statut} = "En attente", {Statut} = "Accepté")`
+    }).all();
+
+    let conflit = null;
+
+    for (const record of records) {
+      const f = record.fields || {};
+      const dateDemande = f["Date souhaitée"] || "";
+      if (!dateDemande || !dateDemande.startsWith(date)) continue;
+
+      const emailCoach1 = (f["Email Coach 1"] || "").toLowerCase();
+      const boxeurNomDemande = normalizeNom(`${f["Prénom de mon boxeur"] || ""} ${f["Nom de mon boxeur"] || ""}`);
+
+      // Le boxeur en question est-il "mon boxeur" sur une autre demande de ce coach à cette date ?
+      const estMonBoxeur = emailCoach1 === coachEmail.toLowerCase() && boxeurNomDemande === monBoxeurNormalized;
+
+      if (!estMonBoxeur) continue;
+
+      const statut = f["Statut"] || "";
+      if (statut === "Accepté") {
+        conflit = "confirme";
+        break; // priorité maximale, on arrête la recherche
+      } else if (statut === "En attente" && conflit !== "confirme") {
+        conflit = "attente";
+      }
+    }
+
+    return res.status(200).json({ success: true, conflit });
+
+  } catch (error) {
+    console.error("❌ Erreur checkConflitBoxeur:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });

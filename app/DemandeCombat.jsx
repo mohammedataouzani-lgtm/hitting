@@ -73,7 +73,7 @@ export default function DemandeCombatScreen({ navigation, route }) {
     fetchCoachClub();
   }, []);
 
- const handleSendRequest = async () => {
+const handleSendRequest = async () => {
   // ✅ Validation avant envoi
   if (!message.trim()) {
     Alert.alert("Champ manquant", "Veuillez ajouter un message pour le coach adverse.");
@@ -83,17 +83,53 @@ export default function DemandeCombatScreen({ navigation, route }) {
     Alert.alert("Champ manquant", "Veuillez renseigner l'adresse du combat.");
     return;
   }
+
   try {
-      setLoading(true);
-      const auth = getAuth();
-      const idToken = await auth.currentUser.getIdToken();
-      const emailCoach1 = auth.currentUser.email;
+    setLoading(true);
+    const auth = getAuth();
+    const idToken = await auth.currentUser.getIdToken();
+    const dateStr = toLocalDateStr(dateSouhaitee);
+
+   const boxerNomParts = (boxer.nom || '').trim().split(' ');
+    const boxerPrenomSplit = boxerNomParts[0] || '';
+    const boxerNomSplit = boxerNomParts.slice(1).join(' ') || boxerNomParts[0] || '';
+
+    const conflitResponse = await fetch(
+      `https://europe-west9-hitting-23de9.cloudfunctions.net/checkConflitBoxeur?nom=${encodeURIComponent(boxerNomSplit)}&prenom=${encodeURIComponent(boxerPrenomSplit)}&date=${dateStr}`,
+      { headers: { 'Authorization': `Bearer ${idToken}` } }
+    );
+    const conflitData = await conflitResponse.json();
+
+    if (conflitData.conflit === 'confirme') {
+      const confirmer = await new Promise((resolve) => {
+        Alert.alert(
+          "⚠️ Combat déjà confirmé",
+          `${boxer.prenom} ${boxer.nom} a déjà un combat confirmé le ${formatDate(dateSouhaitee)}. Voulez-vous vraiment envoyer cette demande ?`,
+          [
+            { text: "Annuler", style: "cancel", onPress: () => resolve(false) },
+            { text: "Continuer quand même", style: "destructive", onPress: () => resolve(true) },
+          ]
+        );
+      });
+      if (!confirmer) { setLoading(false); return; }
+    } else if (conflitData.conflit === 'attente') {
+      const confirmer = await new Promise((resolve) => {
+        Alert.alert(
+          "Demande déjà en attente",
+          `${boxer.prenom} ${boxer.nom} a déjà une demande en attente pour le ${formatDate(dateSouhaitee)}. Continuer quand même ?`,
+          [
+            { text: "Annuler", style: "cancel", onPress: () => resolve(false) },
+            { text: "Continuer", onPress: () => resolve(true) },
+          ]
+        );
+      });
+      if (!confirmer) { setLoading(false); return; }
+    }
+    const emailCoach1 = auth.currentUser.email;
 
       const nomParts = (adversaire.adversaireNom || '').trim().split(' ');
       const prenomAdversaire = nomParts[0] || '';
       const nomAdversaire = nomParts.slice(1).join(' ') || nomParts[0] || '';
-
-      const dateStr = toLocalDateStr(dateSouhaitee);
 
       const response = await fetch(
         'https://europe-west9-hitting-23de9.cloudfunctions.net/addDemandeMatch',
@@ -104,8 +140,8 @@ export default function DemandeCombatScreen({ navigation, route }) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            nomBoxeur: boxer.nom || '',
-            prenomBoxeur: boxer.prenom || '',
+            nomBoxeur: boxerNomSplit,
+            prenomBoxeur: boxerPrenomSplit,
             nomAdversaire,
             prenomAdversaire,
             dateSouhaitee: dateStr,
