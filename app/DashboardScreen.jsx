@@ -258,7 +258,7 @@ const TYPE_LABEL = {
   evenement: 'Événement',
 };
 
-function EvenementDetailBottomSheet({ visible, onClose, eventInfo, onVoirTout }) {
+function EvenementDetailBottomSheet({ visible, onClose, eventInfo, onVoirEvenements, onVoirDemandes }) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   const open = useCallback(() => {
@@ -305,7 +305,7 @@ function EvenementDetailBottomSheet({ visible, onClose, eventInfo, onVoirTout })
 
         {isCombat ? (
           <>
-            <Text style={eds.title}>{data.combattants || `${data.boxeurA || ''} vs ${data.boxeurB || ''}`}</Text>
+            <Text style={eds.title}>{data.titre || 'Combat'}</Text>
             {data.dateFormatee ? (
               <View style={eds.infoRow}>
                 <Text style={eds.infoIcon}>📅</Text>
@@ -340,8 +340,21 @@ function EvenementDetailBottomSheet({ visible, onClose, eventInfo, onVoirTout })
           </>
         )}
 
-        <TouchableOpacity style={eds.voirBtn} activeOpacity={0.85} onPress={() => { close(); onVoirTout && onVoirTout(); }}>
-          <Text style={eds.voirBtnTxt}>Voir tous les événements</Text>
+      <TouchableOpacity
+          style={eds.voirBtn}
+          activeOpacity={0.85}
+          onPress={() => {
+            close();
+            if (isCombat) {
+              onVoirDemandes && onVoirDemandes();
+            } else {
+              onVoirEvenements && onVoirEvenements();
+            }
+          }}
+        >
+          <Text style={eds.voirBtnTxt}>
+            {isCombat ? 'Voir mes demandes' : 'Voir tous les événements'}
+          </Text>
         </TouchableOpacity>
         <View style={{ height: 20 }} />
       </Animated.View>
@@ -671,13 +684,10 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
         renderItem={({ item }) => {
           const isRecue = item.type === 'recue';
           return (
-            <TouchableOpacity
+         <TouchableOpacity
               activeOpacity={0.9}
               style={[styles.demandeCard, { width: width - 36 }]}
-              onPress={() => {
-                setSelectedDemandeDetail({ type: 'demande', data: item });
-                setDemandeDetailVisible(true);
-              }}
+              onPress={() => navigation.navigate('DemandesMatch')}
             >
               <View style={styles.demandeBadges}>
                 <View style={[styles.badgeType, { backgroundColor: isRecue ? '#FFF8E1' : '#E3F2FD' }]}>
@@ -685,8 +695,10 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
                     {isRecue ? '🥊 Demande reçue' : '📤 Demande envoyée'}
                   </Text>
                 </View>
-                <View style={styles.badgeStatut}>
-                  <Text style={styles.badgeStatutTxt}>EN ATTENTE</Text>
+               <View style={[styles.badgeStatut, item.statut === 'Accepté' && styles.badgeStatutAccepte]}>
+                  <Text style={[styles.badgeStatutTxt, item.statut === 'Accepté' && styles.badgeStatutTxtAccepte]}>
+                    {item.statut === 'Accepté' ? 'ACCEPTÉ' : 'EN ATTENTE'}
+                  </Text>
                 </View>
               </View>
 
@@ -791,11 +803,12 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
       />
 
       <BilanBottomSheet visible={bilanVisible} onClose={() => setBilanVisible(false)} stats={coachData} />
-  <EvenementDetailBottomSheet
+    <EvenementDetailBottomSheet
         visible={eventDetailVisible}
         onClose={() => setEventDetailVisible(false)}
         eventInfo={selectedEventDetail}
-        onVoirTout={() => navigation.navigate('Evenements')}
+        onVoirEvenements={() => navigation.navigate('Evenements')}
+        onVoirDemandes={() => navigation.navigate('DemandesMatch')}
       />
       <ActionSheet
         visible={actionSheetVisible}
@@ -844,6 +857,8 @@ const styles = StyleSheet.create({
   badgeType: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   badgeTypeTxt: { fontSize: 11, fontWeight: '700' },
   badgeStatut: { backgroundColor: '#EAEBF8', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeStatutAccepte: { backgroundColor: '#E8F5E9' },
+  badgeStatutTxtAccepte: { color: '#2E7D32' },
   badgeStatutTxt: { fontSize: 11, fontWeight: '700', color: '#5C6BC0' },
   demandeTitle: { fontSize: 17, fontWeight: '800', color: '#111', marginBottom: 2 },
   demandeVsTxt: { fontSize: 13, color: '#999', fontWeight: '600', marginBottom: 2 },

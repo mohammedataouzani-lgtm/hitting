@@ -809,7 +809,9 @@ exports.getNotifications = onRequest({
 
     // ── Demandes en attente (envoyées + reçues) ──
     const demandesRecords = await base("Demandedematch").select().all();
- const demandesEnAttente = demandesRecords
+const now = new Date();
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const demandesEnAttente = demandesRecords
       .map((record) => {
         const f = record.fields || {};
         return {
@@ -826,7 +828,17 @@ exports.getNotifications = onRequest({
           dateRaw: f["Date et heure"] || record._rawJson.createdTime,
         };
       })
-      .filter((d) => d.statut === "En attente")
+      .filter((d) => {
+        if (d.statut === "En attente") return true;
+        if (d.statut === "Accepté") {
+          if (!d.dateSouhaitee) return false;
+          const dDate = new Date(d.dateSouhaitee);
+          if (isNaN(dDate.getTime())) return false;
+          const dDateStart = new Date(Date.UTC(dDate.getUTCFullYear(), dDate.getUTCMonth(), dDate.getUTCDate()));
+          return dDateStart >= todayStart;
+        }
+        return false;
+      })
       .filter((d) =>
         d.emailCoach1.toLowerCase() === coachEmail.toLowerCase() ||
         d.emailCoach2.toLowerCase() === coachEmail.toLowerCase()
