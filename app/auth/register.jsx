@@ -254,7 +254,16 @@ export default function RegisterScreen({ navigation }) {
 
     return (
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <OffreGratuitePopup visible={showFreePopup} onClose={() => setShowFreePopup(false)} />
+        <OffreGratuitePopup
+          visible={showFreePopup}
+          onClose={() => {
+            setShowFreePopup(false);
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Dashboard' }],
+            });
+          }}
+        />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <Text style={styles.title}>Choisissez votre formule</Text>
