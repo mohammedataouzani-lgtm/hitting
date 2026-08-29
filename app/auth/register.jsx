@@ -19,6 +19,7 @@ import { createCoachFirestore } from '../../services/firebase';
 import { getAuth } from 'firebase/auth';
 import { getClubsFromFirestore } from '../../services/firebase';
 import { useAuth } from '../../AuthContext';
+import OffreGratuitePopup from '../OffreGratuitePopup';
 
 export default function RegisterScreen({ navigation }) {
   const { login } = useAuth();
@@ -44,6 +45,7 @@ export default function RegisterScreen({ navigation }) {
   const [numeroLicence, setNumeroLicence] = useState('');
   const [showClubModal, setShowClubModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [showFreePopup, setShowFreePopup] = useState(true);
 
   // ===== STEP 1 =====
   const handleStep1Continue = async () => {
@@ -84,7 +86,6 @@ export default function RegisterScreen({ navigation }) {
   };
 
   // ===== STEP 2 =====
- // ===== STEP 2 =====
   const handleVerifyCode = async () => {
     if (code.length !== 6) {
       Alert.alert('Erreur', 'Le code doit contenir 6 chiffres');
@@ -230,27 +231,28 @@ export default function RegisterScreen({ navigation }) {
         ],
       },
     ];
-const handlePayment = (plan) => {
-  Alert.alert(
-    'Confirmer votre abonnement',
-    `Vous allez souscrire à l'offre ${plan.label} à ${plan.price}.`,
-    [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Confirmer',
-        onPress: () => {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Dashboard' }],
-          });
-        }
-      },
-    ]
-  );
-};
+    const handlePayment = (plan) => {
+      Alert.alert(
+        'Confirmer votre abonnement',
+        `Vous allez souscrire à l'offre ${plan.label} à ${plan.price}.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Confirmer',
+            onPress: () => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Dashboard' }],
+              });
+            }
+          },
+        ]
+      );
+    };
 
     return (
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <OffreGratuitePopup visible={showFreePopup} onClose={() => setShowFreePopup(false)} />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <Text style={styles.title}>Choisissez votre formule</Text>
@@ -322,8 +324,6 @@ const handlePayment = (plan) => {
   }
 
   // ===== RENDER STEP 2 =====
- // ===== RENDER STEP 2 =====
-// ===== RENDER STEP 2 =====
   if (step === 2) {
     return (
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -412,7 +412,7 @@ const handlePayment = (plan) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   scrollContent: { flexGrow: 1 },
-  content: { flex: 1, padding: 24 },
+  content: { flex: 1, padding: 24, justifyContent: 'center' },
   title: { fontSize: 28, fontWeight: 'bold', color: '#000', marginBottom: 8, marginTop: 20 },
   subtitle: { fontSize: 14, color: '#666', marginBottom: 32 },
   label: { fontSize: 14, fontWeight: '600', color: '#000', marginBottom: 8, marginTop: 16 },
@@ -434,6 +434,8 @@ const styles = StyleSheet.create({
   clubItem: { paddingHorizontal: 24, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   clubItemName: { fontSize: 16, fontWeight: '600', color: '#000', marginBottom: 4 },
   clubItemDetails: { fontSize: 14, color: '#999' },
+  helpText: { fontSize: 12, color: '#666', marginBottom: 12, marginTop: -8, paddingLeft: 4 },
+  codeInput: { fontSize: 28, fontWeight: '700', letterSpacing: 12, paddingVertical: 20 },
   card: { borderRadius: 16, padding: 20, marginBottom: 20 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   planLabel: { fontSize: 14, fontWeight: '500' },
@@ -445,6 +447,17 @@ const styles = StyleSheet.create({
   featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   bullet: { fontSize: 16, lineHeight: 22 },
   featureText: { fontSize: 14, lineHeight: 22, flex: 1 },
-  helpText: { fontSize: 12, color: '#666', marginBottom: 12, marginTop: -8, paddingLeft: 4 },
-  codeInput: { fontSize: 28, fontWeight: '700', letterSpacing: 12, paddingVertical: 20 },
+  freeCard: {
+    backgroundColor: '#FFF3F3',
+    borderRadius: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#F8D7D7',
+  },
+  freeEmoji: { fontSize: 44, marginBottom: 14 },
+  freeTitle: { fontSize: 20, fontWeight: '800', color: '#000', textAlign: 'center', marginBottom: 12 },
+  freeBody: { fontSize: 14, color: '#555', textAlign: 'center', lineHeight: 21 },
 });
