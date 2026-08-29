@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1 },
   carouselContainer: { height: 300, position: "relative" },
   slide: { width: width, height: 300 },
-  carouselImage: { width: width - 32, height: 300, marginHorizontal: 16, borderRadius: 20, resizeMode: "cover" },
+  carouselImage: { width: width - 32, height: 900, marginHorizontal: 16, borderRadius: 20, resizeMode: "cover" },
   pagination: { flexDirection: "row", position: "absolute", bottom: 16, alignSelf: "center" },
   paginationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#ccc", marginHorizontal: 4 },
   paginationDotActive: { backgroundColor: "#000" },
