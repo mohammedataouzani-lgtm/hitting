@@ -11,6 +11,7 @@ import {
   Alert,
   Dimensions,
   TextInput,
+  Linking,
 } from 'react-native';
 import { useAuth } from '../AuthContext';
 import BottomTabBar from './components/BottomTabBar';
@@ -275,6 +276,37 @@ export default function ProfilScreen({ navigation }) {
             <Text style={styles.infoLabel}>Numéro d'affiliation</Text>
             <Text style={styles.infoValue}>{profile?.affiliation || '—'}</Text>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>LÉGAL</Text>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => Linking.openURL('https://TON-DOMAINE.fr/politique-confidentialite.html')}
+            style={[styles.infoItem, styles.clickableItem]}
+          >
+            <Text style={styles.infoLabel}>Politique de confidentialité</Text>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => Linking.openURL('https://TON-DOMAINE.fr/mentions-legales.html')}
+            style={[styles.infoItem, styles.clickableItem]}
+          >
+            <Text style={styles.infoLabel}>Mentions légales</Text>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => Linking.openURL('https://TON-DOMAINE.fr/cgu.html')}
+            style={[styles.infoItem, styles.clickableItem]}
+          >
+            <Text style={styles.infoLabel}>Conditions générales d'utilisation</Text>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
