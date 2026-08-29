@@ -20,6 +20,7 @@ import { getAuth } from 'firebase/auth';
 import { getClubsFromFirestore } from '../../services/firebase';
 import { useAuth } from '../../AuthContext';
 import OffreGratuitePopup from '../OffreGratuitePopup';
+import CguAcceptancePopup from '../CguAcceptancePopup';
 
 export default function RegisterScreen({ navigation }) {
   const { login } = useAuth();
@@ -46,6 +47,7 @@ export default function RegisterScreen({ navigation }) {
   const [showClubModal, setShowClubModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showFreePopup, setShowFreePopup] = useState(true);
+  const [showTermsPopup, setShowTermsPopup] = useState(true);
 
   // ===== STEP 1 =====
   const handleStep1Continue = async () => {
@@ -303,6 +305,12 @@ export default function RegisterScreen({ navigation }) {
   if (step === 1) {
     return (
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <CguAcceptancePopup
+          visible={showTermsPopup}
+          navigation={navigation}
+          onRefuse={() => navigation.goBack()}
+          onAccept={() => setShowTermsPopup(false)}
+        />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <Text style={styles.title}>Créer un compte</Text>
