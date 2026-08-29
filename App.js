@@ -19,9 +19,9 @@ import HistoriqueCombatsScreen from './app/HistoriqueCombatsScreen';
 import { NotificationProvider } from './NotificationContext';
 import OnboardingScreen from './app/OnboardingScreen';
 
-import PolitiqueConfidentialiteScreen from './screens/PolitiqueConfidentialiteScreen';
-import MentionsLegalesScreen from './screens/MentionsLegalesScreen';
-import CGUScreen from './screens/CGUScreen';
+import PolitiqueConfidentialiteScreen from './app/PolitiqueConfidentialiteScreen';
+import MentionsLegalesScreen from './app/MentionsLegalesScreen';
+import CGUScreen from './app/CGUScreen';
 
 
 const Stack = createNativeStackNavigator();
