@@ -283,7 +283,7 @@ export default function ProfilScreen({ navigation }) {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => Linking.openURL('https://TON-DOMAINE.fr/politique-confidentialite.html')}
+            onPress={() => Linking.openURL('https://hitting.fr/politique-confidentialite.html')}
             style={[styles.infoItem, styles.clickableItem]}
           >
             <Text style={styles.infoLabel}>Politique de confidentialité</Text>
@@ -292,7 +292,7 @@ export default function ProfilScreen({ navigation }) {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => Linking.openURL('https://TON-DOMAINE.fr/mentions-legales.html')}
+            onPress={() => Linking.openURL('https://hitting.fr/mentions-legales.html')}
             style={[styles.infoItem, styles.clickableItem]}
           >
             <Text style={styles.infoLabel}>Mentions légales</Text>
@@ -301,7 +301,7 @@ export default function ProfilScreen({ navigation }) {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => Linking.openURL('https://TON-DOMAINE.fr/cgu.html')}
+            onPress={() => Linking.openURL('https://hitting.fr/cgu.html')}
             style={[styles.infoItem, styles.clickableItem]}
           >
             <Text style={styles.infoLabel}>Conditions générales d'utilisation</Text>
