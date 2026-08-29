@@ -21,7 +21,7 @@ import OnboardingScreen from './app/OnboardingScreen';
 
 import PolitiqueConfidentialiteScreen from './app/PolitiqueConfidentialiteScreen.jsx';
 import MentionsLegalesScreen from './app/MentionsLegalesScreen.jsx';
-import CGUScreen from './app/CGUScreen';
+import CGUScreen from './app/CGUScreen.jsx';
 
 
 const Stack = createNativeStackNavigator();
