@@ -313,9 +313,9 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   scrollContent: { flexGrow: 1 },
-  carouselContainer: { height: 900, position: "relative" },
-  slide: { width: width, height: 900 },
-  carouselImage: { width: width - 32, height: 300, marginHorizontal: 16, borderRadius: 20, resizeMode: "cover" },
+ carouselContainer: { height: 450, position: "relative" },
+slide: { width: width, height: 450 },
+carouselImage: { width: width - 32, height: 450, marginHorizontal: 16, borderRadius: 20, resizeMode: "cover" },
   pagination: { flexDirection: "row", position: "absolute", bottom: 16, alignSelf: "center" },
   paginationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#ccc", marginHorizontal: 4 },
   paginationDotActive: { backgroundColor: "#000" },
