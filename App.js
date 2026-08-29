@@ -19,8 +19,8 @@ import HistoriqueCombatsScreen from './app/HistoriqueCombatsScreen';
 import { NotificationProvider } from './NotificationContext';
 import OnboardingScreen from './app/OnboardingScreen';
 
-import PolitiqueConfidentialiteScreen from './app/PolitiqueConfidentialiteScreen';
-import MentionsLegalesScreen from './app/MentionsLegalesScreen';
+import PolitiqueConfidentialiteScreen from './app/PolitiqueConfidentialiteScreen.jsx';
+import MentionsLegalesScreen from './app/MentionsLegalesScreen.jsx';
 import CGUScreen from './app/CGUScreen';
 
 
