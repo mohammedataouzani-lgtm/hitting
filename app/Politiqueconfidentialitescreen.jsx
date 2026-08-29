@@ -13,7 +13,7 @@ const SECTIONS = [
   {
     heading: '1. Qui sommes-nous',
     body:
-      "Hitting est une application mobile destinée aux coachs de boxe pour organiser des combats interclubs (mise en relation de boxeurs, suivi des demandes de combat, gestion d'événements).\n\nResponsable du traitement des données :\nSTREAM & CO (association loi 1901), représentée par Wassila AMOURA, Présidente\n7 Bâtiment A, 16 B boulevard Aristide Briand, 93100 Montreuil\nContact : hitting.contact@gmail.com",
+      "Hitting est une application mobile destinée aux coachs de boxe pour organiser des combats interclubs (mise en relation de boxeurs, suivi des demandes de combat, gestion d'événements).\n\nResponsable du traitement des données :\nSTREAM & CO (association loi 1901), représentée par Karina BENAMAOUCHE, Présidente\n7 Bâtiment A, 16 B boulevard Aristide Briand, 93100 Montreuil\nContact : hitting.contact@gmail.com",
   },
   {
     heading: '2. Données que nous collectons',

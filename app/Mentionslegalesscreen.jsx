@@ -17,7 +17,7 @@ const SECTIONS = [
   },
   {
     heading: 'Directrice de la publication',
-    body: 'Wassila AMOURA, Présidente de STREAM & CO',
+    body: 'Karina BENAMAOUCHE, Présidente de STREAM & CO',
   },
   {
     heading: 'Hébergement',
