@@ -11,7 +11,6 @@ import {
   Alert,
   Dimensions,
   TextInput,
-  Linking,
 } from 'react-native';
 import { useAuth } from '../AuthContext';
 import BottomTabBar from './components/BottomTabBar';
@@ -283,7 +282,7 @@ export default function ProfilScreen({ navigation }) {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => Linking.openURL('https://hitting.fr/politique-confidentialite.html')}
+            onPress={() => navigation.navigate('PolitiqueConfidentialite')}
             style={[styles.infoItem, styles.clickableItem]}
           >
             <Text style={styles.infoLabel}>Politique de confidentialité</Text>
@@ -292,7 +291,7 @@ export default function ProfilScreen({ navigation }) {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => Linking.openURL('https://hitting.fr/mentions-legales.html')}
+            onPress={() => navigation.navigate('MentionsLegales')}
             style={[styles.infoItem, styles.clickableItem]}
           >
             <Text style={styles.infoLabel}>Mentions légales</Text>
@@ -301,7 +300,7 @@ export default function ProfilScreen({ navigation }) {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => Linking.openURL('https://hitting.fr/cgu.html')}
+            onPress={() => navigation.navigate('CGU')}
             style={[styles.infoItem, styles.clickableItem]}
           >
             <Text style={styles.infoLabel}>Conditions générales d'utilisation</Text>

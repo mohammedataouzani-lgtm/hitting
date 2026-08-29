@@ -19,6 +19,10 @@ import HistoriqueCombatsScreen from './app/HistoriqueCombatsScreen';
 import { NotificationProvider } from './NotificationContext';
 import OnboardingScreen from './app/OnboardingScreen';
 
+import PolitiqueConfidentialiteScreen from './screens/PolitiqueConfidentialiteScreen';
+import MentionsLegalesScreen from './screens/MentionsLegalesScreen';
+import CGUScreen from './screens/CGUScreen';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -45,6 +49,9 @@ export default function App() {
            <Stack.Screen name="HistoriqueCombats" component={HistoriqueCombatsScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          <Stack.Screen name="PolitiqueConfidentialite" component={PolitiqueConfidentialiteScreen} />
+<Stack.Screen name="MentionsLegales" component={MentionsLegalesScreen} />
+<Stack.Screen name="CGU" component={CGUScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       </NotificationProvider>
