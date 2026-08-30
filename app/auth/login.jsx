@@ -71,8 +71,8 @@ export default function LoginScreen({ navigation }) {
 
   const carouselImages = [
     "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800",
-    "https://images.unsplash.com/photo-1561677843-39dee7a319ca?w=800",
-    "https://images.unsplash.com/photo-1587411768941-671226e4a152?w=800",
+    "https://unsplash.com/fr/photos/boxeurs-sentrainant-dans-larene-dinglewood-lUK16p_JtCM?w=800",
+    "https://unsplash.com/fr/photos/personne-en-bottes-en-cuir-noir-F-rQyigh1BE?w=800",
   ];
 
   const handleLogin = async () => {
