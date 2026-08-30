@@ -7,6 +7,8 @@ import { getFirestore } from 'firebase/firestore';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { Keyboard } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -90,6 +92,26 @@ function BoxerCard({ boxer, onEdit, onPress }) {
 function AddBoxeurSheet({ visible, onClose, onAdd }) {
   const slideAnim = useRef(new Animated.Value(height)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+const [dateObj, setDateObj] = useState(null);
+
+React.useEffect(() => {
+  const showEvent = Platform.OS === 'android' ? 'keyboardDidShow' : 'keyboardWillShow';
+  const hideEvent = Platform.OS === 'android' ? 'keyboardDidHide' : 'keyboardWillHide';
+
+  const showSub = Keyboard.addListener(showEvent, (e) => {
+    setKeyboardHeight(e.endCoordinates.height);
+  });
+  const hideSub = Keyboard.addListener(hideEvent, () => {
+    setKeyboardHeight(0);
+  });
+
+  return () => {
+    showSub.remove();
+    hideSub.remove();
+  };
+}, []);
 
   const [photoLicence, setPhotoLicence] = useState(null);
   const [photoBoxeur, setPhotoBoxeur] = useState(null);
@@ -262,17 +284,18 @@ return (
 
       {/* ✅ KeyboardAvoidingView DANS la sheet, pas autour du Modal */}
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={s.sheetBody}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-        >
-          
+  style={{ flex: 1 }}
+  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+>
+  <ScrollView
+    showsVerticalScrollIndicator={false}
+    contentContainerStyle={[
+      s.sheetBody,
+      { paddingBottom: Platform.OS === 'android' ? keyboardHeight + 20 : 20 },
+    ]}
+    keyboardShouldPersistTaps="handled"
+    keyboardDismissMode="interactive"
+  >
        <View style={s.boxeurPhotoSection}>
             <View style={s.boxeurPhotoContainer}>
               {photoBoxeur ? (
@@ -292,35 +315,50 @@ return (
           </View>
 
           <Text style={s.sectionLabel}>IDENTITÉ</Text>
-          <View style={s.row}>
-             <View style={{ flex: 1 }}>
-              <Text style={s.fieldLabel}>Prénom *</Text>
-              <TextInput style={[s.input, errors.prenom && s.inputError]} placeholder="Jean" placeholderTextColor="#C0C0C0" value={prenom} onChangeText={(v) => { setPrenom(v); setErrors(p => ({ ...p, prenom: false })); }} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.fieldLabel}>Nom *</Text>
-              <TextInput style={[s.input, errors.nom && s.inputError]} placeholder="Dupont" placeholderTextColor="#C0C0C0" value={nom} onChangeText={(v) => { setNom(v); setErrors(p => ({ ...p, nom: false })); }} />
-            </View>
-            <View style={{ width: 12 }} />
-           
-          </View>
+         <View style={s.row}>
+  <View style={{ flex: 1 }}>
+    <Text style={s.fieldLabel}>Prénom *</Text>
+    <TextInput style={[s.input, errors.prenom && s.inputError]} placeholder="Jean" placeholderTextColor="#C0C0C0" value={prenom} onChangeText={(v) => { setPrenom(v); setErrors(p => ({ ...p, prenom: false })); }} />
+  </View>
+  <View style={{ width: 12 }} />
+  <View style={{ flex: 1 }}>
+    <Text style={s.fieldLabel}>Nom *</Text>
+    <TextInput style={[s.input, errors.nom && s.inputError]} placeholder="Dupont" placeholderTextColor="#C0C0C0" value={nom} onChangeText={(v) => { setNom(v); setErrors(p => ({ ...p, nom: false })); }} />
+  </View>
+</View>
 
-          <Text style={s.fieldLabel}>Date de naissance</Text>
-          <View style={s.dateRow}>
-            <TextInput
-              style={[s.input, { flex: 1 }]} placeholder="jj/mm/aaaa" placeholderTextColor="#C0C0C0"
-              value={dateNaissance}
-              onChangeText={(text) => {
-                const cleaned = text.replace(/\D/g, '');
-                let formatted = cleaned;
-                if (cleaned.length >= 3 && cleaned.length <= 4) formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2)}`;
-                else if (cleaned.length >= 5) formatted = `${cleaned.slice(0,2)}/${cleaned.slice(2,4)}/${cleaned.slice(4,8)}`;
-                setDateNaissance(formatted);
-              }}
-              keyboardType="numeric" maxLength={10}
-            />
-            <TouchableOpacity style={s.calendarBtn}><Text style={s.calendarIcon}>📅</Text></TouchableOpacity>
-          </View>
+        <Text style={s.fieldLabel}>Date de naissance</Text>
+<Pressable onPress={() => setShowDatePicker(true)}>
+  <View pointerEvents="none">
+    <TextInput
+      style={[s.input, { marginBottom: 16 }]}
+      placeholder="jj/mm/aaaa"
+      placeholderTextColor="#C0C0C0"
+      value={dateNaissance}
+      editable={false}
+    />
+  </View>
+</Pressable>
+
+{showDatePicker && (
+  <DateTimePicker
+    value={dateObj || new Date(2000, 0, 1)}
+    mode="date"
+    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+    maximumDate={new Date()}
+    onChange={(event, selectedDate) => {
+      setShowDatePicker(Platform.OS === 'ios');
+      if (event.type === 'dismissed') return;
+      if (selectedDate) {
+        setDateObj(selectedDate);
+        const jj = String(selectedDate.getDate()).padStart(2, '0');
+        const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const aaaa = selectedDate.getFullYear();
+        setDateNaissance(`${jj}/${mm}/${aaaa}`);
+      }
+    }}
+  />
+)}
 
           <Text style={s.fieldLabel}>Sexe *</Text>
           <View style={[s.row, { marginBottom: 20 }]}>
