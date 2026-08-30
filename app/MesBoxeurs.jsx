@@ -345,6 +345,9 @@ return (
     value={dateObj || new Date(2000, 0, 1)}
     mode="date"
     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+    themeVariant="light"
+    locale="fr-FR"
+    style={Platform.OS === 'ios' ? { height: 180 } : undefined}
     maximumDate={new Date()}
     onChange={(event, selectedDate) => {
       setShowDatePicker(Platform.OS === 'ios');
