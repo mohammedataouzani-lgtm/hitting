@@ -71,8 +71,8 @@ export default function LoginScreen({ navigation }) {
 
   const carouselImages = [
     "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800",
-    "https://unsplash.com/fr/photos/boxeurs-sentrainant-dans-larene-dinglewood-lUK16p_JtCM?w=800",
-    "https://unsplash.com/fr/photos/personne-en-bottes-en-cuir-noir-F-rQyigh1BE?w=800",
+    "https://images.unsplash.com/photo-1509563268479-0f004cf3f58b?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D=800",
+    "https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D=800",
   ];
 
   const handleLogin = async () => {
