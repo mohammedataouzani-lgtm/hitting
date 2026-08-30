@@ -106,7 +106,7 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       const result = await loginWithGoogleCredential(idToken);
-      if (!result.success) { Alert.alert("Erreur", "Connexion Google échouée"); setLoading(false); return; }
+      if (!result.success) { Alert.alert("Erreur", "Connexion Google chouée"); setLoading(false); return; }
       const { user } = result;
       const db = getFirestore();
       const q = query(collection(db, "coaches"), where("firebaseUID", "==", user.uid));
