@@ -192,9 +192,26 @@ function AddEventSheet({ visible, onClose, onAdd }) {
             </Text>
           </TouchableOpacity>
           {showPicker && (
-            <DateTimePicker value={dateObject} mode="datetime" display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(e, d) => { setShowPicker(false); if (d) setDateObject(d); }} />
-          )}
+  <>
+    <View style={styles.datePickerHeader}>
+      <TouchableOpacity onPress={() => setShowPicker(false)}>
+        <Text style={styles.datePickerDoneTxt}>Valider</Text>
+      </TouchableOpacity>
+    </View>
+    <DateTimePicker
+      value={dateObject}
+      mode="datetime"
+      display="spinner"
+      themeVariant="light"
+      locale="fr-FR"
+      style={{ height: 180 }}
+      onChange={(event, d) => {
+        if (event.type === 'dismissed') return;
+        if (d) setDateObject(d);
+      }}
+    />
+  </>
+)}
           <Text style={styles.fieldLabel}>Lieu / Salle *</Text>
           <TextInput style={styles.input} placeholder="Ex: Gymnase Carpentier" placeholderTextColor="#A1A1A6" value={salle} onChangeText={setSalle} />
           <Text style={styles.fieldLabel}>Contact</Text>

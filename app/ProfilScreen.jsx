@@ -438,8 +438,15 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F2F2F7',
   },
   clickableItem: { borderBottomWidth: 0.5 },
-  infoLabel: { fontSize: 14, fontWeight: '700', color: '#1C1C1E' },
-  infoValue: { fontSize: 14, color: '#8E8E93', fontWeight: '500' },
+infoLabel: { fontSize: 14, fontWeight: '700', color: '#1C1C1E', flexShrink: 0 },
+infoValue: {
+  fontSize: 14,
+  color: '#8E8E93',
+  fontWeight: '500',
+  flex: 1,
+  textAlign: 'right',
+  marginLeft: 8,
+},
   infoValueInput: {
     fontSize: 14,
     color: '#8E8E93',

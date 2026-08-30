@@ -818,9 +818,7 @@ export default function MesBoxeursScreen({ navigation, route }) {
               <Text style={s.searchIconTxt}>🔍</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={s.filterBtn}>
-            <Text style={s.filterIcon}>☰</Text>
-          </TouchableOpacity>
+        
         </View>
         <ScrollView
           horizontal
