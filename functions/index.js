@@ -195,13 +195,39 @@ exports.getBoxeurs = onRequest({
     const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
     await axios.get(`https://api.airtable.com/v0/${baseId}/Boxeurs`, { headers: { Authorization: `Bearer ${apiKey}` }, params: { maxRecords: 3 } });
     const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY }).base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    // Boxeurs validés
     const records = await base('Boxeurs').select({ filterByFormula: `FIND("${coachEmail}", ARRAYJOIN({Coach}))` }).all();
     const boxeurs = records.map(record => {
       const f = record.fields || {};
-      console.log('📋 Fields bruts:', JSON.stringify(f));
-      return { id: record.id, nom: f['Nom du boxeur'] || '', prenom: f['Prénom'] || '', sexe: f['Sexe'] || '', poids: f['Poids'] || 0, categoriePoids: f['Catégorie de poids'] || '', categorie: f['Catégorie'] || '', dateNaissance: f['Date de naissance'] || '', vic: f['Victoires '] || 0, def: f['Défaites '] || 0, nuls: f['Nuls '] || 0, ko: f['KO '] || 0, photo: f['Photo du boxeur'] ? f['Photo du boxeur'][0]?.url : null };
+      return { id: record.id, nom: f['Nom du boxeur'] || '', prenom: f['Prénom'] || '', sexe: f['Sexe'] || '', poids: f['Poids'] || 0, categoriePoids: f['Catégorie de poids'] || '', categorie: f['Catégorie'] || '', dateNaissance: f['Date de naissance'] || '', vic: f['Victoires '] || 0, def: f['Défaites '] || 0, nuls: f['Nuls '] || 0, ko: f['KO '] || 0, photo: f['Photo du boxeur'] ? f['Photo du boxeur'][0]?.url : null, enAttente: false };
     });
-    return res.status(200).json({ success: true, boxeurs });
+
+   // Boxeurs en attente
+const recordsEnAttente = await base('Boxeurs en attente').select({
+  filterByFormula: `AND(FIND("${coachEmail}", ARRAYJOIN({Liaison vers Coach})), {Statut de validation} = "En attente")`
+}).all();
+const boxeursEnAttente = recordsEnAttente.map(record => {
+  const f = record.fields || {};
+  return {
+    id: record.id,
+    nom: f['Nom'] || '',
+    prenom: f['Prénom'] || '',
+    sexe: f['Sexe'] || '',
+    poids: f['Poids'] || 0,
+    categoriePoids: f['Catégorie de poids'] || '',
+    categorie: f['Catégorie'] || '',
+    dateNaissance: f['Date de naissance'] || '',
+    vic: f['Victoires'] || 0,
+    def: f['Défaites'] || 0,
+    nuls: f['Nuls'] || 0,
+    ko: f['K.O'] || 0,
+    photo: f['Photo du boxeur'] ? f['Photo du boxeur'][0]?.url : null,
+    enAttente: true
+  };
+});
+
+    return res.status(200).json({ success: true, boxeurs: [...boxeursEnAttente, ...boxeurs] });
   } catch (error) {
     console.error('❌ Erreur getBoxeurs:', error.response ? JSON.stringify(error.response.data) : error.message);
     return res.status(500).json({ success: false, error: error.message });
