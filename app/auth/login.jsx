@@ -80,7 +80,7 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       const firebaseResult = await loginWithEmail(email, password);
-      if (!firebaseResult.success) { Alert.alert("Erreur", "Email ou mot de passe incorrect"); setLoading(false); return; }
+     if (!firebaseResult.success) { Alert.alert("Erreur DEBUG", firebaseResult.error); setLoading(false); return; }
       const { user } = firebaseResult;
       const db = getFirestore();
       const snapshot = await getDoc(doc(db, "coaches", user.uid));
