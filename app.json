@@ -22,7 +22,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.jpeg",
+        "foregroundImage": "./assets/Logo cube v3.png",
         "backgroundColor": "#0A1628"
       },
       "package": "com.lawass1864.hitting"
