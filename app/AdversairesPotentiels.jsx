@@ -182,7 +182,7 @@ const s = StyleSheet.create({
   cardAvatar: { width: 72, height: 72, borderRadius: 8, backgroundColor: '#E0E0E0', marginRight: 12, resizeMode: 'cover' },
   cardInfo: { flex: 1 },
   cardName: { fontSize: 15, fontWeight: '800', color: '#111', marginBottom: 2 },
-  cardMeta: { fontSize: 11, color: '#888', marginBottom: 3 },
+  cardMeta: { fontSize: 11, color: '#888', marginBottom: 2 },
   cardClub: { fontSize: 11, color: '#888', marginBottom: 8 },
   statsRow: { flexDirection: 'row', gap: 14 },
   statItem: { alignItems: 'center' },
