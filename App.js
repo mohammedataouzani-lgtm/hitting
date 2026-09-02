@@ -25,10 +25,11 @@ import MentionsLegalesScreen from './app/MentionsLegalesScreen.jsx';
 import CGUScreen from './app/CGUScreen.jsx';
 
 import BottomTabBar from './app/components/BottomTabBar';
+import ActionSheet from './app/components/ActionSheet';
+import { ActionSheetProvider, useActionSheet } from './app/ActionSheetContext';
 
 const Stack = createNativeStackNavigator();
 
-// ✅ Écrans sur lesquels la tab bar doit s'afficher, mappés à leur clé d'onglet
 const TAB_BAR_ROUTES = {
   Dashboard: 'dashboard',
   MesBoxeurs: 'boxeurs',
@@ -36,9 +37,10 @@ const TAB_BAR_ROUTES = {
   Notifications: 'notifs',
 };
 
-export default function App() {
+function AppContent() {
   const navigationRef = useNavigationContainerRef();
   const [currentRoute, setCurrentRoute] = useState('Splash');
+  const { visible: actionSheetVisible, open: openActionSheet, close: closeActionSheet } = useActionSheet();
 
   const updateCurrentRoute = useCallback(() => {
     const routeName = navigationRef.current?.getCurrentRoute()?.name;
@@ -48,58 +50,80 @@ export default function App() {
   const activeTab = TAB_BAR_ROUTES[currentRoute] ?? null;
   const showTabBar = activeTab !== null;
 
-  // ✅ Objet navigation "safe" à passer à la tab bar (évite les refs null)
   const tabBarNavigation = {
     navigate: (name, params) => navigationRef.current?.navigate(name, params),
   };
 
+  const handleAddBoxeur = () => {
+    closeActionSheet();
+    setTimeout(() => tabBarNavigation.navigate('MesBoxeurs', { openAddSheet: true }), 300);
+  };
+
+  const handleAddEvenement = () => {
+    closeActionSheet();
+    setTimeout(() => tabBarNavigation.navigate('Evenements', { openAddSheet: true }), 300);
+  };
+
+  return (
+    <View style={styles.root}>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={updateCurrentRoute}
+        onStateChange={updateCurrentRoute}
+      >
+        <Stack.Navigator
+          initialRouteName="Splash"
+          screenOptions={{ headerShown: false }}
+        >
+          <Stack.Screen name="Splash" component={SplashScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="Dashboard" component={DashboardScreen} />
+          <Stack.Screen name="MesBoxeurs" component={MesBoxeursScreen} />
+          <Stack.Screen name="Profil" component={ProfilScreen} />
+          <Stack.Screen name="Offres" component={PaiementScreen} />
+          <Stack.Screen name="FicheBoxeur" component={FicheBoxeurScreen} />
+          <Stack.Screen name="Evenements" component={EvenementsScreen} />
+          <Stack.Screen name="AdversairesPotentiels" component={AdversairesPotentielsScreen} />
+          <Stack.Screen name="DemandeCombat" component={DemandeCombatScreen} />
+          <Stack.Screen name="DemandesMatch" component={DemandesMatchScreen} />
+          <Stack.Screen name="HistoriqueCombats" component={HistoriqueCombatsScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          <Stack.Screen name="PolitiqueConfidentialite" component={PolitiqueConfidentialiteScreen} />
+          <Stack.Screen name="MentionsLegales" component={MentionsLegalesScreen} />
+          <Stack.Screen name="CGU" component={CGUScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+
+      {showTabBar && (
+        <View style={styles.tabBarWrapper} pointerEvents="box-none">
+          <BottomTabBar
+            activeTab={activeTab}
+            navigation={tabBarNavigation}
+            onPlusPress={openActionSheet}
+          />
+        </View>
+      )}
+
+      {/* ✅ ActionSheet global, monté une seule fois, au-dessus de tout */}
+      <ActionSheet
+        visible={actionSheetVisible}
+        onClose={closeActionSheet}
+        onAddBoxeur={handleAddBoxeur}
+        onAddEvenement={handleAddEvenement}
+      />
+    </View>
+  );
+}
+
+export default function App() {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <View style={styles.root}>
-          <NavigationContainer
-            ref={navigationRef}
-            onReady={updateCurrentRoute}
-            onStateChange={updateCurrentRoute}
-          >
-            <Stack.Navigator
-              initialRouteName="Splash"
-              screenOptions={{ headerShown: false }}
-            >
-              <Stack.Screen name="Splash" component={SplashScreen} />
-              <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Register" component={RegisterScreen} />
-              <Stack.Screen name="Dashboard" component={DashboardScreen} />
-              <Stack.Screen name="MesBoxeurs" component={MesBoxeursScreen} />
-              <Stack.Screen name="Profil" component={ProfilScreen} />
-              <Stack.Screen name="Offres" component={PaiementScreen} />
-              <Stack.Screen name="FicheBoxeur" component={FicheBoxeurScreen} />
-              <Stack.Screen name="Evenements" component={EvenementsScreen} />
-              <Stack.Screen name="AdversairesPotentiels" component={AdversairesPotentielsScreen} />
-              <Stack.Screen name="DemandeCombat" component={DemandeCombatScreen} />
-              <Stack.Screen name="DemandesMatch" component={DemandesMatchScreen} />
-              <Stack.Screen name="HistoriqueCombats" component={HistoriqueCombatsScreen} />
-              <Stack.Screen name="Notifications" component={NotificationsScreen} />
-              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-              <Stack.Screen name="PolitiqueConfidentialite" component={PolitiqueConfidentialiteScreen} />
-              <Stack.Screen name="MentionsLegales" component={MentionsLegalesScreen} />
-              <Stack.Screen name="CGU" component={CGUScreen} />
-            </Stack.Navigator>
-          </NavigationContainer>
-
-          {/* ✅ Tab bar unique, montée une seule fois, jamais recréée entre écrans */}
-          {showTabBar && (
-            <View style={styles.tabBarWrapper} pointerEvents="box-none">
-              <BottomTabBar
-                activeTab={activeTab}
-                navigation={tabBarNavigation}
-                onPlusPress={() =>
-                  tabBarNavigation.navigate('MesBoxeurs', { openAddSheet: true })
-                }
-              />
-            </View>
-          )}
-        </View>
+        <ActionSheetProvider>
+          <AppContent />
+        </ActionSheetProvider>
       </NotificationProvider>
     </AuthProvider>
   );

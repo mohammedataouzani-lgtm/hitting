@@ -1,5 +1,4 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import BottomTabBar from './components/BottomTabBar';
 import {
   View,
   Text,
@@ -14,7 +13,6 @@ import {
   Modal,
   TouchableWithoutFeedback,
   ActivityIndicator,
-  Pressable,
   FlatList,
   Image,
 } from 'react-native';
@@ -24,10 +22,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import { useNotifications } from '../NotificationContext';
+import { TAB_BAR_HEIGHT } from './components/BottomTabBar';
+import { useActionSheet } from './ActionSheetContext';
 
 const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BOTTOM_SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.85;
-
 
 const MONTHS_FR = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -40,7 +39,7 @@ const EVENT_STYLE = {
   gala: { bg: '#EF5350', text: '#fff' },
   sparring: { bg: '#4CAF50', text: '#fff' },
   combat: { bg: '#42A5F5', text: '#fff' },
-  evenement: { bg: '#5C6BC0', text: '#fff' }, // générique, tant qu'il n'existe pas de champ "Type" sur les Événements
+  evenement: { bg: '#5C6BC0', text: '#fff' },
 };
 
 function getDaysInMonth(month, year) {
@@ -72,71 +71,6 @@ function formatDateSouhaitee(isoString) {
   const month = String(d.getUTCMonth() + 1).padStart(2, '0');
   const year = d.getUTCFullYear();
   return `${day}/${month}/${year}`;
-}
-
-// ─────────────────────────────────────────────
-// ACTION SHEET (bouton +)
-// ─────────────────────────────────────────────
-function ActionSheet({ visible, onClose, onAddBoxeur, onAddEvenement }) {
-  const slideAnim = useRef(new Animated.Value(300)).current;
-  const backdropAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }),
-        Animated.timing(backdropAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 300, duration: 250, useNativeDriver: true }),
-        Animated.timing(backdropAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [visible]);
-
-  if (!visible) return null;
-
-  return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[as.backdrop, { opacity: backdropAnim }]}>
-        <Pressable style={{ flex: 1 }} onPress={onClose} />
-      </Animated.View>
-
-      <Animated.View style={[as.sheet, { transform: [{ translateY: slideAnim }] }]}>
-        <View style={as.handle} />
-        <Text style={as.title}>Que voulez-vous ajouter ?</Text>
-
-        {/* Ajouter un boxeur */}
-        <TouchableOpacity style={as.option} activeOpacity={0.7} onPress={onAddBoxeur}>
-          <LinearGradient colors={['#3949AB', '#5C6BC0']} style={as.optionIcon}>
-            <Text style={as.optionEmoji}>👥</Text>
-          </LinearGradient>
-          <View style={as.optionTexts}>
-            <Text style={as.optionTitle}>Ajouter un boxeur</Text>
-            <Text style={as.optionSub}>Enregistrer un nouveau boxeur dans votre club</Text>
-          </View>
-          <Text style={as.optionArrow}>›</Text>
-        </TouchableOpacity>
-
-        {/* Ajouter un événement */}
-        <TouchableOpacity style={as.option} activeOpacity={0.7} onPress={onAddEvenement}>
-          <LinearGradient colors={['#E53935', '#EF5350']} style={as.optionIcon}>
-            <Text style={as.optionEmoji}>🥊</Text>
-          </LinearGradient>
-          <View style={as.optionTexts}>
-            <Text style={as.optionTitle}>Ajouter un événement</Text>
-            <Text style={as.optionSub}>Créer un gala, sparring ou combat</Text>
-          </View>
-          <Text style={as.optionArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={as.cancelBtn} onPress={onClose}>
-          <Text style={as.cancelTxt}>Annuler</Text>
-        </TouchableOpacity>
-      </Animated.View>
-    </Modal>
-  );
 }
 
 // ─────────────────────────────────────────────
@@ -186,7 +120,7 @@ function BilanBottomSheet({ visible, onClose, stats }) {
   const statCards = [
     { emoji: '🏆', label: 'Victoires', count: stats.totalWins || 0, pct: victoryPct, bg: '#E8F5E9', barColor: '#43A047' },
     { emoji: '⚠️', label: 'Défaites', count: stats.totalDefeats || 0, pct: defeatPct, bg: '#FFEBEE', barColor: '#EF5350' },
-   { emoji: '🤝', label: 'Nuls', count: stats.totalDraws || 0, pct: drawPct, bg: '#FFF8E1', barColor: '#FFC107' },
+    { emoji: '🤝', label: 'Nuls', count: stats.totalDraws || 0, pct: drawPct, bg: '#FFF8E1', barColor: '#FFC107' },
     { emoji: '⚡', label: 'K.O', count: stats.totalKos || 0, pct: koPct, bg: '#E3F2FD', barColor: '#42A5F5' },
   ];
 
@@ -219,7 +153,7 @@ function BilanBottomSheet({ visible, onClose, stats }) {
               })}
             </Svg>
             <View style={bs.legend}>
-             {[{ color: '#43A047', label: 'Victoires' }, { color: '#EF5350', label: 'Défaites' }, { color: '#FFC107', label: 'Nuls' }, { color: '#42A5F5', label: 'K.O' }].map(({ color, label }) => (
+              {[{ color: '#43A047', label: 'Victoires' }, { color: '#EF5350', label: 'Défaites' }, { color: '#FFC107', label: 'Nuls' }, { color: '#42A5F5', label: 'K.O' }].map(({ color, label }) => (
                 <View key={label} style={bs.legendItem}>
                   <View style={[bs.legendDot, { borderColor: color }]} />
                   <Text style={bs.legendTxt}>{label}</Text>
@@ -248,6 +182,7 @@ function BilanBottomSheet({ visible, onClose, stats }) {
     </Modal>
   );
 }
+
 // ─────────────────────────────────────────────
 // DÉTAIL ÉVÉNEMENT BOTTOM SHEET
 // ─────────────────────────────────────────────
@@ -340,7 +275,7 @@ function EvenementDetailBottomSheet({ visible, onClose, eventInfo, onVoirEveneme
           </>
         )}
 
-      <TouchableOpacity
+        <TouchableOpacity
           style={eds.voirBtn}
           activeOpacity={0.85}
           onPress={() => {
@@ -384,6 +319,7 @@ const eds = StyleSheet.create({
 // ─────────────────────────────────────────────
 export default function DashboardScreen({ navigation }) {
   const { refreshNotifCount } = useNotifications();
+  const { open: openActionSheet } = useActionSheet(); // ✅ vient du Context global
 
   useFocusEffect(
     useCallback(() => {
@@ -394,8 +330,7 @@ export default function DashboardScreen({ navigation }) {
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth());
   const [year, setYear] = useState(today.getFullYear());
-  const [bilanVisible, setBilanVisible] = useState(false);
-  const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const [bilanVisible, setBilanVisible] = useState(false); // ✅ restauré
   const [loading, setLoading] = useState(true);
   const [evenements, setEvenements] = useState([]);
   const carouselRef = useRef(null);
@@ -414,130 +349,114 @@ export default function DashboardScreen({ navigation }) {
     nextEvent: null,
   });
 
-
-   useFocusEffect(
+  useFocusEffect(
     useCallback(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const auth = getAuth();
-        const user = auth.currentUser;
-        if (!user) return;
+      const fetchDashboardData = async () => {
+        try {
+          const auth = getAuth();
+          const user = auth.currentUser;
+          if (!user) return;
 
-        const db = getFirestore();
-        const snapshot = await getDoc(doc(db, 'coaches', user.uid));
-        const idToken = await user.getIdToken();
+          const db = getFirestore();
+          const snapshot = await getDoc(doc(db, 'coaches', user.uid));
+          const idToken = await user.getIdToken();
 
-        let baseData = {
-          firstName: 'Coach',
-          clubName: 'Pas de club associé',
-        };
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          baseData = {
-            firstName: data.firstName || 'Coach',
-            clubName: data.clubName || 'Pas de club associé',
+          let baseData = {
+            firstName: 'Coach',
+            clubName: 'Pas de club associé',
           };
+          if (snapshot.exists()) {
+            const data = snapshot.data();
+            baseData = {
+              firstName: data.firstName || 'Coach',
+              clubName: data.clubName || 'Pas de club associé',
+            };
+          }
+
+          const statsResponse = await fetch(
+            'https://europe-west9-hitting-23de9.cloudfunctions.net/getDashboardStats',
+            { headers: { 'Authorization': `Bearer ${idToken}` } }
+          );
+          const statsData = await statsResponse.json();
+          const stats = statsData.success ? statsData.stats : {};
+
+          setCoachData({
+            ...baseData,
+            totalFights: stats.totalFights ?? 0,
+            victoryRate: stats.victoryRate ?? 0,
+            defeatRate: stats.defeatRate ?? 0,
+            drawRate: stats.drawRate ?? 0,
+            koRate: stats.koRate ?? 0,
+            totalWins: stats.totalWins ?? 0,
+            totalDefeats: stats.totalDefeats ?? 0,
+            totalDraws: stats.totalDraws ?? 0,
+            totalKos: stats.totalKos ?? 0,
+            activeBoxers: stats.activeBoxers ?? 0,
+            totalBoxeurs: stats.totalBoxeurs ?? 0,
+            saison: '2025 -- 2026',
+          });
+
+          const evtResponse = await fetch(
+            'https://europe-west9-hitting-23de9.cloudfunctions.net/getEvenements',
+            { headers: { 'Authorization': `Bearer ${idToken}` } }
+          );
+          const evtData = await evtResponse.json();
+          if (evtData.success) {
+            const now = new Date();
+            const evenementsAVenir = (evtData.evenements || []).filter(e => {
+              if (!e.dateRaw) return true;
+              const d = new Date(e.dateRaw);
+              return isNaN(d) || d >= now;
+            });
+            setEvenements(evenementsAVenir);
+            setCombats(evtData.combats || []);
+          }
+
+          const notifResponse = await fetch(
+            'https://europe-west9-hitting-23de9.cloudfunctions.net/getNotifications',
+            { headers: { 'Authorization': `Bearer ${idToken}` } }
+          );
+          const notifData = await notifResponse.json();
+          if (notifData.success) {
+            setDemandes(notifData.demandesEnAttente || []);
+          }
+        } catch (error) {
+          console.error("Erreur Dashboard:", error);
+        } finally {
+          setLoading(false);
         }
-
-        // Fetch stats dynamiques (combats, taux de victoire, bilan saison)
-        const statsResponse = await fetch(
-          'https://europe-west9-hitting-23de9.cloudfunctions.net/getDashboardStats',
-          { headers: { 'Authorization': `Bearer ${idToken}` } }
-        );
-        const statsData = await statsResponse.json();
-        const stats = statsData.success ? statsData.stats : {};
-
-        setCoachData({
-          ...baseData,
-          totalFights: stats.totalFights ?? 0,
-          victoryRate: stats.victoryRate ?? 0,
-          defeatRate: stats.defeatRate ?? 0,
-          drawRate: stats.drawRate ?? 0,
-          koRate: stats.koRate ?? 0,
-          totalWins: stats.totalWins ?? 0,
-          totalDefeats: stats.totalDefeats ?? 0,
-          totalDraws: stats.totalDraws ?? 0,
-              totalKos: stats.totalKos ?? 0,
-          activeBoxers: stats.activeBoxers ?? 0,
-          totalBoxeurs: stats.totalBoxeurs ?? 0,
-          saison: '2025 -- 2026',
-        });
-
-          
-const evtResponse = await fetch(
-  'https://europe-west9-hitting-23de9.cloudfunctions.net/getEvenements',
-  { headers: { 'Authorization': `Bearer ${idToken}` } }
-);
-const evtData = await evtResponse.json();
-console.log('📅 combats reçus:', JSON.stringify(evtData.combats));
-if (evtData.success) {
-  const now = new Date();
-  const evenementsAVenir = (evtData.evenements || []).filter(e => {
-    if (!e.dateRaw) return true;
-    const d = new Date(e.dateRaw);
-    return isNaN(d) || d >= now;
-  });
-  setEvenements(evenementsAVenir);
-  setCombats(evtData.combats || []);
-}
-const notifResponse = await fetch(
-  'https://europe-west9-hitting-23de9.cloudfunctions.net/getNotifications',
-  { headers: { 'Authorization': `Bearer ${idToken}` } }
-);
-const notifData = await notifResponse.json();
-console.log('🔍 Demandes reçues:', JSON.stringify(notifData.demandesEnAttente));
-if (notifData.success) {
-  setDemandes(notifData.demandesEnAttente || []);
-}
-      } catch (error) {
-        console.error("Erreur Dashboard:", error);
-      } finally {
-         setLoading(false);
-        }
-       };
+      };
       fetchDashboardData();
     }, [])
   );
 
-  
   const calCells = buildCalendarGrid(month, year);
-const activeEvents = evenements
-  .filter(e => e.dateRaw)
-  .map(e => {
-    const d = new Date(e.dateRaw);
-    return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear(), type: 'evenement', data: e };
-  })
-  .filter(e => e.evMonth === month && e.evYear === year);
+  const activeEvents = evenements
+    .filter(e => e.dateRaw)
+    .map(e => {
+      const d = new Date(e.dateRaw);
+      return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear(), type: 'evenement', data: e };
+    })
+    .filter(e => e.evMonth === month && e.evYear === year);
   const activeCombats = combats
-  .filter(c => c.dateRaw)
-  .map(c => {
-    const d = new Date(c.dateRaw);
-    return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear(), type: c.typeCombat, data: c };
-  })
-  .filter(c => c.evMonth === month && c.evYear === year);
+    .filter(c => c.dateRaw)
+    .map(c => {
+      const d = new Date(c.dateRaw);
+      return { day: d.getDate(), evMonth: d.getMonth(), evYear: d.getFullYear(), type: c.typeCombat, data: c };
+    })
+    .filter(c => c.evMonth === month && c.evYear === year);
 
-const allCalendarEvents = [...activeEvents, ...activeCombats];
-const getEventType = (day) => {
-  const found = allCalendarEvents.find(e => e.day === day);
-  return found ? found.type : null;
-};
-const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || null;
+  const allCalendarEvents = [...activeEvents, ...activeCombats];
+  const getEventType = (day) => {
+    const found = allCalendarEvents.find(e => e.day === day);
+    return found ? found.type : null;
+  };
+  const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || null;
 
   const isToday = (day, current) =>
     current && day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
-
-  const handleAddBoxeur = () => {
-    setActionSheetVisible(false);
-    // Petit délai pour laisser le sheet se fermer avant la navigation
-    setTimeout(() => navigation.navigate('MesBoxeurs', { openAddSheet: true }), 300);
-  };
-
-  const handleAddEvenement = () => {
-    setActionSheetVisible(false);
-    setTimeout(() => navigation.navigate('Evenements', { openAddSheet: true }), 300);
-  };
 
   if (loading) {
     return (
@@ -556,7 +475,7 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
         <Text style={styles.greet}>Bonjour {coachData.firstName}, 👋</Text>
         <Text style={styles.clubName}>{coachData.clubName}</Text>
 
-       <View style={styles.statsCard}>
+        <View style={styles.statsCard}>
           <View style={styles.statsRow}>
             <View>
               <Text style={styles.statLabel}>Total combats</Text>
@@ -567,7 +486,7 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
               <Text style={[styles.statValue, styles.statGreen]}>{coachData.victoryRate}%</Text>
             </View>
           </View>
-        <LinearGradient colors={['#F44336', '#FF9800', '#FFC107', '#43A047']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.progressBar} />
+          <LinearGradient colors={['#F44336', '#FF9800', '#FFC107', '#43A047']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.progressBar} />
           <View style={styles.statsActionsRow}>
             <TouchableOpacity onPress={() => setBilanVisible(true)}>
               <Text style={styles.detailsTxt}>Détails</Text>
@@ -579,7 +498,7 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
         </View>
       </LinearGradient>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 20 }}>
         <View style={styles.content}>
 
           {/* ÉVÉNEMENTS — CARROUSEL */}
@@ -610,7 +529,7 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
                     setActiveSlide(idx);
                   }}
                   scrollEventThrottle={16}
-                 renderItem={({ item }) => (
+                  renderItem={({ item }) => (
                     <TouchableOpacity
                       activeOpacity={0.9}
                       style={[styles.eventCard, { width: width - 36 }]}
@@ -642,7 +561,6 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
                     </TouchableOpacity>
                   )}
                 />
-                {/* Indicateurs pagination */}
                 {evenements.length > 1 && (
                   <View style={styles.carouselDots}>
                     {evenements.map((_, i) => (
@@ -653,92 +571,94 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
               </>
             )}
           </View>
-{/* SUIVI DE DEMANDE — CARROUSEL */}
-<View style={styles.section}>
-  <View style={styles.sectionHeader}>
-    <Text style={styles.sectionTitle}>Suivi de demande</Text>
-    <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('DemandesMatch')} style={styles.voirRow}>
-      <Text style={styles.voirTxt}>Voir tout</Text>
-      <View style={styles.avatarCircle}><Text style={styles.avatarEmoji}>🤝</Text></View>
-    </TouchableOpacity>
-  </View>
 
-  {demandes.length === 0 ? (
-    <View style={styles.noEventCard}>
-      <Text style={styles.noEventText}>Aucune demande en cours. 🥊</Text>
-    </View>
-  ) : (
-    <>
-      <FlatList
-        ref={demandesCarouselRef}
-        data={demandes}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item.id}
-        onScroll={(e) => {
-          const idx = Math.round(e.nativeEvent.contentOffset.x / (width - 36));
-          setActiveDemandeSlide(idx);
-        }}
-        scrollEventThrottle={16}
-        renderItem={({ item }) => {
-          const isRecue = item.type === 'recue';
-          return (
-         <TouchableOpacity
-              activeOpacity={0.9}
-              style={[styles.demandeCard, { width: width - 36 }]}
-              onPress={() => navigation.navigate('DemandesMatch')}
-            >
-              <View style={styles.demandeBadges}>
-                <View style={[styles.badgeType, { backgroundColor: isRecue ? '#FFF8E1' : '#E3F2FD' }]}>
-                  <Text style={[styles.badgeTypeTxt, { color: isRecue ? '#F9A825' : '#1976D2' }]}>
-                    {isRecue ? '🥊 Demande reçue' : '📤 Demande envoyée'}
-                  </Text>
-                </View>
-               <View style={[styles.badgeStatut, item.statut === 'Accepté' && styles.badgeStatutAccepte]}>
-                  <Text style={[styles.badgeStatutTxt, item.statut === 'Accepté' && styles.badgeStatutTxtAccepte]}>
-                    {item.statut === 'Accepté' ? 'ACCEPTÉ' : 'EN ATTENTE'}
-                  </Text>
-                </View>
+          {/* SUIVI DE DEMANDE — CARROUSEL */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Suivi de demande</Text>
+              <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('DemandesMatch')} style={styles.voirRow}>
+                <Text style={styles.voirTxt}>Voir tout</Text>
+                <View style={styles.avatarCircle}><Text style={styles.avatarEmoji}>🤝</Text></View>
+              </TouchableOpacity>
+            </View>
+
+            {demandes.length === 0 ? (
+              <View style={styles.noEventCard}>
+                <Text style={styles.noEventText}>Aucune demande en cours. 🥊</Text>
               </View>
+            ) : (
+              <>
+                <FlatList
+                  ref={demandesCarouselRef}
+                  data={demandes}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item.id}
+                  onScroll={(e) => {
+                    const idx = Math.round(e.nativeEvent.contentOffset.x / (width - 36));
+                    setActiveDemandeSlide(idx);
+                  }}
+                  scrollEventThrottle={16}
+                  renderItem={({ item }) => {
+                    const isRecue = item.type === 'recue';
+                    return (
+                      <TouchableOpacity
+                        activeOpacity={0.9}
+                        style={[styles.demandeCard, { width: width - 36 }]}
+                        onPress={() => navigation.navigate('DemandesMatch')}
+                      >
+                        <View style={styles.demandeBadges}>
+                          <View style={[styles.badgeType, { backgroundColor: isRecue ? '#FFF8E1' : '#E3F2FD' }]}>
+                            <Text style={[styles.badgeTypeTxt, { color: isRecue ? '#F9A825' : '#1976D2' }]}>
+                              {isRecue ? '🥊 Demande reçue' : '📤 Demande envoyée'}
+                            </Text>
+                          </View>
+                          <View style={[styles.badgeStatut, item.statut === 'Accepté' && styles.badgeStatutAccepte]}>
+                            <Text style={[styles.badgeStatutTxt, item.statut === 'Accepté' && styles.badgeStatutTxtAccepte]}>
+                              {item.statut === 'Accepté' ? 'ACCEPTÉ' : 'EN ATTENTE'}
+                            </Text>
+                          </View>
+                        </View>
 
-              <Text style={styles.demandeTitle}>{item.prenomBoxeur} {item.nomBoxeur}</Text>
-              <Text style={styles.demandeVsTxt}>vs</Text>
-              <Text style={styles.demandeAdversaire}>{item.prenomAdversaire} {item.nomAdversaire}</Text>
+                        <Text style={styles.demandeTitle}>{item.prenomBoxeur} {item.nomBoxeur}</Text>
+                        <Text style={styles.demandeVsTxt}>vs</Text>
+                        <Text style={styles.demandeAdversaire}>{item.prenomAdversaire} {item.nomAdversaire}</Text>
 
-                {item.dateSouhaitee && (
-                <View style={styles.demandeDateRow}>
-                  <Text style={styles.demandeDateIcon}>📅</Text>
-                  <Text style={styles.demandeDateTxt}>{formatDateSouhaitee(item.dateSouhaitee)}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        }}
-      />
-      {demandes.length > 1 && (
-        <View style={styles.carouselDots}>
-          {demandes.map((_, i) => (
-            <View key={i} style={[styles.dot, i === activeDemandeSlide && styles.dotActive]} />
-          ))}
-        </View>
-      )}
-    </>
-  )}
-</View>
+                        {item.dateSouhaitee && (
+                          <View style={styles.demandeDateRow}>
+                            <Text style={styles.demandeDateIcon}>📅</Text>
+                            <Text style={styles.demandeDateTxt}>{formatDateSouhaitee(item.dateSouhaitee)}</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+                {demandes.length > 1 && (
+                  <View style={styles.carouselDots}>
+                    {demandes.map((_, i) => (
+                      <View key={i} style={[styles.dot, i === activeDemandeSlide && styles.dotActive]} />
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+
           {/* CALENDRIER */}
           <View style={styles.calSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Calendrier</Text>
               <View style={styles.legendPills}>
-  <View style={styles.pillEvenement}><Text style={styles.pillEvenementTxt}>Événement</Text></View>
-  <View style={[styles.pillEvenement, { backgroundColor: '#FFEBEE' }]}>
-    <Text style={[styles.pillEvenementTxt, { color: '#EF5350' }]}>Gala</Text>
-  </View>
-  <View style={[styles.pillEvenement, { backgroundColor: '#E8F5E9' }]}>
-    <Text style={[styles.pillEvenementTxt, { color: '#4CAF50' }]}>Sparring</Text>
-  </View>
-</View>
+                <View style={styles.pillEvenement}><Text style={styles.pillEvenementTxt}>Événement</Text></View>
+                <View style={[styles.pillEvenement, { backgroundColor: '#FFEBEE' }]}>
+                  <Text style={[styles.pillEvenementTxt, { color: '#EF5350' }]}>Gala</Text>
+                </View>
+                <View style={[styles.pillEvenement, { backgroundColor: '#E8F5E9' }]}>
+                  <Text style={[styles.pillEvenementTxt, { color: '#4CAF50' }]}>Sparring</Text>
+                </View>
+              </View>
             </View>
 
             <View style={styles.calWidget}>
@@ -763,7 +683,7 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
                   const evStyle = evType ? EVENT_STYLE[evType] : null;
                   const todayCell = isToday(day, current);
                   return (
-                  <TouchableOpacity key={i} activeOpacity={evStyle ? 0.7 : 1} disabled={!evStyle}
+                    <TouchableOpacity key={i} activeOpacity={evStyle ? 0.7 : 1} disabled={!evStyle}
                       onPress={() => {
                         if (!evStyle) return;
                         const found = getEventForDay(day);
@@ -796,26 +716,13 @@ const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || nu
         </View>
       </ScrollView>
 
-      <BottomTabBar
-        activeTab="dashboard"
-        navigation={navigation}
-        onPlusPress={() => setActionSheetVisible(true)}
-      />
-
       <BilanBottomSheet visible={bilanVisible} onClose={() => setBilanVisible(false)} stats={coachData} />
-    <EvenementDetailBottomSheet
+      <EvenementDetailBottomSheet
         visible={eventDetailVisible}
         onClose={() => setEventDetailVisible(false)}
         eventInfo={selectedEventDetail}
         onVoirEvenements={() => navigation.navigate('Evenements')}
         onVoirDemandes={() => navigation.navigate('DemandesMatch')}
-      />
-      <ActionSheet
-        visible={actionSheetVisible}
-        onClose={() => setActionSheetVisible(false)}
-        onAddBoxeur={handleAddBoxeur}
-        onAddEvenement={handleAddEvenement}
-        
       />
     </View>
   );
@@ -831,7 +738,7 @@ const styles = StyleSheet.create({
   clubName: { fontSize: 14, color: 'rgba(255,255,255,0.85)', marginBottom: 20 },
   statsCard: { backgroundColor: 'rgba(255,255,255,0.97)', borderRadius: 18, padding: 16 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
-   statBlock: { flex: 1 },
+  statBlock: { flex: 1 },
   statLabel: { fontSize: 12, color: '#888', marginBottom: 4, fontWeight: '500' },
   statValue: { fontSize: 36, fontWeight: '800', color: '#111', lineHeight: 40 },
   statGreen: { color: '#43A047' },
@@ -930,21 +837,4 @@ const bs = StyleSheet.create({
   cardLabel: { fontSize: 14, fontWeight: '700', color: '#333', marginBottom: 10 },
   cardBarBg: { height: 6, backgroundColor: 'rgba(0,0,0,0.08)', borderRadius: 3 },
   cardBarFill: { height: 6, borderRadius: 3 },
-});
-
-// ─── Styles Action Sheet ──────────────────────────────────────────────────────
-const as = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingBottom: Platform.OS === 'ios' ? 40 : 24, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 20 },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#E0E0E0', alignSelf: 'center', marginTop: 12, marginBottom: 20 },
-  title: { fontSize: 18, fontWeight: '800', color: '#111', marginBottom: 20, textAlign: 'center' },
-  option: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8F8F8', borderRadius: 16, padding: 16, marginBottom: 12, gap: 14 },
-  optionIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  optionEmoji: { fontSize: 22 },
-  optionTexts: { flex: 1 },
-  optionTitle: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 3 },
-  optionSub: { fontSize: 12, color: '#999', fontWeight: '400' },
-  optionArrow: { fontSize: 22, color: '#CCC', fontWeight: '300' },
-  cancelBtn: { marginTop: 4, alignItems: 'center', padding: 14 },
-  cancelTxt: { fontSize: 15, color: '#999', fontWeight: '600' },
 });

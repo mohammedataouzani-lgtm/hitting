@@ -692,12 +692,16 @@ export default function MesBoxeursScreen({ navigation, route }) {
   const [filterSexe, setFilterSexe] = useState(null);
   const [filterPoids, setFilterPoids] = useState(null);
 
-  React.useEffect(() => {
-    if (route.params?.openAddSheet) {
-      setSheetVisible(true);
-    }
-    fetchBoxeurs();
-  }, []);
+ React.useEffect(() => {
+   if (route.params?.openAddSheet) {
+    setSheetVisible(true);
+     navigation.setParams({ openAddSheet: undefined });
+   }
+ }, [route.params?.openAddSheet]);
+
+ React.useEffect(() => {
+  fetchBoxeurs();
+ }, []);
 
   const fetchBoxeurs = async () => {
     try {
