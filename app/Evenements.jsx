@@ -148,7 +148,7 @@ function AddEventSheet({ visible, onClose, onAdd }) {
         }
       );
       if (!response.ok) { const txt = await response.text(); console.log('❌', response.status, txt); throw new Error("Erreur serveur"); }
-      Alert.alert("✅ Événement créé", "L'événement a bien été ajouté dans Airtable.");
+      Alert.alert("✅ Événement créé", "L'événement a bien été ajouté.");
       const months = ['JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'];
       onAdd({
         id: `e_${Date.now()}`,
