@@ -110,7 +110,8 @@ exports.addBoxeurEnAttente = onRequest({
 
 // ===== CLOUD FUNCTION v2: getCoachProfile =====
 exports.getCoachProfile = onRequest({
-  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"],
+  minInstances: 1, 
 }, async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
