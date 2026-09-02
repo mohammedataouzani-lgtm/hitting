@@ -148,7 +148,7 @@ function AddEventSheet({ visible, onClose, onAdd }) {
         }
       );
       if (!response.ok) { const txt = await response.text(); console.log('❌', response.status, txt); throw new Error("Erreur serveur"); }
-      Alert.alert("✅ Événement créé", "L'événement a bien été ajouté !");
+      Alert.alert("✅ Événement créé", "L'événement a bien été ajouté dans Airtable.");
       const months = ['JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'];
       onAdd({
         id: `e_${Date.now()}`,
@@ -242,16 +242,10 @@ export default function EvenementsScreen({ navigation, route }) {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [addSheetVisible, setAddSheetVisible] = useState(false);
 
- useEffect(() => {
-   if (route?.params?.openAddSheet) {
-     setAddSheetVisible(true);
-     navigation.setParams({ openAddSheet: undefined });
-   }
- }, [route?.params?.openAddSheet]);
-
- useEffect(() => {
-   fetchEvenements();
- }, []);
+  useEffect(() => {
+    if (route?.params?.openAddSheet) setAddSheetVisible(true);
+    fetchEvenements();
+  }, []);
 
   const fetchEvenements = async () => {
     try {
