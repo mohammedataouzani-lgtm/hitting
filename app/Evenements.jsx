@@ -191,7 +191,7 @@ function AddEventSheet({ visible, onClose, onAdd }) {
               {dateObject.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })} à {dateObject.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </TouchableOpacity>
-        {showPicker && (
+          {showPicker && (
   <>
     <View style={styles.datePickerHeader}>
       <TouchableOpacity onPress={() => setShowPicker(false)}>
@@ -206,7 +206,6 @@ function AddEventSheet({ visible, onClose, onAdd }) {
       locale="fr-FR"
       style={{ height: 180 }}
       onChange={(event, d) => {
-        setShowPicker(false); // ✅ toujours fermer
         if (event.type === 'dismissed') return;
         if (d) setDateObject(d);
       }}

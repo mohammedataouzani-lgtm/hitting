@@ -81,11 +81,6 @@ export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
 
 const styles = StyleSheet.create({
   tabBar: {
-    // ✅ Position fixe : la tab bar ne fait plus partie du flux de chaque écran
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     backgroundColor: '#fff',
     borderTopWidth: 0.5,
     borderTopColor: '#E5E5E5',

@@ -452,27 +452,33 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
               </View>
             </Pressable>
 
-      {showDatePicker && (
-  <DateTimePicker
-    value={dateObj || new Date(2000, 0, 1)}
-    mode="date"
-    display="spinner"
-    themeVariant="light"
-    locale="fr-FR"
-    style={{ height: 180 }}
-    maximumDate={new Date()}
-    onChange={(event, selectedDate) => {
-      setShowDatePicker(false); // ✅ toujours fermer, quoi qu'il arrive
-      if (event.type === 'dismissed') return;
-      if (selectedDate) {
-        setDateObj(selectedDate);
-        const jj = String(selectedDate.getDate()).padStart(2, '0');
-        const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
-        const aaaa = selectedDate.getFullYear();
-        setDateNaissance(`${jj}/${mm}/${aaaa}`);
-      }
-    }}
-  />
+          {showDatePicker && (
+  <>
+    <View style={s.datePickerHeader}>
+      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+        <Text style={s.datePickerDoneTxt}>Valider</Text>
+      </TouchableOpacity>
+    </View>
+    <DateTimePicker
+      value={dateObj || new Date(2000, 0, 1)}
+      mode="date"
+      display={Platform.OS === 'ios' ? 'spinner' : 'spinner'}
+      themeVariant="light"
+      locale="fr-FR"
+      style={{ height: 180 }}
+      maximumDate={new Date()}
+      onChange={(event, selectedDate) => {
+        if (event.type === 'dismissed') return;
+        if (selectedDate) {
+          setDateObj(selectedDate);
+          const jj = String(selectedDate.getDate()).padStart(2, '0');
+          const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+          const aaaa = selectedDate.getFullYear();
+          setDateNaissance(`${jj}/${mm}/${aaaa}`);
+        }
+      }}
+    />
+  </>
 )}
 
             <Text style={s.fieldLabel}>Sexe *</Text>
