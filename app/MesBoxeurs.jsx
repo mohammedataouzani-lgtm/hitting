@@ -452,7 +452,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
               </View>
             </Pressable>
 
-          {showDatePicker && (
+     {showDatePicker && (
   <>
     <View style={s.datePickerHeader}>
       <TouchableOpacity onPress={() => setShowDatePicker(false)}>
@@ -468,6 +468,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
       style={{ height: 180 }}
       maximumDate={new Date()}
       onChange={(event, selectedDate) => {
+        setShowDatePicker(false); // ✅ toujours fermer, quoi qu'il arrive
         if (event.type === 'dismissed') return;
         if (selectedDate) {
           setDateObj(selectedDate);
