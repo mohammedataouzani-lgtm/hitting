@@ -9,6 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { Keyboard } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
@@ -33,6 +34,10 @@ import {
 const { width, height } = Dimensions.get("window");
 const NIVEAUX = ["Débutant", "Espoir", "Elite"];
 const SEXES = ["Homme", "Femme"];
+const prenomRef = useRef(null);
+const nomRef = useRef(null);
+const numeroLicenceRef = useRef(null);
+const poidsRef = useRef(null);
 const FIELD_LABELS = {
   prenom: "Prénom",
   nom: "Nom",
@@ -378,7 +383,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <ScrollView
+          <KeyboardAwareScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               s.sheetBody,
@@ -389,6 +394,10 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             ]}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
+            enableOnAndroid={true}
+            extraScrollHeight={20}
+             keyboardOpeningTime={0}
+
           >
             <View style={s.boxeurPhotoSection}>
               <View style={s.boxeurPhotoContainer}>
@@ -420,11 +429,10 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                   placeholder="Jean"
                   placeholderTextColor="#C0C0C0"
                   value={prenom}
-                  onChangeText={(v) => {
-                    setPrenom(v);
-                    setErrors((p) => ({ ...p, prenom: false }));
-                  }}
-                />
+                 ref={prenomRef}
+ returnKeyType="next"
+ onSubmitEditing={() => nomRef.current?.focus()}
+/>
               </View>
               <View style={{ width: 12 }} />
               <View style={{ flex: 1 }}>
@@ -434,11 +442,11 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                   placeholder="Dupont"
                   placeholderTextColor="#C0C0C0"
                   value={nom}
-                  onChangeText={(v) => {
-                    setNom(v);
-                    setErrors((p) => ({ ...p, nom: false }));
-                  }}
-                />
+               onChangeText={(v) => { setNom(v); setErrors((p) => ({ ...p, nom: false })); }}
+ ref={nomRef}
+ returnKeyType="next"
+ onSubmitEditing={() => numeroLicenceRef.current?.focus()}
+/>
               </View>
             </View>
 
@@ -517,6 +525,9 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
               onChangeText={setNumeroLicence}
               keyboardType="numeric"
               inputAccessoryViewID={Platform.OS === "ios" ? INPUT_ACCESSORY_ID : undefined}
+              ref={numeroLicenceRef}
+ returnKeyType="next"
+ onSubmitEditing={() => poidsRef.current?.focus()}
             />
 
             <Text style={s.fieldLabel}>Photo de la licence</Text>
@@ -590,6 +601,8 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
               value={poids}
               onChangeText={setPoids}
               keyboardType="numeric"
+               ref={poidsRef}
+ returnKeyType="done"
             />
 
             <Text style={s.sectionLabel}>PALMARÈS</Text>
@@ -684,7 +697,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
   </LinearGradient>
 </TouchableOpacity>
             <View style={{ height: 32 }} />
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </KeyboardAvoidingView>
       </Animated.View>
     </Modal>
