@@ -35,7 +35,7 @@ function DemandeNotifCard({ demande, onPress }) {
       </View>
       <View style={s.notifTextWrap}>
         <Text style={s.notifTitle}>
-          {isRecue ? 'Demande reçue' : 'Demande envoyée'} <Text style={s.notifStatutTag}>· En attente</Text>
+          {isRecue ? 'Demande reçue' : 'Demande envoyée'} <Text style={[s.notifStatutTag, isAcceptee && s.notifStatutTagAccepte]}>· {isAcceptee ? 'Accepté' : 'En attente'}</Text>
         </Text>
         <Text style={s.notifSubtitle} numberOfLines={1}>
           {demande.prenomBoxeur} {demande.nomBoxeur} <Text style={s.notifVs}>vs</Text> {demande.prenomAdversaire} {demande.nomAdversaire}
@@ -521,6 +521,7 @@ const s = StyleSheet.create({
   notifTextWrap: { flex: 1 },
   notifTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginBottom: 2 },
   notifStatutTag: { fontSize: 12, fontWeight: '600', color: '#F9A825' },
+  notifStatutTagAccepte: { color: '#2E7D32' },
   notifSubtitle: { fontSize: 13, color: '#888', fontWeight: '500' },
   notifVs: { color: '#bbb', fontWeight: '600' },
   notifChevron: { fontSize: 24, color: '#C7C7CC', fontWeight: '300', marginLeft: 8 },

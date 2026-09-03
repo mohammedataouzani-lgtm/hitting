@@ -73,59 +73,59 @@ export default function DemandeCombatScreen({ navigation, route }) {
     fetchCoachClub();
   }, []);
 
-const handleSendRequest = async () => {
-  // ✅ Validation avant envoi
-  if (!message.trim()) {
-    Alert.alert("Champ manquant", "Veuillez ajouter un message pour le coach adverse.");
-    return;
-  }
-  if (!adresse.trim()) {
-    Alert.alert("Champ manquant", "Veuillez renseigner l'adresse du combat.");
-    return;
-  }
-
-  try {
-    setLoading(true);
-    const auth = getAuth();
-    const idToken = await auth.currentUser.getIdToken();
-    const dateStr = toLocalDateStr(dateSouhaitee);
-
-   const boxerNomParts = (boxer.nom || '').trim().split(' ');
-    const boxerPrenomSplit = boxerNomParts[0] || '';
-    const boxerNomSplit = boxerNomParts.slice(1).join(' ') || boxerNomParts[0] || '';
-
-    const conflitResponse = await fetch(
-      `https://europe-west9-hitting-23de9.cloudfunctions.net/checkConflitBoxeur?nom=${encodeURIComponent(boxerNomSplit)}&prenom=${encodeURIComponent(boxerPrenomSplit)}&date=${dateStr}`,
-      { headers: { 'Authorization': `Bearer ${idToken}` } }
-    );
-    const conflitData = await conflitResponse.json();
-
-    if (conflitData.conflit === 'confirme') {
-      const confirmer = await new Promise((resolve) => {
-        Alert.alert(
-          "⚠️ Combat déjà confirmé",
-          `${boxer.prenom} ${boxer.nom} a déjà un combat confirmé le ${formatDate(dateSouhaitee)}. Voulez-vous vraiment envoyer cette demande ?`,
-          [
-            { text: "Annuler", style: "cancel", onPress: () => resolve(false) },
-            { text: "Continuer quand même", style: "destructive", onPress: () => resolve(true) },
-          ]
-        );
-      });
-      if (!confirmer) { setLoading(false); return; }
-    } else if (conflitData.conflit === 'attente') {
-      const confirmer = await new Promise((resolve) => {
-        Alert.alert(
-          "Demande déjà en attente",
-          `${boxer.prenom} ${boxer.nom} a déjà une demande en attente pour le ${formatDate(dateSouhaitee)}. Continuer quand même ?`,
-          [
-            { text: "Annuler", style: "cancel", onPress: () => resolve(false) },
-            { text: "Continuer", onPress: () => resolve(true) },
-          ]
-        );
-      });
-      if (!confirmer) { setLoading(false); return; }
+  const handleSendRequest = async () => {
+    // ✅ Validation avant envoi
+    if (!message.trim()) {
+      Alert.alert("Champ manquant", "Veuillez ajouter un message pour le coach adverse.");
+      return;
     }
-    const emailCoach1 = auth.currentUser.email;
+    if (!adresse.trim()) {
+      Alert.alert("Champ manquant", "Veuillez renseigner l'adresse du combat.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const auth = getAuth();
+      const idToken = await auth.currentUser.getIdToken();
+      const dateStr = toLocalDateStr(dateSouhaitee);
+
+      const boxerNomParts = (boxer.nom || '').trim().split(' ');
+      const boxerPrenomSplit = boxerNomParts[0] || '';
+      const boxerNomSplit = boxerNomParts.slice(1).join(' ') || boxerNomParts[0] || '';
+
+      const conflitResponse = await fetch(
+        `https://europe-west9-hitting-23de9.cloudfunctions.net/checkConflitBoxeur?nom=${encodeURIComponent(boxerNomSplit)}&prenom=${encodeURIComponent(boxerPrenomSplit)}&date=${dateStr}`,
+        { headers: { 'Authorization': `Bearer ${idToken}` } }
+      );
+      const conflitData = await conflitResponse.json();
+
+      if (conflitData.conflit === 'confirme') {
+        const confirmer = await new Promise((resolve) => {
+          Alert.alert(
+            "⚠️ Combat déjà confirmé",
+            `${boxer.prenom} ${boxer.nom} a déjà un combat confirmé le ${formatDate(dateSouhaitee)}. Voulez-vous vraiment envoyer cette demande ?`,
+            [
+              { text: "Annuler", style: "cancel", onPress: () => resolve(false) },
+              { text: "Continuer quand même", style: "destructive", onPress: () => resolve(true) },
+            ]
+          );
+        });
+        if (!confirmer) { setLoading(false); return; }
+      } else if (conflitData.conflit === 'attente') {
+        const confirmer = await new Promise((resolve) => {
+          Alert.alert(
+            "Demande déjà en attente",
+            `${boxer.prenom} ${boxer.nom} a déjà une demande en attente pour le ${formatDate(dateSouhaitee)}. Continuer quand même ?`,
+            [
+              { text: "Annuler", style: "cancel", onPress: () => resolve(false) },
+              { text: "Continuer", onPress: () => resolve(true) },
+            ]
+          );
+        });
+        if (!confirmer) { setLoading(false); return; }
+      }
+      const emailCoach1 = auth.currentUser.email;
 
       const nomParts = (adversaire.adversaireNom || '').trim().split(' ');
       const prenomAdversaire = nomParts[0] || '';
@@ -188,6 +188,51 @@ const handleSendRequest = async () => {
         </TouchableOpacity>
       </View>
 
+      {/* ✅ VS CARD — fixe, en dehors du ScrollView */}
+      <View style={styles.vsCard}>
+        <View style={styles.boxerProfile}>
+          <Image
+            source={{ uri: boxer.photo || boxer.avatar || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' }}
+            style={styles.avatar}
+          />
+          <Text style={styles.boxerName} numberOfLines={2}>
+            {boxer.prenom} {boxer.nom}
+          </Text>
+          <View style={styles.statsMiniRow}>
+            {[{ l: 'VIC.', v: boxer.vic }, { l: 'DEF.', v: boxer.def }, { l: 'NULS', v: boxer.nuls }, { l: 'K.O', v: boxer.ko }].map(({ l, v }) => (
+              <View key={l} style={styles.statMiniItem}>
+                <Text style={styles.statMiniVal}>{v ?? '—'}</Text>
+                <Text style={styles.statMiniLbl}>{l}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.vsBadgeContainer}>
+          <View style={styles.vsCircle}>
+            <Text style={styles.vsText}>VS</Text>
+          </View>
+        </View>
+
+        <View style={styles.boxerProfile}>
+          <Image
+            source={{ uri: adversaire.adversairePhoto || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' }}
+            style={styles.avatar}
+          />
+          <Text style={styles.boxerName} numberOfLines={2}>
+            {adversaire.adversaireNom}
+          </Text>
+          <View style={styles.statsMiniRow}>
+            {[{ l: 'VIC.', v: adversaire.palmares?.vic }, { l: 'DEF.', v: adversaire.palmares?.def }, { l: 'NULS', v: adversaire.palmares?.nuls }, { l: 'K.O', v: adversaire.palmares?.ko }].map(({ l, v }) => (
+              <View key={l} style={styles.statMiniItem}>
+                <Text style={styles.statMiniVal}>{v ?? '—'}</Text>
+                <Text style={styles.statMiniLbl}>{l}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -197,51 +242,6 @@ const handleSendRequest = async () => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* VS CARD */}
-          <View style={styles.vsCard}>
-            <View style={styles.boxerProfile}>
-              <Image
-                source={{ uri: boxer.photo || boxer.avatar || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' }}
-                style={styles.avatar}
-              />
-              <Text style={styles.boxerName} numberOfLines={2}>
-                {boxer.prenom} {boxer.nom}
-              </Text>
-              <View style={styles.statsMiniRow}>
-                {[{ l: 'VIC.', v: boxer.vic }, { l: 'DEF.', v: boxer.def }, { l: 'NULS', v: boxer.nuls }].map(({ l, v }) => (
-                  <View key={l} style={styles.statMiniItem}>
-                    <Text style={styles.statMiniVal}>{v ?? '—'}</Text>
-                    <Text style={styles.statMiniLbl}>{l}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.vsBadgeContainer}>
-              <View style={styles.vsCircle}>
-                <Text style={styles.vsText}>VS</Text>
-              </View>
-            </View>
-
-            <View style={styles.boxerProfile}>
-              <Image
-                source={{ uri: adversaire.adversairePhoto || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' }}
-                style={styles.avatar}
-              />
-              <Text style={styles.boxerName} numberOfLines={2}>
-                {adversaire.adversaireNom}
-              </Text>
-              <View style={styles.statsMiniRow}>
-                {[{ l: 'VIC.', v: adversaire.palmares?.vic }, { l: 'DEF.', v: adversaire.palmares?.def }, { l: 'NULS', v: adversaire.palmares?.nuls }, { l: 'K.O', v: adversaire.palmares?.ko }].map(({ l, v }) => (
-                  <View key={l} style={styles.statMiniItem}>
-                    <Text style={styles.statMiniVal}>{v ?? '—'}</Text>
-                    <Text style={styles.statMiniLbl}>{l}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-
           {/* CLUBS */}
           <Text style={styles.sectionHeading}>CLUBS</Text>
 
@@ -328,7 +328,7 @@ const handleSendRequest = async () => {
           </View>
 
           <View style={styles.fieldGroup}>
-           <Text style={styles.fieldLabel}>Adresse du combat *</Text>
+            <Text style={styles.fieldLabel}>Adresse du combat *</Text>
             <TextInput
               style={styles.input}
               value={adresse}
@@ -393,12 +393,13 @@ const handleSendRequest = async () => {
             <DateTimePicker
               value={tempDate}
               mode="date"
-             display="inline"
+              display="inline"
               minimumDate={new Date()}
               onChange={(event, selectedDate) => {
                 if (selectedDate) setTempDate(selectedDate);
               }}
               locale="fr-FR"
+              themeVariant="dark"
               style={{ backgroundColor: '#04053d' }}
             />
           </View>
@@ -419,14 +420,15 @@ const styles = StyleSheet.create({
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   backArrow: { fontSize: 22, color: '#222', fontWeight: '600' },
   backTxt: { fontSize: 16, fontWeight: '700', color: '#222' },
-  scrollContent: { paddingHorizontal: 18 },
+  scrollContent: { paddingHorizontal: 18, paddingTop: 16 },
   vsCard: {
     flexDirection: 'row',
     backgroundColor: '#fff',
     borderRadius: 16,
     paddingVertical: 18,
     paddingHorizontal: 12,
-    marginBottom: 24,
+    marginHorizontal: 18,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -513,13 +515,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
- datePickerInner: {
-  backgroundColor: '#071735',
-  borderTopLeftRadius: 20,
-  borderTopRightRadius: 20,
-  paddingBottom: 34,
-  paddingHorizontal: 10,
-},
+  datePickerInner: {
+    backgroundColor: '#071735',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+    paddingHorizontal: 10,
+  },
   datePickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
