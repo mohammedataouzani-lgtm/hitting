@@ -11,6 +11,7 @@ import { Keyboard } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useFocusEffect } from "@react-navigation/native";
+import { EditBoxeurSheet } from "./FicheBoxeur";
 import {
   View,
   Text,
@@ -929,6 +930,12 @@ export default function MesBoxeursScreen({ navigation, route }) {
         onClose={() => setSheetVisible(false)}
         onAdd={handleAddBoxeur}
       />
+      <EditBoxeurSheet
+  visible={editSheetVisible}
+  onClose={() => setEditSheetVisible(false)}
+  boxer={boxeurToEdit}
+  onSave={handleSaveBoxeur}
+/>
     </View>
   );
 }
