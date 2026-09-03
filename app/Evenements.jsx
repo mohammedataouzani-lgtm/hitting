@@ -4,7 +4,7 @@ import {
   TextInput, Platform, StatusBar, Dimensions, Animated, PanResponder,
   Modal, TouchableWithoutFeedback, KeyboardAvoidingView, Alert, ActivityIndicator,
 } from 'react-native';
-import BottomTabBar from './components/BottomTabBar';
+import { TAB_BAR_HEIGHT } from './components/BottomTabBar';
 import { getAuth } from 'firebase/auth';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -345,11 +345,13 @@ export default function EvenementsScreen({ navigation, route }) {
             ))
           )}
         </View>
-      </ScrollView>
+         </ScrollView>
 
-      <BottomTabBar activeTab={null} navigation={navigation} onPlusPress={() => setAddSheetVisible(true)} />
-
-      <EventDetailsBottomSheet visible={sheetVisible} event={selectedEvent} onClose={() => { setSheetVisible(false); setSelectedEvent(null); }} />
+      <EventDetailsBottomSheet
+        visible={sheetVisible}
+        event={selectedEvent}
+        onClose={() => { setSheetVisible(false); setSelectedEvent(null); }}
+      />
 
       <AddEventSheet
         visible={addSheetVisible}
@@ -362,7 +364,7 @@ export default function EvenementsScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF9F6' },
-  scrollContent: { paddingBottom: 100 },
+  scrollContent: { paddingBottom: TAB_BAR_HEIGHT + 20 },
   imageHeaderContainer: { height: 220, position: 'relative' },
   headerImage: { width: '100%', height: 220, resizeMode: 'cover' },
   overlay: { ...StyleSheet.absoluteFillObject, height: 220, backgroundColor: 'rgba(0,0,0,0.3)' },

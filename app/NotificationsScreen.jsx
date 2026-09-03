@@ -17,6 +17,7 @@ import {
 import { getAuth } from 'firebase/auth';
 import { useFocusEffect } from '@react-navigation/native';
 import { useNotifications } from '../NotificationContext';
+ import { TAB_BAR_HEIGHT } from './components/BottomTabBar';
 
 const SAFE_AREA_TOP = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight ?? 24);
 
@@ -483,7 +484,7 @@ const s = StyleSheet.create({
   titleRow: { paddingHorizontal: 20, marginBottom: 16 },
   title: { fontSize: 24, fontWeight: '900', color: '#111' },
 
-  scrollContent: { paddingHorizontal: 16 },
+ scrollContent: { paddingHorizontal: 16, paddingBottom: TAB_BAR_HEIGHT + 20 },
 
   section: { marginBottom: 24 },
   sectionLabel: {

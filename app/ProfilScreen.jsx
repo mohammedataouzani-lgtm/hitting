@@ -13,7 +13,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useAuth } from '../AuthContext';
-import BottomTabBar from './components/BottomTabBar';
+import { TAB_BAR_HEIGHT } from './components/BottomTabBar';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import { getCoachProfile, updateTelephone, updateCoachEmail, updateAvatar, deleteCoachAccount } from '../services/firebase';
@@ -363,7 +363,7 @@ export default function ProfilScreen({ navigation }) {
 
       </ScrollView>
 
-      <BottomTabBar activeTab="profil" navigation={navigation} />
+    
     </View>
   );
 }
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: { fontSize: 18, fontWeight: '800', color: '#1C1C1E', letterSpacing: -0.3 },
-  scrollContent: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: TAB_BAR_HEIGHT + 20 },
   profileCard: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',

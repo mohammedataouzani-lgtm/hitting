@@ -1,5 +1,6 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider } from './AuthContext';
 import LoginScreen from './app/auth/login.jsx';
@@ -23,38 +24,92 @@ import PolitiqueConfidentialiteScreen from './app/PolitiqueConfidentialiteScreen
 import MentionsLegalesScreen from './app/MentionsLegalesScreen.jsx';
 import CGUScreen from './app/CGUScreen.jsx';
 
+import BottomTabBar from './app/components/BottomTabBar';
 
 const Stack = createNativeStackNavigator();
 
+// ✅ Écrans sur lesquels la tab bar doit s'afficher
+const TAB_BAR_ROUTES = {
+  Dashboard: 'dashboard',
+  MesBoxeurs: 'boxeurs',
+  Profil: 'profil',
+  Notifications: 'notifs',
+};
+
 export default function App() {
+  const navigationRef = useNavigationContainerRef();
+  const [currentRoute, setCurrentRoute] = useState('Splash');
+
+  const updateCurrentRoute = useCallback(() => {
+    const routeName = navigationRef.current?.getCurrentRoute()?.name;
+    if (routeName) setCurrentRoute(routeName);
+  }, [navigationRef]);
+
+  const activeTab = TAB_BAR_ROUTES[currentRoute] ?? null;
+  const showTabBar = activeTab !== null;
+
+  const tabBarNavigation = {
+    navigate: (name, params) => navigationRef.current?.navigate(name, params),
+  };
+
   return (
     <AuthProvider>
       <NotificationProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="Splash"
-          screenOptions={{ headerShown: false }}        >
-          <Stack.Screen name="Splash" component={SplashScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
-          <Stack.Screen name="MesBoxeurs" component={MesBoxeursScreen} />
-          <Stack.Screen name="Profil" component={ProfilScreen} />
-          <Stack.Screen name="Offres" component={PaiementScreen} />
-          <Stack.Screen name="FicheBoxeur" component={FicheBoxeurScreen} />
-          <Stack.Screen name="Evenements" component={EvenementsScreen} />
-          <Stack.Screen name="AdversairesPotentiels" component={AdversairesPotentielsScreen} />
-          <Stack.Screen name="DemandeCombat" component={DemandeCombatScreen} />
-          <Stack.Screen name="DemandesMatch" component={DemandesMatchScreen} />
-           <Stack.Screen name="HistoriqueCombats" component={HistoriqueCombatsScreen} />
-          <Stack.Screen name="Notifications" component={NotificationsScreen} />
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          <Stack.Screen name="PolitiqueConfidentialite" component={PolitiqueConfidentialiteScreen} />
-<Stack.Screen name="MentionsLegales" component={MentionsLegalesScreen} />
-<Stack.Screen name="CGU" component={CGUScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+        <View style={styles.root}>
+          <NavigationContainer
+            ref={navigationRef}
+            onReady={updateCurrentRoute}
+            onStateChange={updateCurrentRoute}
+          >
+            <Stack.Navigator
+              initialRouteName="Splash"
+              screenOptions={{ headerShown: false }}
+            >
+              <Stack.Screen name="Splash" component={SplashScreen} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Register" component={RegisterScreen} />
+              <Stack.Screen name="Dashboard" component={DashboardScreen} />
+              <Stack.Screen name="MesBoxeurs" component={MesBoxeursScreen} />
+              <Stack.Screen name="Profil" component={ProfilScreen} />
+              <Stack.Screen name="Offres" component={PaiementScreen} />
+              <Stack.Screen name="FicheBoxeur" component={FicheBoxeurScreen} />
+              <Stack.Screen name="Evenements" component={EvenementsScreen} />
+              <Stack.Screen name="AdversairesPotentiels" component={AdversairesPotentielsScreen} />
+              <Stack.Screen name="DemandeCombat" component={DemandeCombatScreen} />
+              <Stack.Screen name="DemandesMatch" component={DemandesMatchScreen} />
+              <Stack.Screen name="HistoriqueCombats" component={HistoriqueCombatsScreen} />
+              <Stack.Screen name="Notifications" component={NotificationsScreen} />
+              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+              <Stack.Screen name="PolitiqueConfidentialite" component={PolitiqueConfidentialiteScreen} />
+              <Stack.Screen name="MentionsLegales" component={MentionsLegalesScreen} />
+              <Stack.Screen name="CGU" component={CGUScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
+
+          {/* ✅ Tab bar unique, montée une seule fois, jamais recréée entre écrans */}
+          {showTabBar && (
+            <View style={styles.tabBarWrapper} pointerEvents="box-none">
+              <BottomTabBar
+                activeTab={activeTab}
+                navigation={tabBarNavigation}
+                onPlusPress={() =>
+                  tabBarNavigation.navigate('MesBoxeurs', { openAddSheet: true })
+                }
+              />
+            </View>
+          )}
+        </View>
       </NotificationProvider>
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  tabBarWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+});

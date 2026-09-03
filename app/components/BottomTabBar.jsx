@@ -81,6 +81,10 @@ export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
 
 const styles = StyleSheet.create({
   tabBar: {
+    position: 'absolute',
+left: 0,
+right: 0,
+bottom: 0,
     backgroundColor: '#fff',
     borderTopWidth: 0.5,
     borderTopColor: '#E5E5E5',
@@ -147,7 +151,7 @@ const styles = StyleSheet.create({
   },
   // ✅ Badge
   badge: {
-    position: 'absolute',
+   position: 'absolute',
     top: -4,
     right: -6,
     backgroundColor: '#E53935',

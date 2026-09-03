@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNotifications } from "../NotificationContext";
-import BottomTabBar, { TAB_BAR_HEIGHT } from "./components/BottomTabBar";
+import { TAB_BAR_HEIGHT } from "./components/BottomTabBar";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { doc, getDoc } from "firebase/firestore";
