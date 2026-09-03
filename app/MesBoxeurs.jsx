@@ -27,6 +27,7 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  InputAccessoryView,
 } from "react-native";
 
 const { width, height } = Dimensions.get("window");
@@ -106,6 +107,8 @@ function BoxerCard({ boxer, onEdit, onPress }) {
     </TouchableOpacity>
   );
 }
+
+const INPUT_ACCESSORY_ID = "numericDoneBoxeur";
 
 function AddBoxeurSheet({ visible, onClose, onAdd }) {
   const slideAnim = useRef(new Animated.Value(height)).current;
@@ -513,6 +516,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
               value={numeroLicence}
               onChangeText={setNumeroLicence}
               keyboardType="numeric"
+              inputAccessoryViewID={Platform.OS === "ios" ? INPUT_ACCESSORY_ID : undefined}
             />
 
             <Text style={s.fieldLabel}>Photo de la licence</Text>
@@ -651,7 +655,15 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
     </Text>
   </View>
 )}
-
+{Platform.OS === "ios" && (
+  <InputAccessoryView nativeID={INPUT_ACCESSORY_ID}>
+    <View style={s.accessoryBar}>
+      <TouchableOpacity onPress={() => Keyboard.dismiss()}>
+        <Text style={s.accessoryDoneTxt}>Terminé</Text>
+      </TouchableOpacity>
+    </View>
+  </InputAccessoryView>
+)}
 <TouchableOpacity
   onPress={handleSubmit}
   activeOpacity={0.85}
@@ -785,6 +797,8 @@ export default function MesBoxeursScreen({ navigation, route }) {
       </View>
     );
   }
+
+
 
   return (
     <View style={s.container}>
@@ -1237,4 +1251,18 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+  accessoryBar: {
+  flexDirection: "row",
+  justifyContent: "flex-end",
+  paddingHorizontal: 16,
+  paddingVertical: 8,
+  backgroundColor: "#F5F5F5",
+  borderTopWidth: 0.5,
+  borderTopColor: "#E0E0E0",
+},
+accessoryDoneTxt: {
+  fontSize: 16,
+  fontWeight: "700",
+  color: "#007AFF",
+},
 });

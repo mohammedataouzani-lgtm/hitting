@@ -20,7 +20,8 @@ import { getCoachProfile, updateTelephone, updateCoachEmail, updateAvatar, delet
 import { useFocusEffect } from '@react-navigation/native';
 import { useNotifications } from '../NotificationContext';
 import { useCallback } from 'react';
-
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 
 export default function ProfilScreen({ navigation }) {
   const { refreshNotifCount } = useNotifications();
@@ -36,6 +37,8 @@ export default function ProfilScreen({ navigation }) {
   const [editTelephone, setEditTelephone] = React.useState('');
   const [editEmail, setEditEmail] = React.useState('');
   const { logout, user, loadingAuth } = useAuth();
+  const updateId = Updates.updateId ?? 'Build natif (pas d\'update OTA)';
+const channel = Updates.channel ?? '—';
 
   const handleLogout = () => {
     Alert.alert(
@@ -194,6 +197,11 @@ export default function ProfilScreen({ navigation }) {
 
     fetchProfile();
   }, [user, loadingAuth]);
+
+ const appVersion = Constants.expoConfig?.version ?? '—';
+  const buildNumber = Platform.OS === 'ios'
+    ? Constants.expoConfig?.ios?.buildNumber
+    : Constants.expoConfig?.android?.versionCode;
 
   return (
     <View style={styles.container}>
@@ -358,12 +366,26 @@ export default function ProfilScreen({ navigation }) {
 >
   <Text style={[styles.infoLabel, { color: '#FF3B30' }]}>Supprimer mon compte</Text>
   <Text style={styles.chevron}>›</Text>
-</TouchableOpacity>
-        </View>
+  </TouchableOpacity>
+          </View>
+
++        <View style={styles.section}>
++          <Text style={styles.sectionTitle}>VERSION</Text>
++          <View style={styles.infoItem}>
++            <Text style={styles.infoLabel}>Version app</Text>
++            <Text style={styles.infoValue}>{appVersion} ({buildNumber})</Text>
++          </View>
++          <View style={styles.infoItem}>
++            <Text style={styles.infoLabel}>Update ID</Text>
++            <Text style={styles.infoValue} numberOfLines={1}>{updateId}</Text>
++          </View>
++          <View style={styles.infoItem}>
++            <Text style={styles.infoLabel}>Canal</Text>
++            <Text style={styles.infoValue}>{channel}</Text>
++          </View>
++        </View>
 
       </ScrollView>
-
-    
     </View>
   );
 }
