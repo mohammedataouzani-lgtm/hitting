@@ -910,11 +910,7 @@ export default function MesBoxeursScreen({ navigation, route }) {
           <View style={{ height: 90 }} />
         </ScrollView>
       </View>
-      <BottomTabBar
-        activeTab="boxeurs"
-        navigation={navigation}
-        onPlusPress={() => setSheetVisible(true)}
-      />
+      
       <AddBoxeurSheet
         visible={sheetVisible}
         onClose={() => setSheetVisible(false)}

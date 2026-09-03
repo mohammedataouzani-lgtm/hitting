@@ -25,10 +25,10 @@ import MentionsLegalesScreen from './app/MentionsLegalesScreen.jsx';
 import CGUScreen from './app/CGUScreen.jsx';
 
 import BottomTabBar from './app/components/BottomTabBar';
+import ActionSheet from './app/components/ActionSheet';
 
 const Stack = createNativeStackNavigator();
 
-// ✅ Écrans sur lesquels la tab bar doit s'afficher
 const TAB_BAR_ROUTES = {
   Dashboard: 'dashboard',
   MesBoxeurs: 'boxeurs',
@@ -39,6 +39,7 @@ const TAB_BAR_ROUTES = {
 export default function App() {
   const navigationRef = useNavigationContainerRef();
   const [currentRoute, setCurrentRoute] = useState('Splash');
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
 
   const updateCurrentRoute = useCallback(() => {
     const routeName = navigationRef.current?.getCurrentRoute()?.name;
@@ -50,6 +51,16 @@ export default function App() {
 
   const tabBarNavigation = {
     navigate: (name, params) => navigationRef.current?.navigate(name, params),
+  };
+
+  const handleAddBoxeur = () => {
+    setActionSheetVisible(false);
+    setTimeout(() => tabBarNavigation.navigate('MesBoxeurs', { openAddSheet: true }), 300);
+  };
+
+  const handleAddEvenement = () => {
+    setActionSheetVisible(false);
+    setTimeout(() => tabBarNavigation.navigate('Evenements', { openAddSheet: true }), 300);
   };
 
   return (
@@ -86,18 +97,22 @@ export default function App() {
             </Stack.Navigator>
           </NavigationContainer>
 
-          {/* ✅ Tab bar unique, montée une seule fois, jamais recréée entre écrans */}
           {showTabBar && (
             <View style={styles.tabBarWrapper} pointerEvents="box-none">
               <BottomTabBar
                 activeTab={activeTab}
                 navigation={tabBarNavigation}
-                onPlusPress={() =>
-                  tabBarNavigation.navigate('MesBoxeurs', { openAddSheet: true })
-                }
+                onPlusPress={() => setActionSheetVisible(true)}
               />
             </View>
           )}
+
+          <ActionSheet
+            visible={actionSheetVisible}
+            onClose={() => setActionSheetVisible(false)}
+            onAddBoxeur={handleAddBoxeur}
+            onAddEvenement={handleAddEvenement}
+          />
         </View>
       </NotificationProvider>
     </AuthProvider>

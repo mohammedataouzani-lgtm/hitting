@@ -67,7 +67,7 @@ function AdversaireSheet({ visible, match, boxer, onClose, onDemandePress }) {
               <Image source={{ uri: boxer.avatar }} style={s.vsAvatar} />
               <Text style={s.vsName}>{boxer.nom}</Text>
               <View style={s.vsStats}>
-                {[{ l: 'VIC.', v: boxer.vic }, { l: 'DÉF.', v: boxer.def }, { l: 'NULS', v: boxer.nuls }].map(({ l, v }) => (
+                 {[{ l: 'VIC.', v: boxer.vic }, { l: 'DÉF.', v: boxer.def }, { l: 'NULS', v: boxer.nuls }, { l: 'K.O', v: boxer.ko }].map(({ l, v }) => (
                   <View key={l} style={s.vsStat}><Text style={s.vsStatVal}>{v}</Text><Text style={s.vsStatLbl}>{l}</Text></View>
                 ))}
               </View>

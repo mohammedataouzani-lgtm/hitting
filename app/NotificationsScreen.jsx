@@ -28,6 +28,7 @@ const TYPES_VICTOIRE = ['Aux points', 'KO', 'TKO', 'Abandon', 'Disqualification'
 // ─────────────────────────────────────────────
 function DemandeNotifCard({ demande, onPress }) {
   const isRecue = demande.type === 'recue';
+   const isAcceptee = demande.statut === 'Accepté';
   return (
     <TouchableOpacity style={s.notifCard} activeOpacity={0.7} onPress={onPress}>
       <View style={[s.notifIconWrap, { backgroundColor: isRecue ? '#FFF8E1' : '#E3F2FD' }]}>
@@ -521,7 +522,7 @@ const s = StyleSheet.create({
   notifTextWrap: { flex: 1 },
   notifTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginBottom: 2 },
   notifStatutTag: { fontSize: 12, fontWeight: '600', color: '#F9A825' },
-  notifStatutTagAccepte: { color: '#2E7D32' },
+notifStatutTagAccepte: { color: '#2E7D32' },
   notifSubtitle: { fontSize: 13, color: '#888', fontWeight: '500' },
   notifVs: { color: '#bbb', fontWeight: '600' },
   notifChevron: { fontSize: 24, color: '#C7C7CC', fontWeight: '300', marginLeft: 8 },

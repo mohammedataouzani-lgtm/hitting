@@ -41,6 +41,13 @@ const EVENT_STYLE = {
   evenement: { bg: '#5C6BC0', text: '#fff' },
 };
 
+const TYPE_LABEL = {
+  gala: 'Gala',
+  sparring: 'Sparring',
+  combat: 'Combat',
+  evenement: 'Événement',
+};
+
 function getDaysInMonth(month, year) {
   return new Date(year, month + 1, 0).getDate();
 }
@@ -185,13 +192,6 @@ function BilanBottomSheet({ visible, onClose, stats }) {
 // ─────────────────────────────────────────────
 // DÉTAIL ÉVÉNEMENT BOTTOM SHEET
 // ─────────────────────────────────────────────
-const TYPE_LABEL = {
-  gala: 'Gala',
-  sparring: 'Sparring',
-  combat: 'Combat',
-  evenement: 'Événement',
-};
-
 function EvenementDetailBottomSheet({ visible, onClose, eventInfo, onVoirEvenements, onVoirDemandes }) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
@@ -314,6 +314,89 @@ const eds = StyleSheet.create({
 });
 
 // ─────────────────────────────────────────────
+// LISTE DES ÉVÉNEMENTS D'UN JOUR (quand plusieurs)
+// ─────────────────────────────────────────────
+function DayEventsListModal({ visible, onClose, events, onSelectEvent }) {
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+
+  const open = useCallback(() => {
+    Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+  }, [translateY]);
+
+  const close = useCallback(() => {
+    Animated.timing(translateY, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: true }).start(() => onClose());
+  }, [translateY, onClose]);
+
+  useEffect(() => {
+    if (visible) { translateY.setValue(SCREEN_HEIGHT); open(); }
+  }, [visible, open, translateY]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
+      onPanResponderMove: (_, g) => { if (g.dy > 0) translateY.setValue(g.dy); },
+      onPanResponderRelease: (_, g) => { if (g.dy > 120 || g.vy > 0.5) close(); else open(); },
+    })
+  ).current;
+
+  if (!visible) return null;
+
+  return (
+    <Modal transparent visible={visible} animationType="none" onRequestClose={close}>
+      <TouchableWithoutFeedback onPress={close}>
+        <View style={dl.overlay} />
+      </TouchableWithoutFeedback>
+
+      <Animated.View style={[dl.sheet, { transform: [{ translateY }] }]} {...panResponder.panHandlers}>
+        <View style={dl.handleRow}><View style={dl.handle} /></View>
+        <Text style={dl.title}>Ce jour-là</Text>
+
+        {events.map((ev, idx) => {
+          const evStyle = EVENT_STYLE[ev.type] || EVENT_STYLE.evenement;
+          const titre = ev.data.titre || TYPE_LABEL[ev.type] || 'Événement';
+          const sousTitre = ev.data.dateFormatee || ev.data.adresse || '';
+          return (
+            <TouchableOpacity
+              key={idx}
+              style={dl.item}
+              activeOpacity={0.8}
+              onPress={() => {
+                close();
+                setTimeout(() => onSelectEvent(ev), 260);
+              }}
+            >
+              <View style={[dl.itemDot, { backgroundColor: evStyle.bg }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={dl.itemType}>{TYPE_LABEL[ev.type] || 'Événement'}</Text>
+                <Text style={dl.itemTitle} numberOfLines={1}>{titre}</Text>
+                {!!sousTitre && <Text style={dl.itemSub} numberOfLines={1}>{sousTitre}</Text>}
+              </View>
+              <Text style={dl.itemArrow}>›</Text>
+            </TouchableOpacity>
+          );
+        })}
+        <View style={{ height: 20 }} />
+      </Animated.View>
+    </Modal>
+  );
+}
+
+const dl = StyleSheet.create({
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 20 },
+  handleRow: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
+  handle: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#CCC' },
+  title: { fontSize: 18, fontWeight: '900', color: '#111', marginBottom: 14 },
+  item: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8F8F8', borderRadius: 14, padding: 14, marginBottom: 10, gap: 12 },
+  itemDot: { width: 10, height: 10, borderRadius: 5 },
+  itemType: { fontSize: 11, fontWeight: '800', color: '#999', letterSpacing: 0.3, marginBottom: 2 },
+  itemTitle: { fontSize: 15, fontWeight: '800', color: '#111' },
+  itemSub: { fontSize: 12, color: '#888', marginTop: 2 },
+  itemArrow: { fontSize: 22, color: '#CCC', fontWeight: '300' },
+});
+
+// ─────────────────────────────────────────────
 // DASHBOARD SCREEN
 // ─────────────────────────────────────────────
 export default function DashboardScreen({ navigation }) {
@@ -336,6 +419,8 @@ export default function DashboardScreen({ navigation }) {
   const [combats, setCombats] = useState([]);
   const [eventDetailVisible, setEventDetailVisible] = useState(false);
   const [selectedEventDetail, setSelectedEventDetail] = useState(null);
+  const [dayEventsListVisible, setDayEventsListVisible] = useState(false);
+  const [selectedDayEvents, setSelectedDayEvents] = useState([]);
   const [demandes, setDemandes] = useState([]);
   const demandesCarouselRef = useRef(null);
   const [activeDemandeSlide, setActiveDemandeSlide] = useState(0);
@@ -445,16 +530,25 @@ export default function DashboardScreen({ navigation }) {
     .filter(c => c.evMonth === month && c.evYear === year);
 
   const allCalendarEvents = [...activeEvents, ...activeCombats];
-  const getEventType = (day) => {
-    const found = allCalendarEvents.find(e => e.day === day);
-    return found ? found.type : null;
-  };
-  const getEventForDay = (day) => allCalendarEvents.find(e => e.day === day) || null;
+
+  // ✅ Renvoie TOUS les événements d'un jour (plus juste le premier trouvé)
+  const getEventsForDay = (day) => allCalendarEvents.filter(e => e.day === day);
 
   const isToday = (day, current) =>
     current && day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+
+  const handleDayPress = (dayEvents) => {
+    if (dayEvents.length === 0) return;
+    if (dayEvents.length === 1) {
+      setSelectedEventDetail(dayEvents[0]);
+      setEventDetailVisible(true);
+    } else {
+      setSelectedDayEvents(dayEvents);
+      setDayEventsListVisible(true);
+    }
+  };
 
   if (loading) {
     return (
@@ -677,33 +771,42 @@ export default function DashboardScreen({ navigation }) {
 
               <View style={styles.calGrid}>
                 {calCells.map(({ day, current }, i) => {
-                  const evType = current ? getEventType(day) : null;
-                  const evStyle = evType ? EVENT_STYLE[evType] : null;
+                  const dayEvents = current ? getEventsForDay(day) : [];
+                  const hasEvents = dayEvents.length > 0;
                   const todayCell = isToday(day, current);
                   return (
-                    <TouchableOpacity key={i} activeOpacity={evStyle ? 0.7 : 1} disabled={!evStyle}
-                      onPress={() => {
-                        if (!evStyle) return;
-                        const found = getEventForDay(day);
-                        if (found) {
-                          setSelectedEventDetail(found);
-                          setEventDetailVisible(true);
-                        }
-                      }} style={styles.calCell}>
+                    <TouchableOpacity
+                      key={i}
+                      activeOpacity={hasEvents ? 0.7 : 1}
+                      disabled={!hasEvents}
+                      onPress={() => handleDayPress(dayEvents)}
+                      style={styles.calCell}
+                    >
                       <View style={[
                         styles.calNum,
-                        evStyle && { backgroundColor: evStyle.bg },
-                        todayCell && !evStyle && styles.calNumToday,
+                        todayCell && styles.calNumToday,
                       ]}>
                         <Text style={[
                           styles.calNumTxt,
                           !current && styles.calNumOther,
-                          evStyle && { color: evStyle.text, fontWeight: '700' },
-                          todayCell && !evStyle && styles.calNumTodayTxt,
+                          todayCell && styles.calNumTodayTxt,
                         ]}>
                           {day}
                         </Text>
                       </View>
+                      {hasEvents && (
+                        <View style={styles.dotsRow}>
+                          {dayEvents.slice(0, 3).map((ev, idx) => (
+                            <View
+                              key={idx}
+                              style={[
+                                styles.eventDot,
+                                { backgroundColor: (EVENT_STYLE[ev.type] || EVENT_STYLE.evenement).bg },
+                              ]}
+                            />
+                          ))}
+                        </View>
+                      )}
                     </TouchableOpacity>
                   );
                 })}
@@ -721,6 +824,15 @@ export default function DashboardScreen({ navigation }) {
         eventInfo={selectedEventDetail}
         onVoirEvenements={() => navigation.navigate('Evenements')}
         onVoirDemandes={() => navigation.navigate('DemandesMatch')}
+      />
+      <DayEventsListModal
+        visible={dayEventsListVisible}
+        onClose={() => setDayEventsListVisible(false)}
+        events={selectedDayEvents}
+        onSelectEvent={(ev) => {
+          setSelectedEventDetail(ev);
+          setEventDetailVisible(true);
+        }}
       />
     </View>
   );
@@ -760,79 +872,4 @@ const styles = StyleSheet.create({
   demandeCard: { backgroundColor: '#F2F2F7', borderRadius: 16, padding: 16, marginRight: 0 },
   demandeBadges: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
   badgeType: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeTypeTxt: { fontSize: 11, fontWeight: '700' },
-  badgeStatut: { backgroundColor: '#EAEBF8', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeStatutAccepte: { backgroundColor: '#E8F5E9' },
-  badgeStatutTxtAccepte: { color: '#2E7D32' },
-  badgeStatutTxt: { fontSize: 11, fontWeight: '700', color: '#5C6BC0' },
-  demandeTitle: { fontSize: 17, fontWeight: '800', color: '#111', marginBottom: 2 },
-  demandeVsTxt: { fontSize: 13, color: '#999', fontWeight: '600', marginBottom: 2 },
-  demandeAdversaire: { fontSize: 17, fontWeight: '800', color: '#111' },
-  demandeDateRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
-  demandeDateIcon: { fontSize: 13 },
-  demandeDateTxt: { fontSize: 13, color: '#888', fontWeight: '500' },
-  noEventText: { color: '#666', fontSize: 14, textAlign: 'center', fontWeight: '500' },
-  eventBadges: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  badgeGala: { backgroundColor: '#EAEBF8', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeGalaTxt: { fontSize: 11, fontWeight: '700', color: '#5C6BC0' },
-  badgePrice: { backgroundColor: '#FFF3E0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  badgePriceTxt: { fontSize: 11, fontWeight: '700', color: '#EF6C00' },
-  eventTitle: { fontSize: 17, fontWeight: '800', color: '#111', marginBottom: 10 },
-  eventRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 7 },
-  eventRowLast: { marginBottom: 16 },
-  eventIcon: { fontSize: 15 },
-  eventMeta: { fontSize: 14, color: '#555' },
-  countdownRow: { flexDirection: 'row', alignItems: 'center' },
-  countdownLabel: { fontSize: 14, color: '#999', fontWeight: '700', marginRight: 16 },
-  countdownItem: { marginRight: 16, alignItems: 'center' },
-  countdownSub: { fontSize: 11, color: '#AAA' },
-  countdownVal: { fontSize: 22, fontWeight: '800', color: '#111', lineHeight: 26 },
-  infoCircle: { marginLeft: 'auto', width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: '#CCC', alignItems: 'center', justifyContent: 'center' },
-  infoTxt: { fontSize: 13, color: '#999', fontWeight: '700' },
-  calSection: { paddingHorizontal: 18, paddingBottom: 16 },
-  legendPills: { flexDirection: 'row', gap: 6 },
-  pillEvenement: { backgroundColor: '#EAEBF8', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
-  pillEvenementTxt: { fontSize: 10, fontWeight: '700', color: '#5C6BC0' },
-  calWidget: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 0.5, borderColor: '#E5E5E5', padding: 14 },
-  calNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  navBtn: { paddingHorizontal: 10, paddingVertical: 4 },
-  navArrow: { fontSize: 24, color: '#555', fontWeight: '600', lineHeight: 28 },
-  calNavCenter: { flexDirection: 'row', gap: 8 },
-  calSelect: { borderWidth: 0.5, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#fff' },
-  calSelectTxt: { fontSize: 14, fontWeight: '600', color: '#222' },
-  daysHeader: { flexDirection: 'row', marginBottom: 2 },
-  dayHeaderCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-  dayHeaderTxt: { fontSize: 12, color: '#AAA', fontWeight: '600' },
-  calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  calCell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 2 },
-  calNum: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  calNumTxt: { fontSize: 14, color: '#222', fontWeight: '400' },
-  calNumOther: { color: '#CCC' },
-  calNumToday: { borderWidth: 2, borderColor: '#2B5BB8' },
-  calNumTodayTxt: { color: '#2B5BB8', fontWeight: '700' },
-});
-
-// ─── Styles Bilan Sheet ───────────────────────────────────────────────────────
-const bs = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
-  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FAFAFA', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 20 },
-  handleRow: { alignItems: 'center', paddingTop: 12, paddingBottom: 4 },
-  handle: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#CCC' },
-  scrollContent: { paddingHorizontal: 22, paddingBottom: 40 },
-  title: { fontSize: 26, fontWeight: '900', color: '#111', marginTop: 10, letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, color: '#999', marginTop: 4, marginBottom: 20, fontWeight: '500' },
-  chartRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 28, gap: 20 },
-  legend: { gap: 10 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  legendDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 3, backgroundColor: 'transparent' },
-  legendTxt: { fontSize: 14, color: '#444', fontWeight: '500' },
-  cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 14 },
-  card: { width: (width - 44 - 14) / 2, borderRadius: 18, padding: 16 },
-  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  cardEmoji: { fontSize: 20 },
-  cardPct: { fontSize: 13, fontWeight: '700' },
-  cardCount: { fontSize: 42, fontWeight: '900', color: '#111', lineHeight: 48 },
-  cardLabel: { fontSize: 14, fontWeight: '700', color: '#333', marginBottom: 10 },
-  cardBarBg: { height: 6, backgroundColor: 'rgba(0,0,0,0.08)', borderRadius: 3 },
-  cardBarFill: { height: 6, borderRadius: 3 },
-});
+},)
