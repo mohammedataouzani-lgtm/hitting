@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import * as Updates from 'expo-updates';
 import { View, StyleSheet } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -19,11 +20,9 @@ import NotificationsScreen from './app/NotificationsScreen';
 import HistoriqueCombatsScreen from './app/HistoriqueCombatsScreen';
 import { NotificationProvider } from './NotificationContext';
 import OnboardingScreen from './app/OnboardingScreen';
-
 import PolitiqueConfidentialiteScreen from './app/PolitiqueConfidentialiteScreen.jsx';
 import MentionsLegalesScreen from './app/MentionsLegalesScreen.jsx';
 import CGUScreen from './app/CGUScreen.jsx';
-
 import BottomTabBar from './app/components/BottomTabBar';
 import ActionSheet from './app/components/ActionSheet';
 
@@ -61,6 +60,20 @@ export default function App() {
   const handleAddEvenement = () => {
     setActionSheetVisible(false);
     setTimeout(() => tabBarNavigation.navigate('Evenements', { openAddSheet: true }), 300);
+    useEffect(() => {
+  async function checkForUpdates() {
+    try {
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      }
+    } catch (e) {
+      console.log('Erreur vérification update:', e);
+    }
+  }
+  checkForUpdates();
+}, []);
   };
 
   return (
