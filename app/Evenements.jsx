@@ -122,6 +122,7 @@ function AddEventSheet({ visible, onClose, onAdd }) {
   const [loading, setLoading] = useState(false);
   const [dateObject, setDateObject] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState('date');
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -191,25 +192,51 @@ function AddEventSheet({ visible, onClose, onAdd }) {
               {dateObject.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })} à {dateObject.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </TouchableOpacity>
-          {showPicker && (
+ {showPicker && (
   <>
-    <View style={styles.datePickerHeader}>
-      <TouchableOpacity onPress={() => setShowPicker(false)}>
-        <Text style={styles.datePickerDoneTxt}>Valider</Text>
-      </TouchableOpacity>
-    </View>
-    <DateTimePicker
-      value={dateObject}
-      mode="datetime"
-      display="spinner"
-      themeVariant="light"
-      locale="fr-FR"
-      style={{ height: 180 }}
-      onChange={(event, d) => {
-        if (event.type === 'dismissed') return;
-        if (d) setDateObject(d);
-      }}
-    />
+    {Platform.OS === 'ios' ? (
+      <>
+        <View style={styles.datePickerHeader}>
+          <TouchableOpacity onPress={() => setShowPicker(false)}>
+            <Text style={styles.datePickerDoneTxt}>Valider</Text>
+          </TouchableOpacity>
+        </View>
+        <DateTimePicker
+          value={dateObject}
+          mode="datetime"
+          display="spinner"
+          themeVariant="light"
+          locale="fr-FR"
+          style={{ height: 180 }}
+          onChange={(event, d) => {
+            setShowPicker(false);
+            if (event.type === 'dismissed') return;
+            if (d) setDateObject(d);
+          }}
+        />
+      </>
+    ) : (
+      <DateTimePicker
+        value={dateObject}
+        mode={pickerMode}
+        display="default"
+        onChange={(event, d) => {
+          if (event.type === 'dismissed') { setShowPicker(false); return; }
+          if (d) {
+            if (pickerMode === 'date') {
+              setDateObject(d);
+              setPickerMode('time');
+            } else {
+              const combined = new Date(dateObject);
+              combined.setHours(d.getHours(), d.getMinutes());
+              setDateObject(combined);
+              setShowPicker(false);
+              setPickerMode('date');
+            }
+          }
+        }}
+      />
+    )}
   </>
 )}
           <Text style={styles.fieldLabel}>Lieu / Salle *</Text>
