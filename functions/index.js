@@ -4,6 +4,7 @@ global.util = util;
 const { onRequest } = require("firebase-functions/v2/https");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { setGlobalOptions } = require("firebase-functions/v2");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 
 const admin = require("firebase-admin");
 const axios = require("axios");
@@ -12,7 +13,41 @@ const Airtable = require("airtable");
 admin.initializeApp();
 
 setGlobalOptions({ region: "europe-west9" });
+async function sendPushNotification(expoPushToken, title, body, data = {}) {
+  if (!expoPushToken) {
+    console.log('⚠️ Pas de push token, notification ignorée.');
+    return;
+  }
+  try {
+    await axios.post('https://exp.host/--/api/v2/push/send', {
+      to: expoPushToken,
+      sound: 'default',
+      title,
+      body,
+      data,
+    }, {
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+    });
+    console.log('✅ Push envoyé:', title);
+  } catch (error) {
+    console.error('❌ Erreur envoi push:', error.response ? error.response.data : error.message);
+  }
+}
 
+async function getCoachPushTokenByEmail(email) {
+  if (!email) return null;
+  const snap = await admin.firestore()
+    .collection('coaches')
+    .where('email', '==', email.toLowerCase())
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  return snap.docs[0].data().expoPushToken || null;
+}
 // ===== CLOUD FUNCTION v2: getClubs =====
 exports.getClubs = onRequest({
   secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
@@ -334,7 +369,42 @@ exports.addEvenement = onRequest({
   }
 });
 
+exports.rappelsEvenements = onSchedule({
+  schedule: "every day 08:00",
+  timeZone: "Europe/Paris",
+  region: "europe-west9",
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"],
+}, async (event) => {
+  const apiKey = process.env.AIRTABLE_SECRET_KEY;
+  const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
+  const base = new Airtable({ apiKey }).base(baseId);
+  const now = new Date();
+  const demain = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const demainStr = demain.toISOString().split('T')[0];
 
+  const demandes = await base("Demandedematch").select({
+    filterByFormula: `AND({Statut} = "Accepté", IS_SAME({Date souhaitée}, "${demainStr}", 'day'))`,
+  }).all();
+
+  for (const record of demandes) {
+    const f = record.fields || {};
+    const nomBoxeur = `${f["Prénom de mon boxeur"] || ""} ${f["Nom de mon boxeur"] || ""}`.trim();
+    const nomAdversaire = `${f["Prénom du boxeur adversaire"] || ""} ${f["Nom du boxeur adversaire"] || ""}`.trim();
+
+    for (const email of [f["Email Coach 1"], f["Email coach 2"]]) {
+      if (!email) continue;
+      const token = await getCoachPushTokenByEmail(email);
+      await sendPushNotification(
+        token,
+        '⏰ Combat demain !',
+        `${nomBoxeur} vs ${nomAdversaire} — n'oubliez pas votre combat`,
+        { type: 'rappel_combat' }
+      );
+    }
+  }
+
+  console.log(`✅ Rappels envoyés pour ${demandes.length} combat(s).`);
+});
 // ===== CLOUD FUNCTION v2: getEvenements =====
 exports.getEvenements = onRequest({
   region: "europe-west9",
@@ -663,6 +733,17 @@ exports.addDemandeMatch = onRequest({
       { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
     );
 
+      // 🔔 Notification push au coach adverse
+  if (emailCoach2) {
+    const token = await getCoachPushTokenByEmail(emailCoach2);
+     await sendPushNotification(
+       token,
+       '🥊 Nouvelle demande de combat',
+       `${prenomBoxeur} ${nomBoxeur} vs ${prenomAdversaire} ${nomAdversaire}`,
+       { type: 'demande_recue', demandeId: response.data.id }
+     );
+   }
+
     return res.status(200).json({ success: true, id: response.data.id });
 
   } catch (error) {
@@ -791,6 +872,29 @@ exports.updateDemandeMatch = onRequest({
       { fields },
       { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
     );
+
+       // 🔔 Notification push au coach demandeur
+   try {
+     const recordResponse = await axios.get(
+       `https://api.airtable.com/v0/${baseId}/Demandedematch/${demandeId}`,
+       { headers: { Authorization: `Bearer ${apiKey}` } }
+     );
+     const f = recordResponse.data.fields || {};
+     const emailCoach1 = f["Email Coach 1"] || "";
+     const nomBoxeur = `${f["Prénom de mon boxeur"] || ""} ${f["Nom de mon boxeur"] || ""}`.trim();
+     const nomAdversaire = `${f["Prénom du boxeur adversaire"] || ""} ${f["Nom du boxeur adversaire"] || ""}`.trim();
+
+     if (emailCoach1) {
+       const token = await getCoachPushTokenByEmail(emailCoach1);
+       const title = statut === "Accepté" ? "✅ Demande acceptée" : "❌ Demande refusée";
+       const body = statut === "Accepté"
+         ? `${nomBoxeur} vs ${nomAdversaire} — combat confirmé !`
+         : `${nomBoxeur} vs ${nomAdversaire} a été refusée`;
+       await sendPushNotification(token, title, body, { type: 'demande_statut', demandeId });
+     }
+   } catch (notifError) {
+     console.error('❌ Erreur notification statut demande:', notifError.message);
+   }
 
     return res.status(200).json({ success: true });
 
@@ -1437,7 +1541,39 @@ exports.verifyEmailCode = onRequest({
   }
 });
 
+exports.notifyBoxeurStatus = onRequest({
+  region: "europe-west9",
+  secrets: ["AIRTABLE_WEBHOOK_SECRET"],
+}, async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") {
+    res.set("Access-Control-Allow-Methods", "POST");
+    res.set("Access-Control-Allow-Headers", "Content-Type, x-webhook-secret");
+    return res.status(204).send("");
+  }
 
+  const secret = req.headers['x-webhook-secret'];
+  if (secret !== process.env.AIRTABLE_WEBHOOK_SECRET) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  try {
+    const { coachEmail, boxeurNom, statut, motif } = req.body;
+    if (!coachEmail || !statut) return res.status(400).json({ error: "Paramètres manquants" });
+
+    const token = await getCoachPushTokenByEmail(coachEmail);
+    const title = statut === 'Validé' ? '✅ Boxeur validé' : '❌ Boxeur refusé';
+    const body = statut === 'Validé'
+      ? `${boxeurNom} a été ajouté à votre effectif`
+      : `${boxeurNom} : ${motif || 'voir détails dans l\'app'}`;
+
+    await sendPushNotification(token, title, body, { type: 'boxeur_statut' });
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("❌ Erreur notifyBoxeurStatus:", error.message);
+    return res.status(500).json({ error: "Erreur interne" });
+  }
+});
 // ===== CLOUD FUNCTION v2: checkConflitBoxeur =====
 exports.checkConflitBoxeur = onRequest({
   region: "europe-west9",
@@ -1507,4 +1643,6 @@ exports.checkConflitBoxeur = onRequest({
     console.error("❌ Erreur checkConflitBoxeur:", error.response ? JSON.stringify(error.response.data) : error.message);
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
-});
+  
+}
+);

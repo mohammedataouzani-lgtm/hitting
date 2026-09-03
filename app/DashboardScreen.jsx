@@ -19,6 +19,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
+import { registerForPushNotificationsAsync } from './services/notifications';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import { useNotifications } from '../NotificationContext';
@@ -407,6 +408,11 @@ export default function DashboardScreen({ navigation }) {
       refreshNotifCount();
     }, [])
   );
+
+
+ useEffect(() => {
+   registerForPushNotificationsAsync();
+ }, []);
 
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth());
