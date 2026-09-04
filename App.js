@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import * as Updates from 'expo-updates';
 import { View, StyleSheet } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
@@ -40,6 +40,22 @@ export default function App() {
   const [currentRoute, setCurrentRoute] = useState('Splash');
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
 
+  // ✅ Vérification des updates OTA au démarrage, au niveau racine du composant
+  useEffect(() => {
+    async function checkForUpdates() {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (e) {
+        console.log('Erreur vérification update:', e);
+      }
+    }
+    checkForUpdates();
+  }, []);
+
   const updateCurrentRoute = useCallback(() => {
     const routeName = navigationRef.current?.getCurrentRoute()?.name;
     if (routeName) setCurrentRoute(routeName);
@@ -57,23 +73,10 @@ export default function App() {
     setTimeout(() => tabBarNavigation.navigate('MesBoxeurs', { openAddSheet: true }), 300);
   };
 
+  // ✅ Plus de useEffect ici — juste la navigation
   const handleAddEvenement = () => {
     setActionSheetVisible(false);
     setTimeout(() => tabBarNavigation.navigate('Evenements', { openAddSheet: true }), 300);
-    useEffect(() => {
-  async function checkForUpdates() {
-    try {
-      const update = await Updates.checkForUpdateAsync();
-      if (update.isAvailable) {
-        await Updates.fetchUpdateAsync();
-        await Updates.reloadAsync();
-      }
-    } catch (e) {
-      console.log('Erreur vérification update:', e);
-    }
-  }
-  checkForUpdates();
-}, []);
   };
 
   return (

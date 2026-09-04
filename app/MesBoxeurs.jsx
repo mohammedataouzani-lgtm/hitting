@@ -35,10 +35,6 @@ import {
 const { width, height } = Dimensions.get("window");
 const NIVEAUX = ["Débutant", "Espoir", "Elite"];
 const SEXES = ["Homme", "Femme"];
-const prenomRef = useRef(null);
-const nomRef = useRef(null);
-const numeroLicenceRef = useRef(null);
-const poidsRef = useRef(null);
 const FIELD_LABELS = {
   prenom: "Prénom",
   nom: "Nom",
@@ -117,9 +113,6 @@ function BoxerCard({ boxer, onEdit, onPress }) {
 const INPUT_ACCESSORY_ID = "numericDoneBoxeur";
 
 function AddBoxeurSheet({ visible, onClose, onAdd }) {
-  const slideAnim = useRef(new Animated.Value(height)).current;
-  const backdropAnim = useRef(new Animated.Value(0)).current;
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateObj, setDateObj] = useState(null);
 
@@ -930,12 +923,7 @@ export default function MesBoxeursScreen({ navigation, route }) {
         onClose={() => setSheetVisible(false)}
         onAdd={handleAddBoxeur}
       />
-      <EditBoxeurSheet
-  visible={editSheetVisible}
-  onClose={() => setEditSheetVisible(false)}
-  boxer={boxeurToEdit}
-  onSave={handleSaveBoxeur}
-/>
+      
     </View>
   );
 }
