@@ -319,7 +319,15 @@ export default function EvenementsScreen({ navigation, route }) {
           const isPast = d && !isNaN(d) ? d < now : false;
           return { ...e, jour, mois, dateText: e.dateFormatee, salle: e.adresse, isPast };
         });
-        setEvents(mapped);
+      const upcoming = mapped
+  .filter(e => !e.isPast)
+  .sort((a, b) => new Date(a.dateRaw || a.dateFormatee) - new Date(b.dateRaw || b.dateFormatee));
+
+const past = mapped
+  .filter(e => e.isPast)
+  .sort((a, b) => new Date(b.dateRaw || b.dateFormatee) - new Date(a.dateRaw || a.dateFormatee));
+
+setEvents([...upcoming, ...past]);
       }
     } catch (error) {
       console.error('❌ Erreur fetchEvenements:', error);
@@ -417,7 +425,23 @@ const styles = StyleSheet.create({
   clubName: { fontSize: 13, color: '#8E8E93', fontWeight: '600' },
   priceBadge: { backgroundColor: '#FFCA28', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 5 },
   priceText: { fontSize: 11, fontWeight: '800', color: '#1A237E' },
-  formContainer: { flex: 1, backgroundColor: '#FAF9F6' },
+   formContainer: { flex: 1, backgroundColor: '#FAF9F6' },
+  formSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FAF9F6',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 20,
+    overflow: 'hidden',
+    zIndex: 1000,
+  },
   formHeader: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: '#E5E5EA', backgroundColor: '#FFFFFF' },
   formHeaderTitle: { fontSize: 17, fontWeight: '800', color: '#1C1C1E' },
   formCancelTxt: { fontSize: 16, color: '#FF3B30', fontWeight: '500' },
