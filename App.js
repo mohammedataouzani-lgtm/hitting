@@ -25,6 +25,7 @@ import MentionsLegalesScreen from './app/MentionsLegalesScreen.jsx';
 import CGUScreen from './app/CGUScreen.jsx';
 import BottomTabBar from './app/components/BottomTabBar';
 import ActionSheet from './app/components/ActionSheet';
+import crashlytics from '@react-native-firebase/crashlytics';
 
 const Stack = createNativeStackNavigator();
 
@@ -41,20 +42,26 @@ export default function App() {
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
 
   // ✅ Vérification des updates OTA au démarrage, au niveau racine du composant
-  useEffect(() => {
-    async function checkForUpdates() {
-      try {
-        const update = await Updates.checkForUpdateAsync();
-        if (update.isAvailable) {
-          await Updates.fetchUpdateAsync();
-          await Updates.reloadAsync();
-        }
-      } catch (e) {
-        console.log('Erreur vérification update:', e);
+ // ✅ Vérification des updates OTA au démarrage, au niveau racine du composant
+useEffect(() => {
+  async function checkForUpdates() {
+    try {
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
       }
+    } catch (e) {
+      console.log('Erreur vérification update:', e);
     }
-    checkForUpdates();
-  }, []);
+  }
+  checkForUpdates();
+}, []);
+
+// ✅ Activation de Crashlytics au démarrage
+useEffect(() => {
+  crashlytics().setCrashlyticsCollectionEnabled(true);
+}, []);
 
   const updateCurrentRoute = useCallback(() => {
     const routeName = navigationRef.current?.getCurrentRoute()?.name;
