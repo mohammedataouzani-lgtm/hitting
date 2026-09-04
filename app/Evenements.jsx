@@ -114,6 +114,9 @@ function EventDetailsBottomSheet({ visible, event, onClose }) {
 // FORMULAIRE AJOUT ÉVÉNEMENT
 // ─────────────────────────────────────────────
 function AddEventSheet({ visible, onClose, onAdd }) {
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const FORM_SHEET_HEIGHT = SCREEN_HEIGHT * 0.5;
+
   const [titre, setTitre] = useState('');
   const [salle, setSalle] = useState('');
   const [prix, setPrix] = useState('');
@@ -123,6 +126,18 @@ function AddEventSheet({ visible, onClose, onAdd }) {
   const [dateObject, setDateObject] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState('date');
+
+  const open = useCallback(() => {
+    Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+  }, [translateY]);
+
+  const close = useCallback(() => {
+    Animated.timing(translateY, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: true }).start(() => onClose());
+  }, [translateY, onClose]);
+
+  useEffect(() => {
+    if (visible) { translateY.setValue(SCREEN_HEIGHT); open(); }
+  }, [visible, open, translateY]);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -165,7 +180,7 @@ function AddEventSheet({ visible, onClose, onAdd }) {
       });
       setTitre(''); setSalle(''); setPrix(''); setContact('');
       setAffiche(null); setDateObject(new Date());
-      onClose();
+      close();
     } catch (error) {
       Alert.alert("Erreur", "Impossible de créer l'événement. Réessayez.");
     } finally {
@@ -173,90 +188,99 @@ function AddEventSheet({ visible, onClose, onAdd }) {
     }
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.formContainer}>
+    <Modal transparent visible={visible} animationType="none" onRequestClose={close}>
+      <TouchableWithoutFeedback onPress={close}>
+        <View style={bs.overlay} />
+      </TouchableWithoutFeedback>
+
+      <Animated.View style={[styles.formSheet, { height: FORM_SHEET_HEIGHT, transform: [{ translateY }] }]}>
+        <View style={bs.handleRow}><View style={bs.handle} /></View>
         <View style={styles.formHeader}>
-          <TouchableOpacity onPress={onClose}><Text style={styles.formCancelTxt}>Annuler</Text></TouchableOpacity>
+          <TouchableOpacity onPress={close}><Text style={styles.formCancelTxt}>Annuler</Text></TouchableOpacity>
           <Text style={styles.formHeaderTitle}>Nouvel événement</Text>
           <TouchableOpacity onPress={handleSubmit} disabled={loading}>
             {loading ? <ActivityIndicator color="#007AFF" /> : <Text style={styles.formCreateTxt}>Créer</Text>}
           </TouchableOpacity>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formScroll}>
-          <Text style={styles.fieldLabel}>Titre *</Text>
-          <TextInput style={styles.input} placeholder="Ex: Coupe de Paris" placeholderTextColor="#A1A1A6" value={titre} onChangeText={setTitre} />
-          <Text style={styles.fieldLabel}>Date et heure</Text>
-          <TouchableOpacity style={styles.input} onPress={() => setShowPicker(true)}>
-            <Text style={{ color: '#1C1C1E', fontSize: 15 }}>
-              {dateObject.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })} à {dateObject.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-          </TouchableOpacity>
- {showPicker && (
-  <>
-    {Platform.OS === 'ios' ? (
-      <>
-        <View style={styles.datePickerHeader}>
-          <TouchableOpacity onPress={() => setShowPicker(false)}>
-            <Text style={styles.datePickerDoneTxt}>Valider</Text>
-          </TouchableOpacity>
-        </View>
-        <DateTimePicker
-          value={dateObject}
-          mode="datetime"
-          display="spinner"
-          themeVariant="light"
-          locale="fr-FR"
-          style={{ height: 180 }}
-          onChange={(event, d) => {
-            setShowPicker(false);
-            if (event.type === 'dismissed') return;
-            if (d) setDateObject(d);
-          }}
-        />
-      </>
-    ) : (
-      <DateTimePicker
-        value={dateObject}
-        mode={pickerMode}
-        display="default"
-        onChange={(event, d) => {
-          if (event.type === 'dismissed') { setShowPicker(false); return; }
-          if (d) {
-            if (pickerMode === 'date') {
-              setDateObject(d);
-              setPickerMode('time');
-            } else {
-              const combined = new Date(dateObject);
-              combined.setHours(d.getHours(), d.getMinutes());
-              setDateObject(combined);
-              setShowPicker(false);
-              setPickerMode('date');
-            }
-          }
-        }}
-      />
-    )}
-  </>
-)}
-          <Text style={styles.fieldLabel}>Lieu / Salle *</Text>
-          <TextInput style={styles.input} placeholder="Ex: Gymnase Carpentier" placeholderTextColor="#A1A1A6" value={salle} onChangeText={setSalle} />
-          <Text style={styles.fieldLabel}>Contact</Text>
-          <TextInput style={styles.input} placeholder="Ex: 06 12 34 56 78" placeholderTextColor="#A1A1A6" value={contact} onChangeText={setContact} keyboardType="phone-pad" />
-          <Text style={styles.fieldLabel}>Prix (€)</Text>
-          <TextInput style={styles.input} placeholder="Ex: 15 (ou laisser vide si gratuit)" placeholderTextColor="#A1A1A6" value={prix} onChangeText={setPrix} keyboardType="numeric" />
-          <Text style={styles.fieldLabel}>Affiche</Text>
-          <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-            <Text style={{ color: '#555' }}>{affiche ? "✅ Image sélectionnée — changer" : "📷 Choisir une image"}</Text>
-          </TouchableOpacity>
-          {affiche && <Image source={{ uri: affiche }} style={styles.preview} />}
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formScroll} keyboardShouldPersistTaps="handled">
+            <Text style={styles.fieldLabel}>Titre *</Text>
+            <TextInput style={styles.input} placeholder="Ex: Coupe de Paris" placeholderTextColor="#A1A1A6" value={titre} onChangeText={setTitre} />
+            <Text style={styles.fieldLabel}>Date et heure</Text>
+            <TouchableOpacity style={styles.input} onPress={() => setShowPicker(true)}>
+              <Text style={{ color: '#1C1C1E', fontSize: 15 }}>
+                {dateObject.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })} à {dateObject.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </TouchableOpacity>
+            {showPicker && (
+              <>
+                {Platform.OS === 'ios' ? (
+                  <>
+                    <View style={styles.datePickerHeader}>
+                      <TouchableOpacity onPress={() => setShowPicker(false)}>
+                        <Text style={styles.datePickerDoneTxt}>Valider</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={dateObject}
+                      mode="datetime"
+                      display="spinner"
+                      themeVariant="light"
+                      locale="fr-FR"
+                      style={{ height: 180 }}
+                      onChange={(event, d) => {
+                        setShowPicker(false);
+                        if (event.type === 'dismissed') return;
+                        if (d) setDateObject(d);
+                      }}
+                    />
+                  </>
+                ) : (
+                  <DateTimePicker
+                    value={dateObject}
+                    mode={pickerMode}
+                    display="default"
+                    onChange={(event, d) => {
+                      if (event.type === 'dismissed') { setShowPicker(false); return; }
+                      if (d) {
+                        if (pickerMode === 'date') {
+                          setDateObject(d);
+                          setPickerMode('time');
+                        } else {
+                          const combined = new Date(dateObject);
+                          combined.setHours(d.getHours(), d.getMinutes());
+                          setDateObject(combined);
+                          setShowPicker(false);
+                          setPickerMode('date');
+                        }
+                      }
+                    }}
+                  />
+                )}
+              </>
+            )}
+            <Text style={styles.fieldLabel}>Lieu / Salle *</Text>
+            <TextInput style={styles.input} placeholder="Ex: Gymnase Carpentier" placeholderTextColor="#A1A1A6" value={salle} onChangeText={setSalle} />
+            <Text style={styles.fieldLabel}>Contact</Text>
+            <TextInput style={styles.input} placeholder="Ex: 06 12 34 56 78" placeholderTextColor="#A1A1A6" value={contact} onChangeText={setContact} keyboardType="phone-pad" />
+            <Text style={styles.fieldLabel}>Prix (€)</Text>
+            <TextInput style={styles.input} placeholder="Ex: 15 (ou laisser vide si gratuit)" placeholderTextColor="#A1A1A6" value={prix} onChangeText={setPrix} keyboardType="numeric" />
+            <Text style={styles.fieldLabel}>Affiche</Text>
+            <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+              <Text style={{ color: '#555' }}>{affiche ? "✅ Image sélectionnée — changer" : "📷 Choisir une image"}</Text>
+            </TouchableOpacity>
+            {affiche && <Image source={{ uri: affiche }} style={styles.preview} />}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Animated.View>
     </Modal>
   );
 }
-
 // ─────────────────────────────────────────────
 // SCREEN PRINCIPAL
 // ─────────────────────────────────────────────

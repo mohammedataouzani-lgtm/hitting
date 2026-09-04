@@ -113,6 +113,13 @@ function BoxerCard({ boxer, onEdit, onPress }) {
 const INPUT_ACCESSORY_ID = "numericDoneBoxeur";
 
 function AddBoxeurSheet({ visible, onClose, onAdd }) {
+  const slideAnim = useRef(new Animated.Value(height)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
+  const prenomRef = useRef(null);
+  const nomRef = useRef(null);
+  const numeroLicenceRef = useRef(null);
+  const poidsRef = useRef(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateObj, setDateObj] = useState(null);
 
@@ -418,14 +425,15 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             <View style={s.row}>
               <View style={{ flex: 1 }}>
                 <Text style={s.fieldLabel}>Prénom *</Text>
-                <TextInput
-                  style={[s.input, errors.prenom && s.inputError]}
-                  placeholder="Jean"
-                  placeholderTextColor="#C0C0C0"
-                  value={prenom}
-                 ref={prenomRef}
- returnKeyType="next"
- onSubmitEditing={() => nomRef.current?.focus()}
+      <TextInput
+  style={[s.input, errors.prenom && s.inputError]}
+  placeholder="Jean"
+  placeholderTextColor="#C0C0C0"
+  value={prenom}
+  onChangeText={(v) => { setPrenom(v); setErrors((p) => ({ ...p, prenom: false })); }}
+  ref={prenomRef}
+  returnKeyType="next"
+  onSubmitEditing={() => nomRef.current?.focus()}
 />
               </View>
               <View style={{ width: 12 }} />
