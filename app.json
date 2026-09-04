@@ -26,7 +26,8 @@
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#0A1628"
       },
-      "package": "com.lawass1864.hitting"
+      "package": "com.lawass1864.hitting",
+       "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/logo.png"
@@ -41,13 +42,14 @@
           }
         }
       ],
-      "expo-asset",
-      "expo-web-browser",
-      "expo-secure-store",
-      "@react-native-community/datetimepicker",
-      "expo-notifications",
-      "@react-native-firebase/app",
-      "@react-native-firebase/crashlytics"
+       "expo-asset",
+  "expo-web-browser",
+  "expo-secure-store",
+  "@react-native-community/datetimepicker",
+  "expo-notifications",
+  "expo-image-picker",
+  "@react-native-firebase/app",
+  "@react-native-firebase/crashlytics"
     ],
     "scheme": "hitting",
     "extra": {
