@@ -727,11 +727,15 @@ export default function MesBoxeursScreen({ navigation, route }) {
   const [filterPoids, setFilterPoids] = useState(null);
 
   React.useEffect(() => {
-    if (route.params?.openAddSheet) {
-      setSheetVisible(true);
-    }
-    fetchBoxeurs();
-  }, []);
+  if (route.params?.openAddSheet) {
+    setSheetVisible(true);
+    navigation.setParams({ openAddSheet: false });
+  }
+}, [route.params?.openAddSheet]);
+
+React.useEffect(() => {
+  fetchBoxeurs();
+}, []);
 
   const fetchBoxeurs = async () => {
     try {

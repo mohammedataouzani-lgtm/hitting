@@ -293,9 +293,15 @@ export default function EvenementsScreen({ navigation, route }) {
   const [addSheetVisible, setAddSheetVisible] = useState(false);
 
   useEffect(() => {
-    if (route?.params?.openAddSheet) setAddSheetVisible(true);
-    fetchEvenements();
-  }, []);
+  if (route?.params?.openAddSheet) {
+    setAddSheetVisible(true);
+    navigation.setParams({ openAddSheet: false });
+  }
+}, [route?.params?.openAddSheet]);
+
+useEffect(() => {
+  fetchEvenements();
+}, []);
 
   const fetchEvenements = async () => {
     try {
