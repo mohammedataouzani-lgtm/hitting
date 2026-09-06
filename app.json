@@ -22,13 +22,12 @@
       }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#0A1628"
-      },
-      "package": "com.lawass1864.hitting",
-       "googleServicesFile": "./google-services.json"
-    },
+  "adaptiveIcon": {
+    "foregroundImage": "./assets/logo.png",
+    "backgroundColor": "#0A1628"
+  },
+  "package": "com.lawass1864.hitting"
+},
     "web": {
       "favicon": "./assets/logo.png"
     },
