@@ -25,7 +25,7 @@ import MentionsLegalesScreen from './app/MentionsLegalesScreen.jsx';
 import CGUScreen from './app/CGUScreen.jsx';
 import BottomTabBar from './app/components/BottomTabBar';
 import ActionSheet from './app/components/ActionSheet';
-import crashlytics from '@react-native-firebase/crashlytics';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -58,10 +58,6 @@ useEffect(() => {
   checkForUpdates();
 }, []);
 
-// ✅ Activation de Crashlytics au démarrage
-useEffect(() => {
-  crashlytics().setCrashlyticsCollectionEnabled(true);
-}, []);
 
   const updateCurrentRoute = useCallback(() => {
     const routeName = navigationRef.current?.getCurrentRoute()?.name;
