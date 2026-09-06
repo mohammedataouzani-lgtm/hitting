@@ -32,30 +32,35 @@ export default function SplashScreen({ navigation }) {
         useNativeDriver: true,
       }),
     ]).start();
-Animated.timing(progressAnim, {
+
+    Animated.timing(progressAnim, {
       toValue: 1,
       duration: 2500,
       useNativeDriver: false,
-    }).start(async () => {
-      // ✅ Option B — vérifie l'état Firebase Auth réel
+    }).start(() => {
+      // ✅ On écoute l'état d'authentification réel de Firebase avec un mécanisme de sécurité
       const auth = getAuth();
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        navigation.replace('Dashboard');
-        return;
-      }
+      
+      const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+        unsubscribe(); // On se désabonne tout de suite pour éviter les boucles
 
-      try {
-        const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
-        if (!hasSeenOnboarding) {
-          navigation.replace('Onboarding');
-        } else {
+        if (currentUser) {
+          navigation.replace('Dashboard');
+          return;
+        }
+
+        try {
+          const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+          if (!hasSeenOnboarding) {
+            navigation.replace('Onboarding');
+          } else {
+            navigation.replace('Login');
+          }
+        } catch (error) {
+          console.error('❌ Erreur lecture onboarding:', error);
           navigation.replace('Login');
         }
-      } catch (error) {
-        console.error('❌ Erreur lecture onboarding:', error);
-        navigation.replace('Login');
-      }
+      });
     });
   }, []);
 
