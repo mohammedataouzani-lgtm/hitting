@@ -931,10 +931,16 @@ React.useEffect(() => {
       </View>
       
       <AddBoxeurSheet
-        visible={sheetVisible}
-        onClose={() => setSheetVisible(false)}
-        onAdd={handleAddBoxeur}
-      />
+  visible={sheetVisible}
+  onClose={() => setSheetVisible(false)}
+  onAdd={handleAddBoxeur}
+/>
+<EditBoxeurSheet
+  visible={editSheetVisible}
+  onClose={() => setEditSheetVisible(false)}
+  boxer={boxeurToEdit}
+  onSave={handleSaveBoxeur}
+/>
       
     </View>
   );
