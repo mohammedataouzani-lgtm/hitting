@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './AuthContext';
 import LoginScreen from './app/auth/login.jsx';
 import RegisterScreen from './app/auth/register';
@@ -66,7 +67,8 @@ export default function App() {
   };
 
   return (
-    <AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
       <NotificationProvider>
         <View style={styles.root}>
           <NavigationContainer
@@ -117,7 +119,8 @@ export default function App() {
           />
         </View>
       </NotificationProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
