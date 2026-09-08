@@ -13,14 +13,16 @@
     "assetBundlePatterns": [
       "**/*"
     ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.lawass1864.hitting",
-      "buildNumber": "2",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
+ "ios": {
+  "supportsTablet": true,
+  "bundleIdentifier": "com.lawass1864.hitting",
+  "buildNumber": "2",
+  "infoPlist": {
+    "ITSAppUsesNonExemptEncryption": false,
+    "NSCameraUsageDescription": "Hitting a besoin d'accéder à l'appareil photo pour ajouter la photo d'un boxeur ou sa licence.",
+    "NSPhotoLibraryUsageDescription": "Hitting a besoin d'accéder à vos photos pour ajouter la photo d'un boxeur ou sa licence."
+  }
+},
     "android": {
   "adaptiveIcon": {
     "foregroundImage": "./assets/logo.png",
