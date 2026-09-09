@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Image,
   TextInput, Platform, StatusBar, Dimensions, Animated, PanResponder,
   Modal, TouchableWithoutFeedback, KeyboardAvoidingView, Alert, ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { TAB_BAR_HEIGHT } from './components/BottomTabBar';
 import { getAuth } from 'firebase/auth';
@@ -115,6 +116,8 @@ function EventDetailsBottomSheet({ visible, event, onClose }) {
 // ─────────────────────────────────────────────
 function AddEventSheet({ visible, onClose, onAdd }) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const FORM_SHEET_HEIGHT = SCREEN_HEIGHT * 0.5;
 
   const [titre, setTitre] = useState('');
@@ -138,6 +141,31 @@ function AddEventSheet({ visible, onClose, onAdd }) {
   useEffect(() => {
     if (visible) { translateY.setValue(SCREEN_HEIGHT); open(); }
   }, [visible, open, translateY]);
+
+  // Suivi manuel du clavier : on remonte toute la sheet au-dessus du clavier
+  // pour que les champs Date/heure, Lieu, Contact… restent visibles et scrollables.
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      const h = e?.endCoordinates?.height ?? 0;
+      setKeyboardHeight(h);
+      Animated.timing(keyboardOffset, {
+        toValue: -h,
+        duration: Platform.OS === 'ios' ? (e?.duration ?? 250) : 150,
+        useNativeDriver: true,
+      }).start();
+    });
+    const hideSub = Keyboard.addListener(hideEvt, (e) => {
+      setKeyboardHeight(0);
+      Animated.timing(keyboardOffset, {
+        toValue: 0,
+        duration: Platform.OS === 'ios' ? (e?.duration ?? 250) : 150,
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, [keyboardOffset]);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -196,7 +224,7 @@ function AddEventSheet({ visible, onClose, onAdd }) {
         <View style={bs.overlay} />
       </TouchableWithoutFeedback>
 
-      <Animated.View style={[styles.formSheet, { height: FORM_SHEET_HEIGHT, transform: [{ translateY }] }]}>
+      <Animated.View style={[styles.formSheet, { height: FORM_SHEET_HEIGHT, transform: [{ translateY: Animated.add(translateY, keyboardOffset) }] }]}>
         <View style={bs.handleRow}><View style={bs.handle} /></View>
         <View style={styles.formHeader}>
           <TouchableOpacity onPress={close}><Text style={styles.formCancelTxt}>Annuler</Text></TouchableOpacity>
@@ -206,8 +234,15 @@ function AddEventSheet({ visible, onClose, onAdd }) {
           </TouchableOpacity>
         </View>
 
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formScroll} keyboardShouldPersistTaps="handled">
+        {/* La sheet entière est déjà remontée au-dessus du clavier (keyboardOffset),
+            donc KeyboardAvoidingView reste neutre pour ne pas décaler deux fois. */}
+        <KeyboardAvoidingView behavior={undefined} style={{ flex: 1 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.formScroll, { paddingBottom: keyboardHeight > 0 ? 32 : 40 }]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+          >
             <Text style={styles.fieldLabel}>Titre *</Text>
             <TextInput style={styles.input} placeholder="Ex: Coupe de Paris" placeholderTextColor="#A1A1A6" value={titre} onChangeText={setTitre} />
             <Text style={styles.fieldLabel}>Date et heure</Text>
