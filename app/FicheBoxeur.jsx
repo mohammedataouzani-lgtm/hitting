@@ -14,7 +14,7 @@ const SHEET_HEIGHT = height * 0.85;
 // ─────────────────────────────────────────────
 // EDIT SHEET
 // ─────────────────────────────────────────────
-function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
+export function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
   const slideAnim = useRef(new Animated.Value(height)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 

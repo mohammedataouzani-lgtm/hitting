@@ -7,11 +7,13 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNotifications } from '../../NotificationContext';
 
-const ANDROID_NAV_BAR_HEIGHT = 34;
+// Valeur de secours si les insets ne sont pas encore disponibles
+const FALLBACK_ANDROID_NAV_BAR_HEIGHT = 34;
 
-export const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 64 + ANDROID_NAV_BAR_HEIGHT;
+export const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 64 + FALLBACK_ANDROID_NAV_BAR_HEIGHT;
 
 const TABS = [
   { key: 'dashboard', icon: '🏠', route: 'Dashboard' },
@@ -23,8 +25,11 @@ const TABS = [
 
 export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
   const { notifCount } = useNotifications();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Platform.OS === 'android' ? Math.max(insets.bottom, FALLBACK_ANDROID_NAV_BAR_HEIGHT) : insets.bottom;
+
   return (
-    <View style={styles.tabBar}>
+    <View style={[styles.tabBar, { paddingBottom: bottomPadding }]}>
       <View style={styles.iconsRow}>
         {TABS.map((tab) => {
           if (tab.key === 'plus') {
@@ -57,7 +62,6 @@ export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
                 <Text style={[styles.tabIcon, isActive && styles.tabIconActive]}>
                   {tab.icon}
                 </Text>
-                {/* ✅ Badge compteur sur la cloche */}
                 {tab.key === 'notifs' && notifCount > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeTxt}>
@@ -71,10 +75,6 @@ export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
           );
         })}
       </View>
-
-      {Platform.OS === 'android' && (
-        <View style={styles.androidSafeArea} />
-      )}
     </View>
   );
 }
@@ -82,9 +82,9 @@ export default function BottomTabBar({ activeTab, navigation, onPlusPress }) {
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
-left: 0,
-right: 0,
-bottom: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: '#fff',
     borderTopWidth: 0.5,
     borderTopColor: '#E5E5E5',
@@ -145,13 +145,8 @@ bottom: 0,
     lineHeight: 32,
     marginTop: -1,
   },
-  androidSafeArea: {
-    height: ANDROID_NAV_BAR_HEIGHT,
-    backgroundColor: '#fff',
-  },
-  // ✅ Badge
   badge: {
-   position: 'absolute',
+    position: 'absolute',
     top: -4,
     right: -6,
     backgroundColor: '#E53935',

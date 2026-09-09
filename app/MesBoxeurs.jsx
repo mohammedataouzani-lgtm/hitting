@@ -11,6 +11,7 @@ import { Keyboard } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useFocusEffect } from "@react-navigation/native";
+import { EditBoxeurSheet } from "./FicheBoxeur";
 import {
   View,
   Text,
@@ -34,10 +35,6 @@ import {
 const { width, height } = Dimensions.get("window");
 const NIVEAUX = ["Débutant", "Espoir", "Elite"];
 const SEXES = ["Homme", "Femme"];
-const prenomRef = useRef(null);
-const nomRef = useRef(null);
-const numeroLicenceRef = useRef(null);
-const poidsRef = useRef(null);
 const FIELD_LABELS = {
   prenom: "Prénom",
   nom: "Nom",
@@ -118,6 +115,10 @@ const INPUT_ACCESSORY_ID = "numericDoneBoxeur";
 function AddBoxeurSheet({ visible, onClose, onAdd }) {
   const slideAnim = useRef(new Animated.Value(height)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
+  const prenomRef = useRef(null);
+  const nomRef = useRef(null);
+  const numeroLicenceRef = useRef(null);
+  const poidsRef = useRef(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateObj, setDateObj] = useState(null);
@@ -424,14 +425,15 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             <View style={s.row}>
               <View style={{ flex: 1 }}>
                 <Text style={s.fieldLabel}>Prénom *</Text>
-                <TextInput
-                  style={[s.input, errors.prenom && s.inputError]}
-                  placeholder="Jean"
-                  placeholderTextColor="#C0C0C0"
-                  value={prenom}
-                 ref={prenomRef}
- returnKeyType="next"
- onSubmitEditing={() => nomRef.current?.focus()}
+      <TextInput
+  style={[s.input, errors.prenom && s.inputError]}
+  placeholder="Jean"
+  placeholderTextColor="#C0C0C0"
+  value={prenom}
+  onChangeText={(v) => { setPrenom(v); setErrors((p) => ({ ...p, prenom: false })); }}
+  ref={prenomRef}
+  returnKeyType="next"
+  onSubmitEditing={() => nomRef.current?.focus()}
 />
               </View>
               <View style={{ width: 12 }} />
@@ -725,11 +727,15 @@ export default function MesBoxeursScreen({ navigation, route }) {
   const [filterPoids, setFilterPoids] = useState(null);
 
   React.useEffect(() => {
-    if (route.params?.openAddSheet) {
-      setSheetVisible(true);
-    }
-    fetchBoxeurs();
-  }, []);
+  if (route.params?.openAddSheet) {
+    setSheetVisible(true);
+    navigation.setParams({ openAddSheet: false });
+  }
+}, [route.params?.openAddSheet]);
+
+React.useEffect(() => {
+  fetchBoxeurs();
+}, []);
 
   const fetchBoxeurs = async () => {
     try {
@@ -925,10 +931,17 @@ export default function MesBoxeursScreen({ navigation, route }) {
       </View>
       
       <AddBoxeurSheet
-        visible={sheetVisible}
-        onClose={() => setSheetVisible(false)}
-        onAdd={handleAddBoxeur}
-      />
+  visible={sheetVisible}
+  onClose={() => setSheetVisible(false)}
+  onAdd={handleAddBoxeur}
+/>
+<EditBoxeurSheet
+  visible={editSheetVisible}
+  onClose={() => setEditSheetVisible(false)}
+  boxer={boxeurToEdit}
+  onSave={handleSaveBoxeur}
+/>
+      
     </View>
   );
 }

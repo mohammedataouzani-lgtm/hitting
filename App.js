@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './AuthContext';
 import LoginScreen from './app/auth/login.jsx';
 import RegisterScreen from './app/auth/register';
@@ -19,13 +20,12 @@ import NotificationsScreen from './app/NotificationsScreen';
 import HistoriqueCombatsScreen from './app/HistoriqueCombatsScreen';
 import { NotificationProvider } from './NotificationContext';
 import OnboardingScreen from './app/OnboardingScreen';
-
 import PolitiqueConfidentialiteScreen from './app/PolitiqueConfidentialiteScreen.jsx';
 import MentionsLegalesScreen from './app/MentionsLegalesScreen.jsx';
 import CGUScreen from './app/CGUScreen.jsx';
-
 import BottomTabBar from './app/components/BottomTabBar';
 import ActionSheet from './app/components/ActionSheet';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +40,8 @@ export default function App() {
   const navigationRef = useNavigationContainerRef();
   const [currentRoute, setCurrentRoute] = useState('Splash');
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
+
+
 
   const updateCurrentRoute = useCallback(() => {
     const routeName = navigationRef.current?.getCurrentRoute()?.name;
@@ -58,13 +60,15 @@ export default function App() {
     setTimeout(() => tabBarNavigation.navigate('MesBoxeurs', { openAddSheet: true }), 300);
   };
 
+  // ✅ Plus de useEffect ici — juste la navigation
   const handleAddEvenement = () => {
     setActionSheetVisible(false);
     setTimeout(() => tabBarNavigation.navigate('Evenements', { openAddSheet: true }), 300);
   };
 
   return (
-    <AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
       <NotificationProvider>
         <View style={styles.root}>
           <NavigationContainer
@@ -115,7 +119,8 @@ export default function App() {
           />
         </View>
       </NotificationProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
