@@ -9,7 +9,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { Keyboard } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useFocusEffect } from "@react-navigation/native";
 import { EditBoxeurSheet } from "./FicheBoxeur";
 import {
@@ -384,7 +383,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <KeyboardAwareScrollView
+          <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               s.sheetBody,
@@ -395,10 +394,6 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
             ]}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
-            enableOnAndroid={true}
-            extraScrollHeight={20}
-             keyboardOpeningTime={0}
-
           >
             <View style={s.boxeurPhotoSection}>
               <View style={s.boxeurPhotoContainer}>
@@ -699,7 +694,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
   </LinearGradient>
 </TouchableOpacity>
             <View style={{ height: 32 }} />
-          </KeyboardAwareScrollView>
+          </ScrollView>
         </KeyboardAvoidingView>
       </Animated.View>
     </Modal>
