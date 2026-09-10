@@ -59,7 +59,7 @@ exports.getClubs = onRequest({
   try {
     const apiKey = process.env.AIRTABLE_SECRET_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
-    const response = await axios.get(`https://api.airtable.com/v0/${baseId}/Club`, { headers: { Authorization: `Bearer ${apiKey}` } });
+    const response = await axios.get(`https://api.airtable.com/v0/${baseId}/Club`, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 10000 });
     const records = response.data.records || [];
     const clubs = records.map(record => {
       const f = record.fields || {};
@@ -90,7 +90,7 @@ exports.syncCoachToAirtableV2 = onDocumentCreated({
     const finalLastName = coachData.nom || coachData.lastName || '';
     const finalTelephone = coachData.telephone || coachData.phone || '';
     const finalLicence = coachData.numeroLicence || '';
-    const response = await axios.post(`https://api.airtable.com/v0/${baseId}/Coach`, { fields: { 'Email': coachData.email || '', 'Nom': finalLastName, 'Prénom': finalFirstName, 'Téléphone': String(finalTelephone), 'Numéro d\'affiliation': String(finalLicence), 'Club': clubArray, 'Firebase UID': coachId } }, { headers: { Authorization: `Bearer ${apiKey}` } });
+    const response = await axios.post(`https://api.airtable.com/v0/${baseId}/Coach`, { fields: { 'Email': coachData.email || '', 'Nom': finalLastName, 'Prénom': finalFirstName, 'Téléphone': String(finalTelephone), 'Numéro d\'affiliation': String(finalLicence), 'Club': clubArray, 'Firebase UID': coachId } }, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 10000 });
     await admin.firestore().doc(`coaches/${coachId}`).update({ airtableRecordId: response.data.id });
   } catch (error) {
     console.error('❌ Error syncing to Airtable:', error.response ? error.response.data : error.message);
@@ -116,7 +116,7 @@ exports.addBoxeurEnAttente = onRequest({
     if (photoLicenceBase64) { try { const bucket = admin.storage().bucket(); const fileName = `licences/${firebaseUID}_${Date.now()}.jpg`; const file = bucket.file(fileName); await file.save(Buffer.from(photoLicenceBase64, 'base64'), { metadata: { contentType: 'image/jpeg' } }); await file.makePublic(); photoUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`; } catch (photoError) { console.error('❌ Erreur upload photo:', photoError.message); } }
     let photoBoxeurUrl = null;
     if (photoBoxeurBase64) { try { const bucket = admin.storage().bucket(); const fileName = `boxeurs/${firebaseUID}_${Date.now()}.jpg`; const file = bucket.file(fileName); await file.save(Buffer.from(photoBoxeurBase64, 'base64'), { metadata: { contentType: 'image/jpeg' } }); await file.makePublic(); photoBoxeurUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`; } catch (photoError) { console.error('❌ Erreur upload photo du boxeur:', photoError.message); } }
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY }).base(process.env.AIRTABLE_BASE_ID_SECURE);
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 }).base(process.env.AIRTABLE_BASE_ID_SECURE);
    const record = await base("Boxeurs en attente").create({
   "Nom": nom || "",
   "Prénom": prenom || "",
@@ -164,7 +164,7 @@ exports.getCoachProfile = onRequest({
     if (!airtableRecordId) return res.status(404).json({ success: false, error: 'airtableRecordId manquant' });
     const apiKey = process.env.AIRTABLE_SECRET_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
-    const response = await axios.get(`https://api.airtable.com/v0/${baseId}/Coach/${airtableRecordId}`, { headers: { Authorization: `Bearer ${apiKey}` } });
+    const response = await axios.get(`https://api.airtable.com/v0/${baseId}/Coach/${airtableRecordId}`, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 10000 });
     const f = response.data.fields || {};
     const profile = { nom: f['Nom'] || '', prenom: f['Prénom'] || '', telephone: f['Téléphone'] || '', nomClub: f['Nom du club (from Club 2)'] ? f['Nom du club (from Club 2)'][0] : '', adresse: f['Adresse (from Club 2)'] ? f['Adresse (from Club 2)'][0] : '', affiliation: f['Numéro d\'affiliation'] || '' };
     return res.status(200).json({ success: true, profile });
@@ -195,10 +195,10 @@ exports.deleteCoachAccount = onRequest({
     const airtableCoachId = coachDoc.data().airtableRecordId;
     if (airtableCoachId) {
       try {
-        const boxeursResponse = await axios.get(`https://api.airtable.com/v0/${baseId}/Boxeurs%20en%20attente`, { headers: { Authorization: `Bearer ${apiKey}` }, params: { filterByFormula: `FIND("${airtableCoachId}", ARRAYJOIN({Liaison vers Coach}))` } });
+        const boxeursResponse = await axios.get(`https://api.airtable.com/v0/${baseId}/Boxeurs%20en%20attente`, { headers: { Authorization: `Bearer ${apiKey}` }, params: { filterByFormula: `FIND("${airtableCoachId}", ARRAYJOIN({Liaison vers Coach}))` }, timeout: 10000 });
         const boxeurs = boxeursResponse.data.records || [];
-        for (const boxeur of boxeurs) { await axios.delete(`https://api.airtable.com/v0/${baseId}/Boxeurs%20en%20attente/${boxeur.id}`, { headers: { Authorization: `Bearer ${apiKey}` } }); }
-        await axios.delete(`https://api.airtable.com/v0/${baseId}/Coach/${airtableCoachId}`, { headers: { Authorization: `Bearer ${apiKey}` } });
+        for (const boxeur of boxeurs) { await axios.delete(`https://api.airtable.com/v0/${baseId}/Boxeurs%20en%20attente/${boxeur.id}`, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 10000 }); }
+        await axios.delete(`https://api.airtable.com/v0/${baseId}/Coach/${airtableCoachId}`, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 10000 });
       } catch (airtableError) { console.error('❌ Erreur suppression Airtable:', airtableError.message); }
     }
     await admin.firestore().doc(`coaches/${uid}`).delete();
@@ -229,39 +229,64 @@ exports.getBoxeurs = onRequest({
     const coachEmail = coachDoc.data().email;
     const apiKey = process.env.AIRTABLE_SECRET_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
-    await axios.get(`https://api.airtable.com/v0/${baseId}/Boxeurs`, { headers: { Authorization: `Bearer ${apiKey}` }, params: { maxRecords: 3 } });
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY }).base(process.env.AIRTABLE_BASE_ID_SECURE);
 
-    // Boxeurs validés
-    const records = await base('Boxeurs').select({ filterByFormula: `FIND("${coachEmail}", ARRAYJOIN({Coach}))` }).all();
-    const boxeurs = records.map(record => {
-      const f = record.fields || {};
-      return { id: record.id, nom: f['Nom du boxeur'] || '', prenom: f['Prénom'] || '', sexe: f['Sexe'] || '', poids: f['Poids'] || 0, categoriePoids: f['Catégorie de poids'] || '', categorie: f['Catégorie'] || '', dateNaissance: f['Date de naissance'] || '', vic: f['Victoires '] || 0, def: f['Défaites '] || 0, nuls: f['Nuls '] || 0, ko: f['KO '] || 0, photo: f['Photo du boxeur'] ? f['Photo du boxeur'][0]?.url : null, enAttente: false };
-    });
+    // Tous les accès Airtable sont isolés dans leur propre try/catch : en cas
+    // de lenteur / indisponibilité d'Airtable, on renvoie une réponse JSON
+    // structurée en ~10 s au lieu de laisser la fonction tourner jusqu'au
+    // timeout plateforme (60 s) — le client resterait alors bloqué sur le spinner.
+    let boxeurs = [];
+    let boxeursEnAttente = [];
+    try {
+      await axios.get(`https://api.airtable.com/v0/${baseId}/Boxeurs`, { headers: { Authorization: `Bearer ${apiKey}` }, params: { maxRecords: 3 }, timeout: 10000 });
+      const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 }).base(process.env.AIRTABLE_BASE_ID_SECURE);
 
-   // Boxeurs en attente
-const recordsEnAttente = await base('Boxeurs en attente').select({
-  filterByFormula: `AND(FIND("${coachEmail}", ARRAYJOIN({Liaison vers Coach})), {Statut de validation} = "En attente")`
-}).all();
-const boxeursEnAttente = recordsEnAttente.map(record => {
-  const f = record.fields || {};
-  return {
-    id: record.id,
-    nom: f['Nom'] || '',
-    prenom: f['Prénom'] || '',
-    sexe: f['Sexe'] || '',
-    poids: f['Poids'] || 0,
-    categoriePoids: f['Catégorie de poids'] || '',
-    categorie: f['Catégorie'] || '',
-    dateNaissance: f['Date de naissance'] || '',
-    vic: f['Victoires'] || 0,
-    def: f['Défaites'] || 0,
-    nuls: f['Nuls'] || 0,
-    ko: f['K.O'] || 0,
-    photo: f['Photo du boxeur'] ? f['Photo du boxeur'][0]?.url : null,
-    enAttente: true
-  };
-});
+      // Boxeurs validés
+      const records = await base('Boxeurs').select({ filterByFormula: `FIND("${coachEmail}", ARRAYJOIN({Coach}))` }).all();
+      boxeurs = records.map(record => {
+        const f = record.fields || {};
+        return { id: record.id, nom: f['Nom du boxeur'] || '', prenom: f['Prénom'] || '', sexe: f['Sexe'] || '', poids: f['Poids'] || 0, categoriePoids: f['Catégorie de poids'] || '', categorie: f['Catégorie'] || '', dateNaissance: f['Date de naissance'] || '', vic: f['Victoires '] || 0, def: f['Défaites '] || 0, nuls: f['Nuls '] || 0, ko: f['KO '] || 0, photo: f['Photo du boxeur'] ? f['Photo du boxeur'][0]?.url : null, enAttente: false };
+      });
+
+      // Boxeurs en attente
+      const recordsEnAttente = await base('Boxeurs en attente').select({
+        filterByFormula: `AND(FIND("${coachEmail}", ARRAYJOIN({Liaison vers Coach})), {Statut de validation} = "En attente")`
+      }).all();
+      boxeursEnAttente = recordsEnAttente.map(record => {
+        const f = record.fields || {};
+        return {
+          id: record.id,
+          nom: f['Nom'] || '',
+          prenom: f['Prénom'] || '',
+          sexe: f['Sexe'] || '',
+          poids: f['Poids'] || 0,
+          categoriePoids: f['Catégorie de poids'] || '',
+          categorie: f['Catégorie'] || '',
+          dateNaissance: f['Date de naissance'] || '',
+          vic: f['Victoires'] || 0,
+          def: f['Défaites'] || 0,
+          nuls: f['Nuls'] || 0,
+          ko: f['K.O'] || 0,
+          photo: f['Photo du boxeur'] ? f['Photo du boxeur'][0]?.url : null,
+          enAttente: true
+        };
+      });
+    } catch (airtableError) {
+      const isTimeout =
+        airtableError?.code === 'ECONNABORTED' ||
+        airtableError?.code === 'ETIMEDOUT' ||
+        /timeout/i.test(airtableError?.message || '');
+      console.error(
+        '❌ [getBoxeurs] Airtable indisponible:',
+        airtableError.response ? JSON.stringify(airtableError.response.data) : airtableError.message,
+      );
+      return res.status(504).json({
+        success: false,
+        error: isTimeout
+          ? 'Airtable ne répond pas (timeout). Réessayez dans un instant.'
+          : 'Impossible de récupérer les boxeurs depuis Airtable.',
+        code: isTimeout ? 'AIRTABLE_TIMEOUT' : 'AIRTABLE_ERROR',
+      });
+    }
 
     return res.status(200).json({ success: true, boxeurs: [...boxeursEnAttente, ...boxeurs] });
   } catch (error) {
@@ -296,7 +321,7 @@ exports.updateBoxeur = onRequest({
     if (photoBoxeurUrl) fields["Photo du boxeur"] = [{ url: photoBoxeurUrl }];
     const apiKey = process.env.AIRTABLE_SECRET_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
-    await axios.patch(`https://api.airtable.com/v0/${baseId}/Boxeurs/${boxeurId}`, { fields }, { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } });
+    await axios.patch(`https://api.airtable.com/v0/${baseId}/Boxeurs/${boxeurId}`, { fields }, { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, timeout: 10000 });
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error("❌ Erreur updateBoxeur:", error.response ? error.response.data : error.message);
@@ -340,7 +365,7 @@ exports.addEvenement = onRequest({
     const coachDoc = await admin.firestore().doc(`coaches/${firebaseUID}`).get();
     const clubId = coachDoc.exists ? coachDoc.data()?.clubId : null;
 
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY }).base(process.env.AIRTABLE_BASE_ID_SECURE);
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 }).base(process.env.AIRTABLE_BASE_ID_SECURE);
 
     const fields = {
       "Nom événement": titre,
@@ -377,7 +402,7 @@ exports.rappelsEvenements = onSchedule({
 }, async (event) => {
   const apiKey = process.env.AIRTABLE_SECRET_KEY;
   const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
-  const base = new Airtable({ apiKey }).base(baseId);
+  const base = new Airtable({ apiKey, requestTimeout: 10000 }).base(baseId);
   const now = new Date();
   const demain = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const demainStr = demain.toISOString().split('T')[0];
@@ -430,7 +455,7 @@ exports.getEvenements = onRequest({
     if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
     const coachEmail = coachDoc.data().email;
 
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
     // ── Événements officiels ──
@@ -518,7 +543,7 @@ if (!boxeurId) return res.status(400).json({ error: "boxeurId manquant" });
 
     console.log('🔍 Recherche matchs pour boxeurId:', boxeurId, '| coachEmail:', coachEmail, '| date:', dateSouhaitee);
 
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
     // ── Fonction de normalisation des noms ──
@@ -730,7 +755,7 @@ exports.addDemandeMatch = onRequest({
     const response = await axios.post(
       `https://api.airtable.com/v0/${baseId}/Demandedematch`,
       { fields },
-      { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
+      { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, timeout: 10000 }
     );
 
       // 🔔 Notification push au coach adverse
@@ -778,7 +803,7 @@ exports.getDemandesMatch = onRequest({
     if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
     const coachEmail = coachDoc.data().email;
 
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
     const allRecords = await base("Demandedematch").select().all();
@@ -870,14 +895,14 @@ exports.updateDemandeMatch = onRequest({
     await axios.patch(
       `https://api.airtable.com/v0/${baseId}/Demandedematch/${demandeId}`,
       { fields },
-      { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
+      { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, timeout: 10000 }
     );
 
        // 🔔 Notification push au coach demandeur
    try {
      const recordResponse = await axios.get(
        `https://api.airtable.com/v0/${baseId}/Demandedematch/${demandeId}`,
-       { headers: { Authorization: `Bearer ${apiKey}` } }
+       { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 10000 }
      );
      const f = recordResponse.data.fields || {};
      const emailCoach1 = f["Email Coach 1"] || "";
@@ -935,7 +960,7 @@ exports.getNotifications = onRequest({
       ? coachData.notificationsLastSeenAt.toDate().toISOString()
       : null;
 
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
     // ── Demandes en attente (envoyées + reçues) ──
@@ -1083,7 +1108,7 @@ exports.getCombatsATraiter = onRequest({
     if (!coachDoc.exists) return res.status(404).json({ success: false, error: "Coach introuvable" });
     const coachEmail = coachDoc.data().email;
 
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
     const now = new Date();
@@ -1188,7 +1213,7 @@ exports.submitResultatCombat = onRequest({
     await axios.patch(
       `https://api.airtable.com/v0/${baseId}/Résultats/${resultatId}`,
       { fields },
-      { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
+      { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, timeout: 10000 }
     );
 
     return res.status(200).json({ success: true });
@@ -1225,7 +1250,7 @@ exports.getDashboardStats = onRequest({
     const coachEmail = coachData.email;
     const airtableCoachId = coachData.airtableRecordId;
 
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
     // ── Effectif total de boxeurs du club (champ "Boxeurs 2" sur la table Coach) ──
@@ -1336,7 +1361,7 @@ exports.getHistoriqueCombats = onRequest({
     const coachEmail = coachData.email;
     const airtableCoachId = coachData.airtableRecordId;
 
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
     // ── Effectif total de boxeurs validés du club ──
@@ -1606,7 +1631,7 @@ exports.checkConflitBoxeur = onRequest({
     const normalizeNom = (str) => str.toLowerCase().trim().split(/\s+/).sort().join(' ');
     const monBoxeurNormalized = normalizeNom(`${prenom} ${nom}`);
 
-    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY })
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 })
       .base(process.env.AIRTABLE_BASE_ID_SECURE);
 
     const records = await base("Demandedematch").select({

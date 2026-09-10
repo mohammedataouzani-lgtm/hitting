@@ -32,6 +32,21 @@ import {
 } from "react-native";
 
 const { width, height } = Dimensions.get("window");
+
+// Rejette si `promise` ne se règle pas dans `ms` millisecondes.
+// Sert de filet de sécurité sur les appels réseau/Firestore qui peuvent
+// rester bloqués sans jamais résoudre ni rejeter (fetch RN sans timeout).
+const withTimeout = (promise, ms, label = "opération") =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`Timeout (${ms} ms) : ${label}`)),
+        ms,
+      ),
+    ),
+  ]);
+
 const NIVEAUX = ["Débutant", "Espoir", "Elite"];
 const SEXES = ["Homme", "Femme"];
 const FIELD_LABELS = {
@@ -274,20 +289,50 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
     }
 
     setLoading(true);
+    const t0 = Date.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn(
+        "⏱️ [handleSubmit] Timeout 15 s atteint → abort de addBoxeurEnAttente",
+      );
+      controller.abort();
+    }, 15000);
+
     try {
+      console.log("① [handleSubmit] validation OK, envoi en cours…");
       const auth = getAuth();
-      const idToken = await auth.currentUser.getIdToken();
+      if (!auth.currentUser) {
+        throw new Error("Utilisateur non authentifié (auth.currentUser est null)");
+      }
+
+      console.log("② [handleSubmit] récupération de l'idToken…");
+      const idToken = await withTimeout(
+        auth.currentUser.getIdToken(),
+        10000,
+        "getIdToken",
+      );
+
+      console.log("③ [handleSubmit] lecture Firestore coaches/{uid}…");
       const db = getFirestore();
-      const coachDoc = await getDoc(doc(db, "coaches", auth.currentUser.uid));
+      const coachDoc = await withTimeout(
+        getDoc(doc(db, "coaches", auth.currentUser.uid)),
+        10000,
+        "getDoc(coaches)",
+      );
+      if (!coachDoc.exists()) {
+        throw new Error("Document coach introuvable (coaches/" + auth.currentUser.uid + ")");
+      }
       const coachData = coachDoc.data();
       const clubId = coachData.clubId;
       const clubName = coachData.clubName;
       const coachEmail = coachData.email;
+      console.log("④ [handleSubmit] coach OK, appel de addBoxeurEnAttente…");
 
       const response = await fetch(
         "https://europe-west9-hitting-23de9.cloudfunctions.net/addBoxeurEnAttente",
         {
           method: "POST",
+          signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${idToken}`,
@@ -315,7 +360,9 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
         },
       );
 
-      if (!response.ok) throw new Error("Erreur serveur");
+      console.log("⑤ [handleSubmit] réponse HTTP:", response.status);
+      if (!response.ok) throw new Error(`addBoxeurEnAttente a répondu ${response.status}`);
+      console.log(`✅ [handleSubmit] terminé en ${Date.now() - t0} ms`);
 
       Alert.alert(
         "✅ Demande envoyée",
@@ -343,12 +390,19 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
 
       handleClose();
     } catch (error) {
-      console.error("Erreur ajout boxeur:", error);
+      const aborted = error?.name === "AbortError";
+      console.error(
+        `❌ [handleSubmit] échec après ${Date.now() - t0} ms:`,
+        aborted ? "requête interrompue (timeout 15 s)" : error?.message || error,
+      );
       Alert.alert(
         "Erreur",
-        "Impossible d'ajouter le boxeur. Veuillez réessayer.",
+        aborted
+          ? "Délai dépassé. Vérifiez votre connexion et réessayez."
+          : "Impossible d'ajouter le boxeur. Veuillez réessayer.",
       );
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -715,6 +769,7 @@ export default function MesBoxeursScreen({ navigation, route }) {
   const [search, setSearch] = useState("");
   const [boxeurs, setBoxeurs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [boxeurToEdit, setBoxeurToEdit] = useState(null);
@@ -733,9 +788,38 @@ React.useEffect(() => {
 }, []);
 
   const fetchBoxeurs = async () => {
+    setLoadError(null);
+    setLoading(true);
+    const t0 = Date.now();
+
+    // Filet de sécurité : si le fetch getBoxeurs se fige (réseau mobile
+    // instable, cold start Cloud Function, Airtable lent…), on interrompt
+    // au bout de 12 s au lieu de laisser le spinner tourner à l'infini.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn(
+        "⏱️ [fetchBoxeurs] Timeout 12 s atteint → abort du fetch getBoxeurs",
+      );
+      controller.abort();
+    }, 12000);
+
     try {
+      console.log("① [fetchBoxeurs] début");
       const auth = getAuth();
-      const idToken = await auth.currentUser.getIdToken();
+      if (!auth.currentUser) {
+        throw new Error(
+          "Utilisateur non authentifié (auth.currentUser est null)",
+        );
+      }
+
+      console.log("② [fetchBoxeurs] récupération de l'idToken…");
+      const idToken = await withTimeout(
+        auth.currentUser.getIdToken(),
+        10000,
+        "getIdToken",
+      );
+
+      console.log("③ [fetchBoxeurs] idToken OK, appel de getBoxeurs…");
       const response = await fetch(
         "https://europe-west9-hitting-23de9.cloudfunctions.net/getBoxeurs",
         {
@@ -744,10 +828,22 @@ React.useEffect(() => {
             Authorization: `Bearer ${idToken}`,
             "Content-Type": "application/json",
           },
+          signal: controller.signal,
         },
       );
+
+      console.log("④ [fetchBoxeurs] réponse HTTP:", response.status);
+      if (!response.ok) {
+        throw new Error(`getBoxeurs a répondu ${response.status}`);
+      }
+
       const data = await response.json();
-      console.log("📦 Boxeurs:", JSON.stringify(data));
+      console.log(
+        "⑤ [fetchBoxeurs] payload reçu — success =",
+        data?.success,
+        "· nb boxeurs =",
+        data?.boxeurs?.length,
+      );
       if (data.success) {
         const mapped = data.boxeurs.map((b) => ({
           id: b.id,
@@ -768,10 +864,25 @@ React.useEffect(() => {
               : "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face"),
         }));
         setBoxeurs(mapped);
+        console.log(`✅ [fetchBoxeurs] terminé en ${Date.now() - t0} ms`);
+      } else {
+        throw new Error(data.error || "getBoxeurs: success = false");
       }
     } catch (error) {
-      console.error("❌ Erreur fetchBoxeurs:", error);
+      const aborted = error?.name === "AbortError";
+      console.error(
+        `❌ [fetchBoxeurs] échec après ${Date.now() - t0} ms:`,
+        aborted
+          ? "requête interrompue (timeout réseau 12 s)"
+          : error?.message || error,
+      );
+      setLoadError(
+        aborted
+          ? "Impossible de charger le formulaire, réessayez."
+          : "Impossible de charger vos boxeurs, réessayez.",
+      );
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -799,15 +910,75 @@ React.useEffect(() => {
     );
   };
 
-  if (loading) {
+  if (loading || loadError) {
     return (
       <View
         style={[
           s.container,
-          { justifyContent: "center", alignItems: "center" },
+          { justifyContent: "center", alignItems: "center", padding: 32 },
         ]}
       >
-        <ActivityIndicator size="large" color="#E53935" />
+        {loading ? (
+          <>
+            <ActivityIndicator size="large" color="#E53935" />
+            <Text
+              style={{
+                marginTop: 16,
+                color: "#999",
+                fontSize: 13,
+                fontWeight: "600",
+              }}
+            >
+              Chargement…
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={{ fontSize: 40, marginBottom: 12 }}>⚠️</Text>
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: "700",
+                color: "#333",
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              {loadError}
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                color: "#999",
+                textAlign: "center",
+                marginBottom: 20,
+              }}
+            >
+              Vous pouvez quand même ajouter un boxeur.
+            </Text>
+            <TouchableOpacity
+              onPress={fetchBoxeurs}
+              style={{
+                backgroundColor: "#E53935",
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "800", fontSize: 14 }}>
+                Réessayer
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* Le formulaire d'ajout n'a pas besoin de la liste des boxeurs :
+            il reste accessible même pendant le chargement ou en cas d'échec. */}
+        <AddBoxeurSheet
+          visible={sheetVisible}
+          onClose={() => setSheetVisible(false)}
+          onAdd={handleAddBoxeur}
+        />
       </View>
     );
   }
