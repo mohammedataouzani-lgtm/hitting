@@ -42,7 +42,9 @@ function CombatCard({ combat }) {
       <Text style={styles.date}>{dateFormatee}</Text>
 
       <View style={styles.cardFooter}>
-        <Text style={styles.score}>{combat.monScore} - {combat.scoreAdverse}</Text>
+        {combat.monScore != null && combat.scoreAdverse != null ? (
+          <Text style={styles.score}>{combat.monScore} - {combat.scoreAdverse}</Text>
+        ) : null}
         {combat.typeCombat ? <Text style={styles.tag}>{combat.typeCombat}</Text> : null}
         {combat.typeVictoire ? <Text style={styles.tag}>{combat.typeVictoire}</Text> : null}
       </View>

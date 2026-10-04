@@ -1120,13 +1120,14 @@ exports.getCombatsATraiter = onRequest({
         const f = record.fields || {};
         return {
           id: record.id,
-          combattants: f["Combattants + date"] || "",
+          combattants: f["Combattants + date "] || "",
           dateCombat: f["Date du combat"] || "",
           typeCombat: f["Type de combat"] || "",
           statut: f["Statut"] || "",
           emailCoachA: Array.isArray(f["Email coach A"]) ? (f["Email coach A"][0] || "") : (f["Email coach A"] || ""),
 emailCoachB: Array.isArray(f["Email coach B"]) ? (f["Email coach B"][0] || "") : (f["Email coach B"] || ""),
-        boxeurA: Array.isArray(f["Boxeur A"]) ? (f["Boxeur A"][0]?.name || f["Boxeur A"][0] || "") : (f["Boxeur A"] || ""),
+        // Le champ lookup s'appelle "Boxeur A " (espace final) dans Airtable
+        boxeurA: Array.isArray(f["Boxeur A "]) ? (f["Boxeur A "][0]?.name || f["Boxeur A "][0] || "") : (f["Boxeur A "] || ""),
 boxeurB: Array.isArray(f["Boxeur B"]) ? (f["Boxeur B"][0]?.name || f["Boxeur B"][0] || "") : (f["Boxeur B"] || ""),
           scoreSaisiCoachA: f["Score saisi par Coach A"] || null,
           scoreSaisiCoachB: f["Score saisi par Coach B"] || null,
@@ -1181,32 +1182,45 @@ exports.submitResultatCombat = onRequest({
   try {
     await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
 
-    const { resultatId, role, scoreBoxeur, round, typeVictoire, commentaire } = req.body;
+    const { resultatId, role, scoreBoxeur, round, typeVictoire, commentaire, gagnant } = req.body;
 
     if (!resultatId) return res.status(400).json({ error: "resultatId manquant" });
     if (!role || !["A", "B"].includes(role)) return res.status(400).json({ error: "role invalide" });
 
+    // Issue déclarée par le coach, du point de vue de son propre boxeur
+    const RESULTATS = { monBoxeur: "Victoire", adversaire: "Défaite", nul: "Nul" };
+    if (!RESULTATS[gagnant]) return res.status(400).json({ error: "gagnant invalide" });
+
+    // Libellés du formulaire → options du select Airtable "Type de victoire Coach X"
+    // (pas d'option TKO dans Airtable : assimilé à KO)
+    const TYPES_VICTOIRE = {
+      "Aux points": "Points",
+      "Points": "Points",
+      "KO": "KO",
+      "TKO": "KO",
+      "Abandon": "Abandon",
+      "Disqualification": "Disqualification",
+    };
+
+    // Score et round sont facultatifs : vide ou non numérique → null (jamais NaN)
+    const toInt = (val) => {
+      const n = parseInt(val, 10);
+      return Number.isNaN(n) ? null : n;
+    };
+
     const apiKey = process.env.AIRTABLE_SECRET_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
 
-    const fields = {};
     const todayStr = new Date().toISOString().split('T')[0];
 
-    if (role === "A") {
-      fields["Score Boxeur A"] = scoreBoxeur != null ? parseInt(scoreBoxeur) : null;
-      fields["Round Coach A"] = round != null ? parseInt(round) : null;
-      fields["Type de victoire Coach A"] = typeVictoire || "";
-      fields["Commentaire Coach A"] = commentaire || "";
-      fields["Score saisi par Coach A"] = todayStr;
-    } else {
-      fields["Score Boxeur B"] = scoreBoxeur != null ? parseInt(scoreBoxeur) : null;
-      fields["Round Coach B"] = round != null ? parseInt(round) : null;
-      fields["Type de victoire Coach B"] = typeVictoire || "";
-      fields["Commentaire Coach B"] = commentaire || "";
-     if (scoreBoxeur == null || scoreBoxeur === "") {
-  return res.status(400).json({ error: "scoreBoxeur manquant" });
-}
-    }
+    const fields = {
+      [`Résultat Coach ${role}`]: RESULTATS[gagnant],
+      [`Score Boxeur ${role}`]: toInt(scoreBoxeur),
+      [`Round Coach ${role}`]: toInt(round),
+      [`Type de victoire Coach ${role}`]: TYPES_VICTOIRE[typeVictoire] || null,
+      [`Commentaire Coach ${role}`]: commentaire || "",
+      [`Score saisi par Coach ${role}`]: todayStr,
+    };
 
     console.log('📤 Submit résultat:', resultatId, '| fields:', JSON.stringify(fields));
 
@@ -1223,6 +1237,42 @@ exports.submitResultatCombat = onRequest({
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
+
+// ===== Issue d'un combat (table Résultats) du point de vue d'un coach =====
+// Partagé par getDashboardStats et getHistoriqueCombats pour qu'ils affichent
+// toujours la même issue. Ordre de priorité :
+// 1. la déclaration du coach ("Résultat Coach X"),
+// 2. celle du coach adverse, inversée,
+// 3. la comparaison des scores (anciennes saisies sans "Résultat Coach X").
+// Une seule saisie suffit. Retourne issue = "Victoire" | "Défaite" | "Nul" | ""
+// (vide = pas encore de résultat) et le type de victoire du vainqueur.
+function determinerIssueCombat(f, moi) {
+  const adv = moi === "A" ? "B" : "A";
+  const INVERSE = { Victoire: "Défaite", Défaite: "Victoire", Nul: "Nul" };
+  const monResultat = f[`Résultat Coach ${moi}`] || "";
+  const resultatAdverse = f[`Résultat Coach ${adv}`] || "";
+  const monScore = f[`Score Boxeur ${moi}`];
+  const scoreAdverse = f[`Score Boxeur ${adv}`];
+
+  let issue = "";
+  if (monResultat) {
+    issue = monResultat;
+  } else if (resultatAdverse) {
+    issue = INVERSE[resultatAdverse] || "";
+  } else if (typeof monScore === "number" && typeof scoreAdverse === "number") {
+    issue = monScore > scoreAdverse ? "Victoire" : monScore < scoreAdverse ? "Défaite" : "Nul";
+  }
+
+  // Les deux coachs peuvent avoir renseigné le type : on privilégie celui du
+  // coach du vainqueur, sinon celui de l'autre coach.
+  const monType = f[`Type de victoire Coach ${moi}`] || "";
+  const typeAdverse = f[`Type de victoire Coach ${adv}`] || "";
+  let typeVictoire = "";
+  if (issue === "Victoire") typeVictoire = monType || typeAdverse;
+  else if (issue === "Défaite") typeVictoire = typeAdverse || monType;
+
+  return { issue, typeVictoire };
+}
 
 // ===== CLOUD FUNCTION v2: getDashboardStats =====
 exports.getDashboardStats = onRequest({
@@ -1282,33 +1332,25 @@ exports.getDashboardStats = onRequest({
 
       if (!isCoachA && !isCoachB) continue;
 
-      const scoreA = f["Score Boxeur A"];
-      const scoreB = f["Score Boxeur B"];
-      const scoresValides = scoreA != null && scoreA !== "" && scoreB != null && scoreB !== "";
+      const { issue, typeVictoire } = determinerIssueCombat(f, isCoachA ? "A" : "B");
 
-      if (!scoresValides) continue;
+      if (!issue) continue;
 
       totalFights++;
 
-      // ↓↓↓ NOUVEAU BLOC — remplace l'ancienne logique basée sur "Gagnant" ↓↓↓
-      const monScore = isCoachA ? scoreA : scoreB;
-      const scoreAdverse = isCoachA ? scoreB : scoreA;
-      const monTypeVictoire = isCoachA ? (f["Type de victoire Coach A"] || "") : (f["Type de victoire Coach B"] || "");
-      const typeVictoireAdverse = isCoachA ? (f["Type de victoire Coach B"] || "") : (f["Type de victoire Coach A"] || "");
-
-      const monIdBoxeur = extractStr(isCoachA ? f["Boxeur A"] : f["Boxeur B"]);
+      // Le champ lookup s'appelle "Boxeur A " (espace final) dans Airtable
+      const monIdBoxeur = extractStr(isCoachA ? f["Boxeur A "] : f["Boxeur B"]);
       if (monIdBoxeur) boxeursActifsSet.add(monIdBoxeur);
 
-      if (monScore === scoreAdverse) {
-        totalDraws++;
-      } else if (monScore > scoreAdverse) {
+      if (issue === "Victoire") {
         totalWins++;
-        if (monTypeVictoire === "KO" || monTypeVictoire === "TKO") totalKos++;
-      } else {
+        // KO = uniquement les victoires de mes boxeurs par KO/TKO (pas les KO subis)
+        if (typeVictoire === "KO" || typeVictoire === "TKO") totalKos++;
+      } else if (issue === "Défaite") {
         totalDefeats++;
-        if (typeVictoireAdverse === "KO" || typeVictoireAdverse === "TKO") totalKos++;
+      } else {
+        totalDraws++;
       }
-      // ↑↑↑ FIN DU NOUVEAU BLOC ↑↑↑
     }
 
     const pct = (n) => totalFights > 0 ? Math.round((n / totalFights) * 100) : 0;
@@ -1391,39 +1433,23 @@ exports.getHistoriqueCombats = onRequest({
 
       if (!isCoachA && !isCoachB) continue;
 
-      const scoreA = f["Score Boxeur A"];
-      const scoreB = f["Score Boxeur B"];
-      const scoresValides = scoreA != null && scoreA !== "" && scoreB != null && scoreB !== "";
+      const moi = isCoachA ? "A" : "B";
+      const { issue, typeVictoire } = determinerIssueCombat(f, moi);
 
-      if (!scoresValides) continue;
-
-      const monScore = isCoachA ? scoreA : scoreB;
-      const scoreAdverse = isCoachA ? scoreB : scoreA;
-      const monTypeVictoire = isCoachA ? (f["Type de victoire Coach A"] || "") : (f["Type de victoire Coach B"] || "");
-      const typeVictoireAdverse = isCoachA ? (f["Type de victoire Coach B"] || "") : (f["Type de victoire Coach A"] || "");
-
-      let resultat;
-      let typeVictoireGagnant;
-      if (monScore === scoreAdverse) {
-        resultat = "Match nul";
-        typeVictoireGagnant = "";
-      } else if (monScore > scoreAdverse) {
-        resultat = "Victoire";
-        typeVictoireGagnant = monTypeVictoire;
-      } else {
-        resultat = "Défaite";
-        typeVictoireGagnant = typeVictoireAdverse;
-      }
+      if (!issue) continue;
 
       combats.push({
         id: record.id,
-        titre: f["Combattants + date"] || "",
+        // Le champ lookup s'appelle "Combattants + date " (espace final) dans Airtable
+        titre: extractStr(f["Combattants + date "]),
         date: f["Date du combat"] || "",
         typeCombat: f["Type de combat"] || "",
-        monScore,
-        scoreAdverse,
-        resultat,
-        typeVictoire: typeVictoireGagnant,
+        // Scores facultatifs : null si non saisis
+        monScore: f[`Score Boxeur ${moi}`] ?? null,
+        scoreAdverse: f[`Score Boxeur ${moi === "A" ? "B" : "A"}`] ?? null,
+        // Libellé attendu par HistoriqueCombatsScreen pour un nul
+        resultat: issue === "Nul" ? "Match nul" : issue,
+        typeVictoire,
         statut: f["Statut"] || "",
       });
     }
