@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, doc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   initializeAuth,
@@ -93,21 +93,30 @@ export const logout = async () => {
   }
 };
 
-// Création profil coach dans Firestore
-export const createCoachFirestore = async (uid, coachDetails) => {
+// Création profil coach via Cloud Function (vérifie côté serveur que le club
+// n'est pas déjà rattaché à un autre coach). En cas de refus : code = 'CLUB_DEJA_PRIS'.
+export const registerCoach = async (coachDetails) => {
   try {
-    const coachRef = doc(db, 'coaches', uid);
-    await setDoc(coachRef, {
-      firstName: coachDetails.firstName || '',
-      lastName: coachDetails.lastName || '',
-      email: coachDetails.email || '',
-      telephone: coachDetails.telephone || '',
-      numeroLicence: coachDetails.numeroLicence || '',
-      clubId: coachDetails.clubId || '',
-      clubName: coachDetails.clubName || '',
-      createdAt: new Date().toISOString()
-    });
-    return { success: true };
+    const currentUser = auth.currentUser;
+    if (!currentUser) return { success: false, error: 'Non connecté' };
+    const token = await currentUser.getIdToken();
+    const response = await fetch(
+      'https://europe-west9-hitting-23de9.cloudfunctions.net/registerCoach',
+      {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: coachDetails.firstName || '',
+          lastName: coachDetails.lastName || '',
+          telephone: coachDetails.telephone || '',
+          numeroLicence: coachDetails.numeroLicence || '',
+          clubId: coachDetails.clubId || '',
+        }),
+      }
+    );
+    const data = await response.json();
+    if (data.success) return { success: true };
+    return { success: false, code: data.code, error: data.error };
   } catch (error) {
     return { success: false, error: error.message };
   }

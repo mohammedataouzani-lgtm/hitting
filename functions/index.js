@@ -5,6 +5,7 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { logger } = require("firebase-functions");
 
 const admin = require("firebase-admin");
 const axios = require("axios");
@@ -48,6 +49,22 @@ async function getCoachPushTokenByEmail(email) {
   if (snap.empty) return null;
   return snap.docs[0].data().expoPushToken || null;
 }
+
+// ===== Règle métier : un club = un seul coach =====
+// Ids Airtable des clubs déjà rattachés à un coach côté Firestore :
+// coachs existants (coaches.clubId) + verrous posés par registerCoach (clubClaims).
+async function getClubIdsPrisFirestore() {
+  const db = admin.firestore();
+  const [coachesSnap, claimsSnap] = await Promise.all([
+    db.collection('coaches').select('clubId').get(),
+    db.collection('clubClaims').get(),
+  ]);
+  const ids = new Set();
+  coachesSnap.forEach((d) => { const clubId = d.get('clubId'); if (clubId) ids.add(clubId); });
+  claimsSnap.forEach((d) => ids.add(d.id));
+  return ids;
+}
+
 // ===== CLOUD FUNCTION v2: getClubs =====
 exports.getClubs = onRequest({
   secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
@@ -57,21 +74,137 @@ exports.getClubs = onRequest({
   res.set('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   try {
-    const apiKey = process.env.AIRTABLE_SECRET_KEY;
-    const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
-    const response = await axios.get(`https://api.airtable.com/v0/${baseId}/Club`, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 10000 });
-    const records = response.data.records || [];
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+
+    // .all() pagine : la table Club dépasse largement les 100 fiches d'une page
+    const [records, clubsPris] = await Promise.all([
+      base('Club').select({ fields: ['Nom du club', 'Ville', 'Code postal', 'Région', 'Coach'] }).all(),
+      getClubIdsPrisFirestore(),
+    ]);
+
     const clubs = records.map(record => {
       const f = record.fields || {};
       let regionRaw = f['Région'] || '';
       let regionClean = Array.isArray(regionRaw) ? (regionRaw[0] || '') : regionRaw;
-      return { id: record.id, name: f['Nom du club'] ? String(f['Nom du club']) : 'Sans nom', ville: f['Ville'] ? String(f['Ville']) : '', codePostal: f['Code postal'] ? String(f['Code postal']) : '', region: String(regionClean) };
+      // Pris si un coach y est rattaché côté Firestore (source de vérité à l'inscription)
+      // ou côté Airtable (lien Club.Coach, rempli après coup par syncCoachToAirtableV2)
+      const coachsAirtable = Array.isArray(f['Coach']) ? f['Coach'] : [];
+      const isTaken = clubsPris.has(record.id) || coachsAirtable.length > 0;
+      return { id: record.id, name: f['Nom du club'] ? String(f['Nom du club']) : 'Sans nom', ville: f['Ville'] ? String(f['Ville']) : '', codePostal: f['Code postal'] ? String(f['Code postal']) : '', region: String(regionClean), isTaken };
     });
-    console.log(`✅ ${clubs.length} clubs prêts.`);
+    console.log(`✅ ${clubs.length} clubs prêts (${clubs.filter(c => c.isTaken).length} déjà pris).`);
     return res.status(200).json({ clubs });
   } catch (error) {
     console.error('❌ Erreur getClubs :', error.response ? error.response.data : error.message);
     return res.status(500).json({ error: "Erreur lors de la récupération des clubs" });
+  }
+});
+
+// ===== CLOUD FUNCTION v2: registerCoach =====
+// Crée le profil coach (coaches/{uid}) à l'inscription, en garantissant qu'un club
+// n'est rattaché qu'à un seul coach. La transaction Firestore sérialise deux
+// inscriptions simultanées sur le même club : la seconde échoue en 409.
+// Remplace l'écriture directe (setDoc) faite auparavant par l'app.
+// ⚠️ Tant que les règles Firestore autorisent l'app à créer coaches/{uid}, les
+// anciennes versions de l'app contournent ce contrôle.
+exports.registerCoach = onRequest({
+  secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
+}, async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+  if (req.method !== "POST") return res.status(405).json({ success: false, error: "Méthode non autorisée" });
+
+  const authorizationHeader = req.headers.authorization;
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ success: false, error: "Non autorisé" });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(authorizationHeader.split("Bearer ")[1]);
+    const uid = decoded.uid;
+
+    const { firstName, lastName, telephone, numeroLicence, clubId } = req.body || {};
+    if (!clubId || !/^rec[A-Za-z0-9]{14}$/.test(clubId)) {
+      return res.status(400).json({ success: false, error: "Club invalide" });
+    }
+
+    // Le club doit exister, et ne pas être déjà lié à un coach dans Airtable
+    // (coachs plus anciens que Firestore). Lu hors transaction : Airtable n'en
+    // gère pas, mais ce lien n'est écrit qu'après coup par syncCoachToAirtableV2.
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_SECRET_KEY, requestTimeout: 10000 })
+      .base(process.env.AIRTABLE_BASE_ID_SECURE);
+    let clubRecord;
+    try {
+      clubRecord = await base("Club").find(clubId);
+    } catch (err) {
+      if (err.statusCode === 404) return res.status(400).json({ success: false, error: "Club introuvable" });
+      throw err;
+    }
+    const clubName = clubRecord.fields["Nom du club"] ? String(clubRecord.fields["Nom du club"]) : "";
+    const coachsAirtable = Array.isArray(clubRecord.fields["Coach"]) ? clubRecord.fields["Coach"] : [];
+
+    const db = admin.firestore();
+    const claimRef = db.doc(`clubClaims/${clubId}`);
+    const coachRef = db.doc(`coaches/${uid}`);
+    const autresCoachsDuClub = db.collection("coaches").where("clubId", "==", clubId).limit(5);
+
+    const CLUB_DEJA_PRIS = "CLUB_DEJA_PRIS";
+    const COMPTE_EXISTANT = "COMPTE_EXISTANT";
+
+    await db.runTransaction(async (tx) => {
+      const [claimSnap, coachSnap, autresSnap] = await Promise.all([
+        tx.get(claimRef), tx.get(coachRef), tx.get(autresCoachsDuClub),
+      ]);
+
+      // Rejeu d'une inscription déjà réussie (ex : réponse perdue sur le réseau)
+      if (coachSnap.exists) {
+        if (coachSnap.get("clubId") === clubId) return;
+        throw new Error(COMPTE_EXISTANT);
+      }
+
+      const prisParVerrou = claimSnap.exists && claimSnap.get("uid") !== uid;
+      const prisParCoachExistant = autresSnap.docs.some((d) => d.id !== uid);
+      if (prisParVerrou || prisParCoachExistant || coachsAirtable.length > 0) {
+        throw new Error(CLUB_DEJA_PRIS);
+      }
+
+      const now = new Date().toISOString();
+      tx.set(claimRef, { uid, createdAt: now });
+      // Même forme que l'ancien createCoachFirestore : lue par syncCoachToAirtableV2
+      tx.set(coachRef, {
+        firstName: firstName || "",
+        lastName: lastName || "",
+        email: decoded.email || "",
+        telephone: telephone || "",
+        numeroLicence: numeroLicence || "",
+        clubId,
+        clubName,
+        createdAt: now,
+      });
+    });
+
+    return res.status(200).json({ success: true, clubName });
+
+  } catch (error) {
+    if (error.message === "CLUB_DEJA_PRIS") {
+      return res.status(409).json({
+        success: false,
+        code: "CLUB_DEJA_PRIS",
+        error: "Ce club est déjà rattaché à un coach.",
+      });
+    }
+    if (error.message === "COMPTE_EXISTANT") {
+      return res.status(409).json({
+        success: false,
+        code: "COMPTE_EXISTANT",
+        error: "Un profil coach existe déjà pour ce compte.",
+      });
+    }
+    console.error("❌ Erreur registerCoach:", error.response ? JSON.stringify(error.response.data) : error.message);
+    return res.status(500).json({ success: false, error: "Erreur interne du serveur" });
   }
 });
 
@@ -80,20 +213,45 @@ exports.syncCoachToAirtableV2 = onDocumentCreated({
   document: 'coaches/{coachId}',
   secrets: ["AIRTABLE_SECRET_KEY", "AIRTABLE_BASE_ID_SECURE"]
 }, async (event) => {
+  const coachId = event.params.coachId;
+  const coachData = event.data.data();
+  const coachRef = admin.firestore().doc(`coaches/${coachId}`);
   try {
     const apiKey = process.env.AIRTABLE_SECRET_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID_SECURE;
-    const coachData = event.data.data();
-    const coachId = event.params.coachId;
     const clubArray = coachData.clubId ? [String(coachData.clubId)] : [];
     const finalFirstName = coachData.prenom || coachData.firstName || '';
     const finalLastName = coachData.nom || coachData.lastName || '';
     const finalTelephone = coachData.telephone || coachData.phone || '';
     const finalLicence = coachData.numeroLicence || '';
     const response = await axios.post(`https://api.airtable.com/v0/${baseId}/Coach`, { fields: { 'Email': coachData.email || '', 'Nom': finalLastName, 'Prénom': finalFirstName, 'Téléphone': String(finalTelephone), 'Numéro d\'affiliation': String(finalLicence), 'Club': clubArray, 'Firebase UID': coachId } }, { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 10000 });
-    await admin.firestore().doc(`coaches/${coachId}`).update({ airtableRecordId: response.data.id });
+    await coachRef.update({
+      airtableRecordId: response.data.id,
+      airtableSyncStatus: 'ok',
+      airtableSyncError: admin.firestore.FieldValue.delete(),
+    });
   } catch (error) {
-    console.error('❌ Error syncing to Airtable:', error.response ? error.response.data : error.message);
+    const details = error.response ? JSON.stringify(error.response.data) : error.message;
+    // Log structuré, filtrable dans Cloud Logging (jsonPayload.event="AIRTABLE_SYNC_FAILED")
+    // pour y brancher une alerte basée sur les logs.
+    logger.error(`❌ Coach ${coachId} (${coachData.email || 'sans email'}) non synchronisé vers Airtable : ${details}`, {
+      event: 'AIRTABLE_SYNC_FAILED',
+      coachId,
+      email: coachData.email || '',
+      clubId: coachData.clubId || '',
+      details,
+    });
+    // Trace sur le document : les coachs désynchronisés se retrouvent avec
+    // un filtre airtableSyncStatus == "error" dans Firestore.
+    try {
+      await coachRef.update({
+        airtableSyncStatus: 'error',
+        airtableSyncError: String(details).slice(0, 1000),
+        airtableSyncFailedAt: new Date().toISOString(),
+      });
+    } catch (updateError) {
+      console.error('❌ Impossible de marquer l\'échec de synchro sur le coach', coachId, updateError.message);
+    }
   }
 });
 

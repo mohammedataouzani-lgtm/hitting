@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerWithEmail } from '../../services/firebase';
-import { createCoachFirestore } from '../../services/firebase';
+import { registerCoach } from '../../services/firebase';
 import { getAuth } from 'firebase/auth';
 import { getClubsFromFirestore } from '../../services/firebase';
 import { useAuth } from '../../AuthContext';
@@ -156,17 +156,27 @@ export default function RegisterScreen({ navigation }) {
     }
     setLoading(true);
     try {
-      const coachResult = await createCoachFirestore(user.uid, {
+      const coachResult = await registerCoach({
         firstName: prenom,
         lastName: '',
-        email: user.email,
         telephone: telephone,
         numeroLicence: numeroLicence,
         clubId: selectedClub.id,
-        clubName: selectedClub.name 
       });
       if (!coachResult.success) {
-        Alert.alert('Erreur', 'Impossible de créer le profil coach');
+        if (coachResult.code === 'CLUB_DEJA_PRIS') {
+          // Un autre coach s'est inscrit sur ce club entre-temps : on recharge la liste
+          // pour que le club apparaisse grisé, et on fait choisir à nouveau.
+          Alert.alert(
+            'Club déjà enregistré',
+            `${selectedClub.name} est déjà rattaché à un autre coach sur Hitting. Choisissez un autre club, ou contactez-nous si vous êtes le coach de ce club.`
+          );
+          setSelectedClub(null);
+          const clubsResult = await getClubsFromFirestore();
+          if (clubsResult.success) setClubs(clubsResult.clubs);
+          return;
+        }
+        Alert.alert('Erreur', coachResult.error || 'Impossible de créer le profil coach');
         return;
       }
       await AsyncStorage.setItem('coachEmail', user.email);
@@ -440,8 +450,15 @@ export default function RegisterScreen({ navigation }) {
                 data={clubs}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={styles.clubItem} onPress={() => { setSelectedClub(item); setShowClubModal(false); }}>
-                    <Text style={styles.clubItemName}>{item.name}</Text>
+                  <TouchableOpacity
+                    style={[styles.clubItem, item.isTaken && styles.clubItemTaken]}
+                    onPress={() => { setSelectedClub(item); setShowClubModal(false); }}
+                    disabled={item.isTaken}
+                  >
+                    <View style={styles.clubItemRow}>
+                      <Text style={[styles.clubItemName, item.isTaken && styles.clubItemNameTaken]}>{item.name}</Text>
+                      {item.isTaken ? <Text style={styles.clubTakenBadge}>Déjà enregistré</Text> : null}
+                    </View>
                     <Text style={styles.clubItemDetails}>{item.ville} - {item.codePostal}</Text>
                   </TouchableOpacity>
                 )}
@@ -483,6 +500,10 @@ const styles = StyleSheet.create({
   clubItem: { paddingHorizontal: 24, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   clubItemName: { fontSize: 16, fontWeight: '600', color: '#000', marginBottom: 4 },
   clubItemDetails: { fontSize: 14, color: '#999' },
+  clubItemTaken: { backgroundColor: '#fafafa', opacity: 0.55 },
+  clubItemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  clubItemNameTaken: { color: '#888', flexShrink: 1 },
+  clubTakenBadge: { fontSize: 12, fontWeight: '600', color: '#777', backgroundColor: '#ececec', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, overflow: 'hidden' },
   helpText: { fontSize: 12, color: '#666', marginBottom: 12, marginTop: -8, paddingLeft: 4 },
   codeInput: { fontSize: 28, fontWeight: '700', letterSpacing: 12, paddingVertical: 20 },
   card: { borderRadius: 16, padding: 20, marginBottom: 20 },
