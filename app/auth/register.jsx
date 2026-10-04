@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -21,6 +21,16 @@ import { getClubsFromFirestore } from '../../services/firebase';
 import { useAuth } from '../../AuthContext';
 import OffreGratuitePopup from '../OffreGratuitePopup';
 import CguAcceptancePopup from '../CguAcceptancePopup';
+
+// Minuscules, sans accents ni ponctuation : "trinité" trouve "BOXING CLUB TRINITE",
+// "saint georges" trouve "VILLENEUVE SAINT-GEORGES BOXE ANGLAISE"
+const normaliserRecherche = (str) =>
+  (str || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 
 export default function RegisterScreen({ navigation }) {
   const { login } = useAuth();
@@ -45,6 +55,27 @@ export default function RegisterScreen({ navigation }) {
   const [telephone, setTelephone] = useState('');
   const [numeroLicence, setNumeroLicence] = useState('');
   const [showClubModal, setShowClubModal] = useState(false);
+  const [clubSearch, setClubSearch] = useState('');
+
+  // Index de recherche calculé une fois par chargement de la liste (~1200 clubs)
+  const clubsIndexes = useMemo(
+    () => clubs.map((club) => ({ club, texte: normaliserRecherche(`${club.name} ${club.ville}`) })),
+    [clubs]
+  );
+
+  // Chaque mot saisi doit apparaître dans le nom ou la ville, dans n'importe quel ordre
+  const filteredClubs = useMemo(() => {
+    const mots = normaliserRecherche(clubSearch).split(' ').filter(Boolean);
+    if (mots.length === 0) return clubs;
+    return clubsIndexes
+      .filter(({ texte }) => mots.every((mot) => texte.includes(mot)))
+      .map(({ club }) => club);
+  }, [clubSearch, clubs, clubsIndexes]);
+
+  const closeClubModal = () => {
+    setShowClubModal(false);
+    setClubSearch('');
+  };
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showFreePopup, setShowFreePopup] = useState(true);
   const [showTermsPopup, setShowTermsPopup] = useState(true);
@@ -441,18 +472,49 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Sélectionner votre club</Text>
-                <TouchableOpacity onPress={() => setShowClubModal(false)}>
+                <TouchableOpacity onPress={closeClubModal}>
                   <Text style={styles.modalClose}>✕</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={{ paddingHorizontal: 24, paddingVertical: 8, color: '#666' }}>{clubs.length} clubs chargés</Text>
+              <View style={styles.searchWrapper}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Nom du club ou ville"
+                  placeholderTextColor="#999"
+                  value={clubSearch}
+                  onChangeText={setClubSearch}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  returnKeyType="search"
+                />
+                {clubSearch ? (
+                  <TouchableOpacity onPress={() => setClubSearch('')} style={styles.searchClear}>
+                    <Text style={styles.searchClearText}>✕</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <Text style={styles.clubCount}>
+                {clubSearch
+                  ? `${filteredClubs.length} club${filteredClubs.length > 1 ? 's' : ''} trouvé${filteredClubs.length > 1 ? 's' : ''}`
+                  : `${clubs.length} clubs`}
+              </Text>
               <FlatList
-                data={clubs}
+                data={filteredClubs}
                 keyExtractor={(item) => item.id}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                initialNumToRender={20}
+                ListEmptyComponent={
+                  <Text style={styles.clubEmpty}>
+                    {clubs.length === 0
+                      ? 'Impossible de charger les clubs. Vérifiez votre connexion.'
+                      : 'Aucun club ne correspond à votre recherche.'}
+                  </Text>
+                }
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={[styles.clubItem, item.isTaken && styles.clubItemTaken]}
-                    onPress={() => { setSelectedClub(item); setShowClubModal(false); }}
+                    onPress={() => { setSelectedClub(item); closeClubModal(); }}
                     disabled={item.isTaken}
                   >
                     <View style={styles.clubItemRow}>
@@ -501,6 +563,12 @@ const styles = StyleSheet.create({
   clubItemName: { fontSize: 16, fontWeight: '600', color: '#000', marginBottom: 4 },
   clubItemDetails: { fontSize: 14, color: '#999' },
   clubItemTaken: { backgroundColor: '#fafafa', opacity: 0.55 },
+  searchWrapper: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 24, marginTop: 12, backgroundColor: '#f5f5f5', borderRadius: 8, borderWidth: 1, borderColor: '#ddd' },
+  searchInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: '#000' },
+  searchClear: { paddingHorizontal: 12, paddingVertical: 8 },
+  searchClearText: { fontSize: 16, color: '#999' },
+  clubCount: { paddingHorizontal: 24, paddingVertical: 8, color: '#666' },
+  clubEmpty: { paddingHorizontal: 24, paddingVertical: 24, color: '#999', textAlign: 'center' },
   clubItemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   clubItemNameTaken: { color: '#888', flexShrink: 1 },
   clubTakenBadge: { fontSize: 12, fontWeight: '600', color: '#777', backgroundColor: '#ececec', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, overflow: 'hidden' },
