@@ -6,9 +6,6 @@ import {
   getReactNativePersistence,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithCredential,
-  GoogleAuthProvider,
-  FacebookAuthProvider,
   signOut,
   reauthenticateWithCredential,
   EmailAuthProvider,
@@ -47,7 +44,7 @@ export const loginWithEmail = async (email, password) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return { success: true, user: userCredential.user };
   } catch (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: error.message, code: error.code };
   }
 };
 
@@ -56,28 +53,6 @@ export const registerWithEmail = async (email, password) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     return { success: true, user: userCredential.user };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-};
-
-// Connexion avec Google
-export const loginWithGoogleCredential = async (idToken) => {
-  try {
-    const credential = GoogleAuthProvider.credential(idToken);
-    const result = await signInWithCredential(auth, credential);
-    return { success: true, user: result.user };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-};
-
-// Connexion avec Facebook
-export const loginWithFacebookCredential = async (accessToken) => {
-  try {
-    const credential = FacebookAuthProvider.credential(accessToken);
-    const result = await signInWithCredential(auth, credential);
-    return { success: true, user: result.user };
   } catch (error) {
     return { success: false, error: error.message };
   }

@@ -1,6 +1,4 @@
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useAuth } from '../../AuthContext';
 
 import {
@@ -19,10 +17,7 @@ import {
   Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  loginWithEmail,
-  loginWithGoogleCredential,
-} from "../../services/firebase";
+import { loginWithEmail } from "../../services/firebase";
 import {
   doc,
   getDoc,
@@ -36,7 +31,30 @@ import { getAuth, sendPasswordResetEmail } from "firebase/auth";
 
 const { width } = Dimensions.get("window");
 
-WebBrowser.maybeCompleteAuthSession();
+// Messages affichés à l'utilisateur selon le code d'erreur Firebase Auth.
+// Avec la protection contre l'énumération d'emails (activée par défaut),
+// Firebase renvoie auth/invalid-credential pour un mauvais mot de passe
+// comme pour un compte inexistant.
+const getLoginErrorMessage = (code) => {
+  switch (code) {
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+    case "auth/invalid-login-credentials":
+      return "Email ou mot de passe incorrect.";
+    case "auth/user-not-found":
+      return "Aucun compte n'est associé à cet email.";
+    case "auth/invalid-email":
+      return "L'adresse email n'est pas valide.";
+    case "auth/user-disabled":
+      return "Ce compte a été désactivé. Contactez hitting.contact@gmail.com.";
+    case "auth/too-many-requests":
+      return "Trop de tentatives. Patientez quelques minutes ou réinitialisez votre mot de passe.";
+    case "auth/network-request-failed":
+      return "Pas de connexion internet. Vérifiez votre réseau et réessayez.";
+    default:
+      return "Une erreur est survenue. Réessayez.";
+  }
+};
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -56,19 +74,6 @@ export default function LoginScreen({ navigation }) {
   const [searchTel, setSearchTel] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: "380253921077-qoule85g3a3ivi7au1c2jv0r94jqneuh.apps.googleusercontent.com",
-    androidClientId:"380253921077-1e5fa3lf2n40rk99de94icahupprkjt3.apps.googleusercontent.com",
-    webClientId: "380253921077-u6bro404ui016onmskqi3fjjv2r5t835.apps.googleusercontent.com",
-  });
-
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token } = response.params;
-      handleGoogleLogin(id_token);
-    }
-  }, [response]);
-
   const carouselImages = [
     "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800",
     "https://images.unsplash.com/photo-1509563268479-0f004cf3f58b?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D=800",
@@ -80,7 +85,12 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       const firebaseResult = await loginWithEmail(email, password);
-     if (!firebaseResult.success) { Alert.alert("Erreur DEBUG", firebaseResult.error); setLoading(false); return; }
+      if (!firebaseResult.success) {
+        console.error("Erreur connexion:", firebaseResult.code, firebaseResult.error);
+        Alert.alert("Connexion impossible", getLoginErrorMessage(firebaseResult.code));
+        setLoading(false);
+        return;
+      }
       const { user } = firebaseResult;
       const db = getFirestore();
       const snapshot = await getDoc(doc(db, "coaches", user.uid));
@@ -97,32 +107,6 @@ export default function LoginScreen({ navigation }) {
     } catch (error) {
       console.error("Erreur:", error);
       Alert.alert("Erreur", "Une erreur est survenue.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async (idToken) => {
-    setLoading(true);
-    try {
-      const result = await loginWithGoogleCredential(idToken);
-      if (!result.success) { Alert.alert("Erreur", "Connexion Google chouée"); setLoading(false); return; }
-      const { user } = result;
-      const db = getFirestore();
-      const q = query(collection(db, "coaches"), where("firebaseUID", "==", user.uid));
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) { Alert.alert("Accès refusé", "Votre profil n'a pas été trouvé."); setLoading(false); return; }
-      const coach = snapshot.docs[0].data();
-      await AsyncStorage.setItem("coachId", snapshot.docs[0].id);
-      await AsyncStorage.setItem("coachEmail", user.email);
-      await AsyncStorage.setItem("firebaseUID", user.uid);
-      await AsyncStorage.setItem("coachPrenom", coach.prenom || "Coach");
-      await AsyncStorage.setItem("clubId", coach.clubId || "");
-      await AsyncStorage.setItem("clubName", coach.clubName || "Votre club");
-      await login(user.uid);
-    } catch (error) {
-      console.error("Erreur Google:", error);
-      Alert.alert("Erreur", "Une erreur est survenue");
     } finally {
       setLoading(false);
     }
@@ -241,23 +225,6 @@ export default function LoginScreen({ navigation }) {
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginButtonText}>Se connecter</Text>}
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>ou</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <Text style={styles.socialTitle}>Se connecter avec</Text>
-            <View style={styles.socialButtons}>
-              <TouchableOpacity style={styles.socialButton} onPress={() => promptAsync()} disabled={!request || loading}>
-                <Text style={styles.socialIcon}>G</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.socialButton, styles.socialButtonDisabled]} disabled={true}>
-                <Text style={styles.socialIcon}>f</Text>
-              </TouchableOpacity>
-            </View>
-
             {/* Footer */}
             <View style={styles.footer}>
               <TouchableOpacity onPress={() => navigation.navigate("Register")}>
@@ -335,15 +302,7 @@ carouselImage: { width: width - 32, height: 450, marginHorizontal: 16, borderRad
   loginButton: { backgroundColor: "#d32f2f", borderRadius: 8, padding: 16, alignItems: "center", marginBottom: 20, borderWidth: 2, borderColor: "#d32f2f" },
   loginButtonDisabled: { opacity: 0.6 },
   loginButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  divider: { flexDirection: "row", alignItems: "center", marginVertical: 20 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#ddd" },
-  dividerText: { marginHorizontal: 16, color: "#666", fontSize: 14 },
-  socialTitle: { textAlign: "center", color: "#000", fontSize: 14, marginBottom: 16 },
-  socialButtons: { flexDirection: "row", justifyContent: "center", gap: 16 },
-  socialButton: { width: 56, height: 56, borderRadius: 8, backgroundColor: "#f0f0f0", alignItems: "center", justifyContent: "center" },
-  socialIcon: { fontSize: 24, fontWeight: "bold", color: "#666" },
-  socialButtonDisabled: { opacity: 0.3 },
-  footer: { marginTop: 24, alignItems: "center", gap: 12 },
+  footer: { marginTop: 4, alignItems: "center", gap: 12 },
   footerText: { fontSize: 14, color: "#666" },
   footerLink: { color: "#007AFF", fontWeight: "600" },
   forgotEmailLinkWrapper: { marginTop: 4 },
