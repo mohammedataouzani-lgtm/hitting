@@ -28,12 +28,12 @@ const SECTIONS = [
   {
     heading: '4. Base légale',
     body:
-      "Le traitement de tes données repose sur l'exécution du contrat (fourniture du service Hitting, actuellement proposé gratuitement jusqu'à la rentrée 2027) et sur ton consentement (ex. accès à la caméra/photothèque, notifications).",
+      "Le traitement de tes données repose sur l'exécution du contrat (fourniture du service Hitting) et sur ton consentement (ex. accès à la caméra/photothèque, notifications).",
   },
   {
     heading: '5. Avec qui les données sont-elles partagées',
     body:
-      "Tes données sont hébergées et traitées uniquement par les prestataires suivants, pour le fonctionnement technique de l'app :\n\n• Firebase (Google) — authentification, stockage des données, envoi des emails de vérification\n• Airtable — gestion de la base des boxeurs\n\nCette liste sera mise à jour avec le prestataire de paiement retenu lors de la bascule vers l'abonnement payant, prévue à la rentrée 2027.\n\nNous ne vendons ni ne partageons tes données à des fins publicitaires ou avec des tiers non listés ici.",
+      "Tes données sont hébergées et traitées uniquement par les prestataires suivants, pour le fonctionnement technique de l'app :\n\n• Firebase (Google) — authentification, stockage des données, envoi des emails de vérification\n• Airtable — gestion de la base des boxeurs\n\nNous ne vendons ni ne partageons tes données à des fins publicitaires ou avec des tiers non listés ici.",
   },
   {
     heading: '6. Durée de conservation',

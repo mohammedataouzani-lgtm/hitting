@@ -37,7 +37,7 @@ const SECTIONS = [
   {
     heading: 'Médiation de la consommation',
     body:
-      "Conformément à l'article L.616-1 du Code de la consommation, en cas de litige non résolu directement avec STREAM & CO, tu peux recourir gratuitement à un médiateur de la consommation. (Coordonnées à venir avant la bascule vers l'abonnement payant en 2027.)",
+      "Conformément à l'article L.616-1 du Code de la consommation, en cas de litige non résolu directement avec STREAM & CO, tu peux recourir gratuitement à un médiateur de la consommation.",
   },
   {
     heading: 'Droit applicable',

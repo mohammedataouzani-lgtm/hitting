@@ -55,10 +55,6 @@ const channel = Updates.channel ?? '—';
     );
   };
 
-  const handleNavigateToOffres = () => {
-    navigation.navigate('Offres');
-  };
-
   const handleChangePhoto = () => {
     Alert.alert(
       "Modifier la photo de profil",
@@ -317,21 +313,7 @@ const channel = Updates.channel ?? '—';
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ABONNEMENT & SÉCURITÉ</Text>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={handleNavigateToOffres}
-            style={[styles.infoItem, styles.clickableItem]}
-          >
-            <View>
-              <Text style={styles.infoLabel}>Mon Offre</Text>
-              <View style={styles.premiumBadge}>
-                <Text style={styles.premiumBadgeTxt}>COMPTE PREMIUM 👑</Text>
-              </View>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>COMPTE</Text>
 
         <TouchableOpacity
           activeOpacity={0.8}
@@ -478,17 +460,6 @@ infoValue: {
     marginLeft: 8,
   },
   chevron: { fontSize: 18, color: '#C7C7CC', fontWeight: '600' },
-  premiumBadge: {
-    backgroundColor: '#FFF8E1',
-    borderColor: '#FFD54F',
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginTop: 4,
-    alignSelf: 'flex-start',
-  },
-  premiumBadgeTxt: { fontSize: 9, fontWeight: '800', color: '#FF8F00' },
   logoutBtn: {
     backgroundColor: '#FF3B30',
     height: 50,

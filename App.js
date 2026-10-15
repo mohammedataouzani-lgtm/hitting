@@ -9,7 +9,6 @@ import RegisterScreen from './app/auth/register';
 import DashboardScreen from './app/DashboardScreen';
 import MesBoxeursScreen from './app/MesBoxeurs';
 import ProfilScreen from './app/ProfilScreen';
-import PaiementScreen from './app/Paiement';
 import FicheBoxeurScreen from './app/FicheBoxeur';
 import EvenementsScreen from './app/Evenements';
 import SplashScreen from './app/SplashScreen';
@@ -86,7 +85,6 @@ export default function App() {
               <Stack.Screen name="Dashboard" component={DashboardScreen} />
               <Stack.Screen name="MesBoxeurs" component={MesBoxeursScreen} />
               <Stack.Screen name="Profil" component={ProfilScreen} />
-              <Stack.Screen name="Offres" component={PaiementScreen} />
               <Stack.Screen name="FicheBoxeur" component={FicheBoxeurScreen} />
               <Stack.Screen name="Evenements" component={EvenementsScreen} />
               <Stack.Screen name="AdversairesPotentiels" component={AdversairesPotentielsScreen} />

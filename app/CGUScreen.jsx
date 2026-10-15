@@ -23,7 +23,7 @@ const SECTIONS = [
   {
     heading: '3. Accès au service',
     body:
-      "L'accès à Hitting nécessite la création d'un compte coach (email, mot de passe) et la vérification de l'adresse email.\n\nHitting est proposée gratuitement jusqu'à la rentrée 2027. Passé cette date, l'accès sera soumis à un abonnement payant, dont les modalités seront précisées dans les Conditions Générales de Vente (CGV) et communiquées aux utilisateurs avant l'entrée en vigueur.\n\nL'utilisateur s'engage à fournir des informations exactes lors de son inscription et à les maintenir à jour.",
+      "L'accès à Hitting nécessite la création d'un compte coach (email, mot de passe) et la vérification de l'adresse email.\n\nL'utilisateur s'engage à fournir des informations exactes lors de son inscription et à les maintenir à jour.",
   },
   {
     heading: "4. Obligations de l'utilisateur",
