@@ -34,11 +34,7 @@ const SECTIONS = [
     body:
       "Le traitement des données personnelles est décrit dans la Politique de confidentialité, accessible depuis Mon Compte.",
   },
-  {
-    heading: 'Médiation de la consommation',
-    body:
-      "Conformément à l'article L.616-1 du Code de la consommation, en cas de litige non résolu directement avec STREAM & CO, tu peux recourir gratuitement à un médiateur de la consommation.",
-  },
+ 
   {
     heading: 'Droit applicable',
     body: 'Les présentes mentions légales sont soumises au droit français.',
