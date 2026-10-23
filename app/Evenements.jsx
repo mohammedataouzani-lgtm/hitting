@@ -40,9 +40,11 @@ function EventCard({ event, onPress }) {
       <View style={styles.divider} />
       <View style={styles.cardFooter}>
         <Text style={styles.clubName}>{event.club || ''}</Text>
-        <View style={styles.priceBadge}>
-          <Text style={styles.priceText}>{event.prix || 'Gratuit'}</Text>
-        </View>
+        {event.prix ? (
+          <View style={styles.priceBadge}>
+            <Text style={styles.priceText}>{event.prix}</Text>
+          </View>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -87,7 +89,7 @@ function EventDetailsBottomSheet({ visible, event, onClose }) {
           <View style={bs.detailsContainer}>
             <View style={bs.headerRow}>
               <View style={bs.statusBadge}><Text style={bs.statusText}>{event.status || event.statut}</Text></View>
-              <View style={bs.priceBadge}><Text style={bs.priceText}>{event.prix || 'Gratuit'}</Text></View>
+              {event.prix ? <View style={bs.priceBadge}><Text style={bs.priceText}>{event.prix}</Text></View> : null}
             </View>
             <Text style={bs.title}>{event.titre}</Text>
             <View style={bs.infoRow}><Text style={bs.infoIcon}>📅</Text><Text style={bs.infoTxt}>{event.dateText || event.dateFormatee}</Text></View>
@@ -201,7 +203,7 @@ function AddEventSheet({ visible, onClose, onAdd }) {
         dateFormatee: dateObject.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
         jour: String(dateObject.getDate()).padStart(2, '0'),
         mois: months[dateObject.getMonth()],
-        salle, adresse: salle, club: '', prix: prix || 'Gratuit',
+        salle, adresse: salle, club: '', prix: prix || '',
         status: 'A venir', statut: 'A venir',
         affiche: affiche || null, photo: affiche || null,
         description: '',
@@ -302,8 +304,8 @@ function AddEventSheet({ visible, onClose, onAdd }) {
             <TextInput style={styles.input} placeholder="Ex: Gymnase Carpentier" placeholderTextColor="#A1A1A6" value={salle} onChangeText={setSalle} />
             <Text style={styles.fieldLabel}>Contact</Text>
             <TextInput style={styles.input} placeholder="Ex: 06 12 34 56 78" placeholderTextColor="#A1A1A6" value={contact} onChangeText={setContact} keyboardType="phone-pad" />
-            <Text style={styles.fieldLabel}>Prix (€)</Text>
-            <TextInput style={styles.input} placeholder="Ex: 15 (ou laisser vide si gratuit)" placeholderTextColor="#A1A1A6" value={prix} onChangeText={setPrix} keyboardType="numeric" />
+            <Text style={styles.fieldLabel}>Prix d'entrée sur place (€)</Text>
+            <TextInput style={styles.input} placeholder="Ex: 15" placeholderTextColor="#A1A1A6" value={prix} onChangeText={setPrix} keyboardType="numeric" />
             <Text style={styles.fieldLabel}>Affiche</Text>
             <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
               <Text style={{ color: '#555' }}>{affiche ? "✅ Image sélectionnée — changer" : "📷 Choisir une image"}</Text>

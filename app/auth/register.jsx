@@ -333,6 +333,7 @@ export default function RegisterScreen({ navigation }) {
             <Text style={styles.helpText}>Fixe ou portable accepté</Text>
             <Text style={styles.label}>Numéro d'affiliation FFBoxe *</Text>
             <TextInput style={styles.input} placeholder="Votre numéro d'affiliation FFBoxe" placeholderTextColor="#999" value={numeroLicence} onChangeText={setNumeroLicence} editable={!loading} />
+            <Text style={styles.helpText}>Sert uniquement à identifier votre club</Text>
             <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleStep3Complete} disabled={loading}>
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Valider mon profil</Text>}
             </TouchableOpacity>

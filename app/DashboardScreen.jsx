@@ -643,9 +643,11 @@ export default function DashboardScreen({ navigation }) {
                         <View style={styles.badgeGala}>
                           <Text style={styles.badgeGalaTxt}>{item.statut?.toUpperCase() || 'À VENIR'}</Text>
                         </View>
-                        <View style={styles.badgePrice}>
-                          <Text style={styles.badgePriceTxt}>{item.prix}</Text>
-                        </View>
+                        {item.prix ? (
+                          <View style={styles.badgePrice}>
+                            <Text style={styles.badgePriceTxt}>{item.prix}</Text>
+                          </View>
+                        ) : null}
                       </View>
                       <Text style={styles.eventTitle}>{item.titre}</Text>
                       <View style={styles.eventRow}>

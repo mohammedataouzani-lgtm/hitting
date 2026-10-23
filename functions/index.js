@@ -634,7 +634,7 @@ exports.getEvenements = onRequest({
               (Array.isArray(f["Nom du club (from Club organisateur)"]) ? f["Nom du club (from Club organisateur)"][0] : "") || "",
         statut: f["Statut"] || "",
         contact: f["Contact"] || "",
-        prix: f["Prix d'entrée"] ? `${f["Prix d'entrée"]} €` : "Gratuit",
+        prix: f["Prix d'entrée"] ? `${f["Prix d'entrée"]} €` : "",
         photo: f["Photo du gala"] ? f["Photo du gala"][0]?.url : null,
       };
     });
