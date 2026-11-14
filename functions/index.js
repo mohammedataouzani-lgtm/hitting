@@ -1350,12 +1350,12 @@ exports.submitResultatCombat = onRequest({
     if (!RESULTATS[gagnant]) return res.status(400).json({ error: "gagnant invalide" });
 
     // Libellés du formulaire → options du select Airtable "Type de victoire Coach X"
-    // (pas d'option TKO dans Airtable : assimilé à KO)
+    // (TKO est une option à part entière dans Airtable, distincte de KO)
     const TYPES_VICTOIRE = {
       "Aux points": "Points",
       "Points": "Points",
       "KO": "KO",
-      "TKO": "KO",
+      "TKO": "TKO",
       "Abandon": "Abandon",
       "Disqualification": "Disqualification",
     };
