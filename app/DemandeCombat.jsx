@@ -154,6 +154,8 @@ export default function DemandeCombatScreen({ navigation, route }) {
             categorieDemandeur: boxer.categoriePoids || '',
             categorieAdversaire: Array.isArray(adversaire.categoriePoids) ? adversaire.categoriePoids[0] : adversaire.categoriePoids || '',
             typeCombat,
+            boxeurId: boxer.id,
+            adversaireId: adversaire.adversaireId,
           }),
         }
       );

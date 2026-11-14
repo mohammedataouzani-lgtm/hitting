@@ -152,7 +152,10 @@ export function EditBoxeurSheet({ visible, onClose, boxer, onSave }) {
               </View>
             </View>
 
-            <Text style={es.sectionLabel}>PALMARÈS</Text>
+            <Text style={es.sectionLabel}>PALMARÈS HORS HITTING</Text>
+            <Text style={{ fontSize: 12, color: '#888', lineHeight: 17, marginBottom: 12 }}>
+              Combats non enregistrés dans Hitting, y compris ceux d’avant votre arrivée. Les combats saisis dans l’application s’y ajoutent automatiquement dans les statistiques.
+            </Text>
             <View style={es.row}>
               <View style={{ flex: 1 }}>
                 <Text style={es.fieldLabel}>Victoires</Text>
@@ -198,15 +201,18 @@ export default function FicheBoxeurScreen({ navigation, route }) {
 
   const isFemme = boxer.sexe === 'F';
   const accentColor = isFemme ? '#E91E63' : '#2196F3';
-  const totalCombats = (boxer.vic || 0) + (boxer.def || 0) + (boxer.nuls || 0);
-  const winRate = totalCombats > 0 ? Math.round(((boxer.vic || 0) / totalCombats) * 100) : 0;
+  // Affichage = palmarès hors Hitting (boxer.vic…) + combats Hitting (boxer.vicHitting…,
+  // calculés côté serveur). Les champs du formulaire d'édition restent hors Hitting.
+  const stats = [
+    { label: 'Victoires', hors: boxer.vic || 0, hitting: boxer.vicHitting || 0, color: '#43A047' },
+    { label: 'Défaites', hors: boxer.def || 0, hitting: boxer.defHitting || 0, color: '#EF5350' },
+    { label: 'Nuls', hors: boxer.nuls || 0, hitting: boxer.nulsHitting || 0, color: '#FF9800' },
+    { label: 'K.O', hors: boxer.ko || 0, hitting: boxer.koHitting || 0, color: '#42A5F5' },
+  ].map((st) => ({ ...st, value: st.hors + st.hitting }));
 
-const stats = [
-  { label: 'Victoires', value: boxer.vic ?? 0, color: '#43A047' },
-  { label: 'Défaites', value: boxer.def ?? 0, color: '#EF5350' },
-  { label: 'Nuls', value: boxer.nuls ?? 0, color: '#FF9800' },
-  { label: 'K.O', value: boxer.ko ?? 0, color: '#42A5F5' },
-];
+  const [vicTotal, defTotal, nulsTotal] = stats.map((st) => st.value);
+  const totalCombats = vicTotal + defTotal + nulsTotal;
+  const winRate = totalCombats > 0 ? Math.round((vicTotal / totalCombats) * 100) : 0;
 
   return (
     <View style={s.container}>
@@ -257,10 +263,13 @@ const stats = [
         <View style={s.section}>
           <Text style={s.sectionTitle}>PALMARÈS</Text>
           <View style={s.statsGrid}>
-            {stats.map(({ label, value, color }) => (
+            {stats.map(({ label, value, hors, hitting, color }) => (
               <View key={label} style={s.statCard}>
                 <Text style={[s.statValue, { color }]}>{value}</Text>
                 <Text style={s.statLabel}>{label}</Text>
+                {hitting > 0 ? (
+                  <Text style={s.statDetail}>{hors} hors Hitting + {hitting} sur Hitting</Text>
+                ) : null}
                 <View style={[s.statBar, { backgroundColor: color + '22' }]}>
                   <View style={[s.statBarFill, {
                     backgroundColor: color,
@@ -334,6 +343,7 @@ const s = StyleSheet.create({
   statCard: { width: (width - 32 - 40 - 12) / 2, backgroundColor: '#FAFAFA', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#F0F0F0' },
   statValue: { fontSize: 32, fontWeight: '900', lineHeight: 36 },
   statLabel: { fontSize: 12, color: '#888', fontWeight: '600', marginTop: 2, marginBottom: 8 },
+  statDetail: { fontSize: 11, color: '#9E9E9E', marginTop: -6, marginBottom: 8 },
   statBar: { height: 4, borderRadius: 2, overflow: 'hidden' },
   statBarFill: { height: '100%', borderRadius: 2 },
 

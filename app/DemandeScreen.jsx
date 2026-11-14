@@ -167,6 +167,8 @@ function FormulaireDemande({ visible, match, boxer, onClose }) {
             categorieDemandeur: boxer.poids || '',
             categorieAdversaire: match.categoriePoids || '',
             typeCombat: typeCombat.replace(/['"]+/g, ''),
+            boxeurId: boxer.id,
+            adversaireId: match.adversaireId,
           }),
         }
       );

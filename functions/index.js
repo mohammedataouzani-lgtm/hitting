@@ -405,6 +405,26 @@ exports.getBoxeurs = onRequest({
         return { id: record.id, nom: f['Nom du boxeur'] || '', prenom: f['Prénom'] || '', sexe: f['Sexe'] || '', poids: f['Poids'] || 0, categoriePoids: f['Catégorie de poids'] || '', categorie: f['Catégorie'] || '', dateNaissance: f['Date de naissance'] || '', vic: f['Victoires '] || 0, def: f['Défaites '] || 0, nuls: f['Nuls '] || 0, ko: f['KO '] || 0, photo: f['Photo du boxeur'] ? f['Photo du boxeur'][0]?.url : null, enAttente: false };
       });
 
+      // Combats enregistrés sur Hitting. vic/def/nuls/ko restent le palmarès
+      // hors Hitting (valeurs du formulaire d'édition) ; les compteurs *Hitting
+      // s'ajoutent à côté, l'app fait la somme pour l'affichage.
+      // Ces lectures supplémentaires ne doivent jamais faire échouer la liste :
+      // en cas d'erreur ou de timeout (10 s par requête via `base`), on renvoie
+      // les boxeurs avec des compteurs Hitting à 0.
+      let statsHitting = new Map();
+      try {
+        statsHitting = await calculerStatsHittingParBoxeur(base, new Set(boxeurs.map((b) => b.id)));
+      } catch (statsError) {
+        console.error(
+          '❌ [getBoxeurs] Compteurs Hitting indisponibles, renvoyés à 0:',
+          statsError.response ? JSON.stringify(statsError.response.data) : statsError.message,
+        );
+      }
+      boxeurs = boxeurs.map((b) => ({
+        ...b,
+        ...(statsHitting.get(b.id) || { vicHitting: 0, defHitting: 0, nulsHitting: 0, koHitting: 0 }),
+      }));
+
       // Boxeurs en attente
       const recordsEnAttente = await base('Boxeurs en attente').select({
         filterByFormula: `AND(FIND("${coachEmail}", ARRAYJOIN({Liaison vers Coach})), {Statut de validation} = "En attente")`
@@ -827,6 +847,9 @@ for (const dem of demandesRecords) {
       matchs.push({
         id: record.id,
         affichageCombat: f["Affichage combat"] || "",
+        // ID de la fiche Boxeurs de l'adversaire : renvoyé par addDemandeMatch
+        // pour lier la demande (et donc le futur résultat) au bon boxeur.
+        adversaireId,
         adversaireNom,
         adversaireClub,
         adversairePhoto,
@@ -876,6 +899,7 @@ exports.addDemandeMatch = onRequest({
       clubBoxeur, clubAdversaire,
       categorieDemandeur, categorieAdversaire,
       typeCombat,
+      boxeurId, adversaireId,
     } = req.body;
 
     const apiKey = process.env.AIRTABLE_SECRET_KEY;
@@ -907,6 +931,13 @@ exports.addDemandeMatch = onRequest({
     }
 
     if (emailCoach2) fields["Email coach 2"] = emailCoach2;
+
+    // Liens vers les fiches Boxeurs des deux combattants : c'est par eux que
+    // getBoxeurs rattache chaque combat de Résultats au bon boxeur. On ne les
+    // envoie que s'ils ont la forme d'un ID Airtable (sinon la création échouerait).
+    const estIdAirtable = (id) => typeof id === "string" && /^rec[A-Za-z0-9]{14}$/.test(id);
+    if (estIdAirtable(boxeurId)) fields["Mon boxeur"] = [boxeurId];
+    if (estIdAirtable(adversaireId)) fields["Boxeur adversaire"] = [adversaireId];
 
     console.log('📤 Fields envoyés à Airtable:', JSON.stringify(fields));
 
@@ -1432,6 +1463,69 @@ function determinerIssueCombat(f, moi) {
   return { issue, typeVictoire };
 }
 
+// ===== Combats enregistrés sur Hitting, par boxeur =====
+// Rattache chaque combat de Résultats à une fiche Boxeurs via la demande de
+// match liée : côté A = "Mon boxeur", côté B = "Boxeur adversaire" (liens vers
+// Boxeurs). Les combats dont la demande ne porte pas ces liens (demandes créées
+// avant leur ajout) ne sont rattachés à personne. L'issue vient de
+// determinerIssueCombat, comme pour getDashboardStats et getHistoriqueCombats.
+// Retourne Map<idBoxeur, { vicHitting, defHitting, nulsHitting, koHitting }>
+// pour les seuls boxeurs de idsBoxeurs. Rien n'est écrit dans Airtable.
+async function calculerStatsHittingParBoxeur(base, idsBoxeurs) {
+  const stats = new Map();
+  if (idsBoxeurs.size === 0) return stats;
+
+  const [resultats, demandes] = await Promise.all([
+    base("Résultats").select({
+      fields: [
+        "Demande de match",
+        "Résultat Coach A", "Résultat Coach B",
+        "Score Boxeur A", "Score Boxeur B",
+        "Type de victoire Coach A", "Type de victoire Coach B",
+      ],
+    }).all(),
+    base("Demandedematch").select({ fields: ["Mon boxeur", "Boxeur adversaire"] }).all(),
+  ]);
+
+  const boxeursParDemande = new Map();
+  for (const demande of demandes) {
+    const f = demande.fields || {};
+    boxeursParDemande.set(demande.id, {
+      A: (f["Mon boxeur"] || [])[0] || null,
+      B: (f["Boxeur adversaire"] || [])[0] || null,
+    });
+  }
+
+  for (const resultat of resultats) {
+    const f = resultat.fields || {};
+    const demandeId = (f["Demande de match"] || [])[0];
+    const combattants = demandeId ? boxeursParDemande.get(demandeId) : null;
+    if (!combattants) continue;
+
+    for (const cote of ["A", "B"]) {
+      const idBoxeur = combattants[cote];
+      if (!idBoxeur || !idsBoxeurs.has(idBoxeur)) continue;
+
+      const { issue, typeVictoire } = determinerIssueCombat(f, cote);
+      if (!issue) continue;
+
+      const s = stats.get(idBoxeur) || { vicHitting: 0, defHitting: 0, nulsHitting: 0, koHitting: 0 };
+      if (issue === "Victoire") {
+        s.vicHitting++;
+        // Même règle que getDashboardStats : KO = victoires par KO/TKO
+        if (typeVictoire === "KO" || typeVictoire === "TKO") s.koHitting++;
+      } else if (issue === "Défaite") {
+        s.defHitting++;
+      } else {
+        s.nulsHitting++;
+      }
+      stats.set(idBoxeur, s);
+    }
+  }
+
+  return stats;
+}
+
 // ===== CLOUD FUNCTION v2: getDashboardStats =====
 exports.getDashboardStats = onRequest({
   region: "europe-west9",
@@ -1463,10 +1557,12 @@ exports.getDashboardStats = onRequest({
 
     // ── Effectif total de boxeurs du club (champ "Boxeurs 2" sur la table Coach) ──
     let totalBoxeurs = 0;
+    let idsBoxeursClub = new Set();
     if (airtableCoachId) {
       const coachRecord = await base("Coach").find(airtableCoachId);
       const boxeursLies = coachRecord.fields["Boxeurs 2"];
       totalBoxeurs = Array.isArray(boxeursLies) ? boxeursLies.length : 0;
+      idsBoxeursClub = new Set(Array.isArray(boxeursLies) ? boxeursLies : []);
     }
 
     const records = await base("Résultats").select().all();
@@ -1511,7 +1607,34 @@ exports.getDashboardStats = onRequest({
       }
     }
 
-    const pct = (n) => totalFights > 0 ? Math.round((n / totalFights) * 100) : 0;
+    // ── Palmarès initial saisi à la création de chaque boxeur (table Boxeurs) ──
+    // S'ajoute aux combats comptés ci-dessus depuis Résultats. On ne retient que
+    // les boxeurs liés au coach (champ "Boxeurs 2", même source que totalBoxeurs).
+    // Les noms de champs se terminent par une espace : elle est indispensable.
+    if (idsBoxeursClub.size > 0) {
+      const nombre = (val) => {
+        const n = Number(val);
+        return Number.isFinite(n) ? n : 0;
+      };
+      const boxeursRecords = await base("Boxeurs").select({
+        fields: ["Victoires ", "Défaites ", "Nuls ", "KO "],
+      }).all();
+      for (const boxeur of boxeursRecords) {
+        if (!idsBoxeursClub.has(boxeur.id)) continue;
+        const f = boxeur.fields || {};
+        const vic = nombre(f["Victoires "]);
+        const def = nombre(f["Défaites "]);
+        const nul = nombre(f["Nuls "]);
+        totalWins += vic;
+        totalDefeats += def;
+        totalDraws += nul;
+        totalKos += nombre(f["KO "]);
+        // Les pourcentages sont calculés sur totalFights : il doit inclure ces combats.
+        totalFights += vic + def + nul;
+      }
+    }
+
+    const pct =(n) => totalFights > 0 ? Math.round((n / totalFights) * 100) : 0;
 
     return res.status(200).json({
       success: true,

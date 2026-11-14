@@ -97,10 +97,11 @@ function BoxerCard({ boxer, onEdit, onPress }) {
         </Text>
         <View style={s.statsRow}>
           {[
-            { label: "VIC.", value: boxer.vic },
-            { label: "DEF.", value: boxer.def },
-            { label: "NULS", value: boxer.nuls },
-            { label: "K.O", value: boxer.ko },
+            // Total = hors Hitting + combats Hitting, comme sur la fiche
+            { label: "VIC.", value: (boxer.vic || 0) + (boxer.vicHitting || 0) },
+            { label: "DEF.", value: (boxer.def || 0) + (boxer.defHitting || 0) },
+            { label: "NULS", value: (boxer.nuls || 0) + (boxer.nulsHitting || 0) },
+            { label: "K.O", value: (boxer.ko || 0) + (boxer.koHitting || 0) },
           ].map(({ label, value }) => (
             <View key={label} style={s.statItem}>
               <Text style={s.statVal}>{value}</Text>
@@ -656,7 +657,10 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
  returnKeyType="done"
             />
 
-            <Text style={s.sectionLabel}>PALMARÈS</Text>
+            <Text style={s.sectionLabel}>PALMARÈS HORS HITTING</Text>
+            <Text style={{ fontSize: 12, color: '#888', lineHeight: 17, marginBottom: 12 }}>
+              Combats non enregistrés dans Hitting, y compris ceux d’avant votre arrivée. Les combats saisis dans l’application s’y ajoutent automatiquement dans les statistiques.
+            </Text>
             <View style={s.row}>
               <View style={{ flex: 1 }}>
                 <Text style={s.fieldLabel}>Victoires</Text>
@@ -856,7 +860,12 @@ React.useEffect(() => {
           def: b.def || 0,
           nuls: b.nuls || 0,
           ko: b.ko || 0,
-          enAttente: b.enAttente || false, 
+          // Combats enregistrés sur Hitting (calculés par getBoxeurs)
+          vicHitting: b.vicHitting || 0,
+          defHitting: b.defHitting || 0,
+          nulsHitting: b.nulsHitting || 0,
+          koHitting: b.koHitting || 0,
+          enAttente: b.enAttente || false,
           avatar:
             b.photo ||
             (b.sexe === "Femme"
