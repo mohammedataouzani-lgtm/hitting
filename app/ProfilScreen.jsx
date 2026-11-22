@@ -20,7 +20,7 @@ import { getCoachProfile, updateTelephone, updateCoachEmail, updateAvatar, delet
 import { useFocusEffect } from '@react-navigation/native';
 import { useNotifications } from '../NotificationContext';
 import { useCallback } from 'react';
-import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
 
 export default function ProfilScreen({ navigation }) {
@@ -38,6 +38,7 @@ export default function ProfilScreen({ navigation }) {
   const [editEmail, setEditEmail] = React.useState('');
   const { logout, user, loadingAuth } = useAuth();
   const updateId = Updates.updateId ?? 'Build natif (pas d\'update OTA)';
+  const runtimeVersion = Updates.runtimeVersion ?? '—';
 const channel = Updates.channel ?? '—';
 
   const handleLogout = () => {
@@ -194,10 +195,8 @@ const channel = Updates.channel ?? '—';
     fetchProfile();
   }, [user, loadingAuth]);
 
- const appVersion = Constants.expoConfig?.version ?? '—';
-  const buildNumber = Platform.OS === 'ios'
-    ? Constants.expoConfig?.ios?.buildNumber
-    : Constants.expoConfig?.android?.versionCode;
+  const appVersion = Application.nativeApplicationVersion ?? '—';
+  const buildNumber = Application.nativeBuildVersion ?? '—';
 
   return (
     <View style={styles.container}>
@@ -351,21 +350,25 @@ const channel = Updates.channel ?? '—';
   </TouchableOpacity>
           </View>
 
-+        <View style={styles.section}>
-+          <Text style={styles.sectionTitle}>VERSION</Text>
-+          <View style={styles.infoItem}>
-+            <Text style={styles.infoLabel}>Version app</Text>
-+            <Text style={styles.infoValue}>{appVersion} ({buildNumber})</Text>
-+          </View>
-+          <View style={styles.infoItem}>
-+            <Text style={styles.infoLabel}>Update ID</Text>
-+            <Text style={styles.infoValue} numberOfLines={1}>{updateId}</Text>
-+          </View>
-+          <View style={styles.infoItem}>
-+            <Text style={styles.infoLabel}>Canal</Text>
-+            <Text style={styles.infoValue}>{channel}</Text>
-+          </View>
-+        </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>VERSION</Text>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Version app</Text>
+            <Text style={styles.infoValue}>{appVersion} ({buildNumber})</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Update ID</Text>
+            <Text style={styles.infoValue} numberOfLines={1}>{updateId}</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Runtime</Text>
+            <Text style={styles.infoValue}>{runtimeVersion}</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Canal</Text>
+            <Text style={styles.infoValue}>{channel}</Text>
+          </View>
+        </View>
 
       </ScrollView>
     </View>
