@@ -256,7 +256,11 @@ function EvenementDetailBottomSheet({ visible, onClose, eventInfo, onVoirEveneme
           </>
         ) : (
           <>
-            {data.photo ? <Image source={{ uri: data.photo }} style={eds.image} /> : null}
+            {data.photo ? (
+              <View style={eds.imageContainer}>
+                <Image source={{ uri: data.photo }} style={eds.image} resizeMode="contain" />
+              </View>
+            ) : null}
             <Text style={eds.title}>{data.titre}</Text>
             <View style={eds.infoRow}>
               <Text style={eds.infoIcon}>📅</Text>
@@ -305,7 +309,9 @@ const eds = StyleSheet.create({
   badgeRow: { flexDirection: 'row', marginBottom: 12 },
   typeBadge: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 },
   typeBadgeTxt: { fontSize: 12, fontWeight: '700' },
-  image: { width: '100%', height: 140, borderRadius: 12, marginBottom: 14, resizeMode: 'cover' },
+  // Ratio portrait pour lire l'affiche entière ; plafonné car cette sheet ne défile pas (le bouton doit rester visible).
+  imageContainer: { width: '100%', aspectRatio: 3 / 4, maxHeight: SCREEN_HEIGHT * 0.5, alignSelf: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: '#E0E0E0', marginBottom: 14 },
+  image: { width: '100%', height: '100%' },
   title: { fontSize: 22, fontWeight: '900', color: '#111', marginBottom: 14, letterSpacing: -0.3 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   infoIcon: { fontSize: 15 },

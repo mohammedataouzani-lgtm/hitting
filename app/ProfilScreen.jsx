@@ -11,6 +11,7 @@ import {
   Alert,
   Dimensions,
   TextInput,
+  Pressable,
 } from 'react-native';
 import { useAuth } from '../AuthContext';
 import { TAB_BAR_HEIGHT } from './components/BottomTabBar';
@@ -34,6 +35,7 @@ export default function ProfilScreen({ navigation }) {
   const [avatar, setAvatar] = React.useState(null);
   const [profile, setProfile] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
+  const [showVersionDetails, setShowVersionDetails] = React.useState(false);
   const [editTelephone, setEditTelephone] = React.useState('');
   const [editEmail, setEditEmail] = React.useState('');
   const { logout, user, loadingAuth } = useAuth();
@@ -352,22 +354,30 @@ const channel = Updates.channel ?? '—';
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>VERSION</Text>
-          <View style={styles.infoItem}>
+          {/* Appui long, sans retour visuel : affiche / masque les détails techniques */}
+          <Pressable
+            style={styles.infoItem}
+            onLongPress={() => setShowVersionDetails((v) => !v)}
+          >
             <Text style={styles.infoLabel}>Version app</Text>
             <Text style={styles.infoValue}>{appVersion} ({buildNumber})</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Update ID</Text>
-            <Text style={styles.infoValue} numberOfLines={1}>{updateId}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Runtime</Text>
-            <Text style={styles.infoValue}>{runtimeVersion}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Canal</Text>
-            <Text style={styles.infoValue}>{channel}</Text>
-          </View>
+          </Pressable>
+          {showVersionDetails && (
+            <>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>Update ID</Text>
+                <Text style={styles.infoValue} numberOfLines={1}>{updateId}</Text>
+              </View>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>Runtime</Text>
+                <Text style={styles.infoValue}>{runtimeVersion}</Text>
+              </View>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>Canal</Text>
+                <Text style={styles.infoValue}>{channel}</Text>
+              </View>
+            </>
+          )}
         </View>
 
       </ScrollView>

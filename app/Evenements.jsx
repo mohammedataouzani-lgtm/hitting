@@ -85,7 +85,11 @@ function EventDetailsBottomSheet({ visible, event, onClose }) {
       <Animated.View style={[bs.sheet, { height: BOTTOM_SHEET_MAX_HEIGHT, transform: [{ translateY }] }]} {...panResponder.panHandlers}>
         <View style={bs.handleRow}><View style={bs.handle} /></View>
         <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={bs.scrollContent}>
-          {(event.affiche || event.photo) ? <Image source={{ uri: event.affiche || event.photo }} style={bs.posterImage} /> : null}
+          {(event.affiche || event.photo) ? (
+            <View style={bs.posterContainer}>
+              <Image source={{ uri: event.affiche || event.photo }} style={bs.posterImage} resizeMode="contain" />
+            </View>
+          ) : null}
           <View style={bs.detailsContainer}>
             <View style={bs.headerRow}>
               <View style={bs.statusBadge}><Text style={bs.statusText}>{event.status || event.statut}</Text></View>
@@ -508,7 +512,8 @@ const bs = StyleSheet.create({
   handleRow: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
   handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: '#C7C7CC' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
-  posterImage: { width: '100%', height: 200, borderRadius: 16, resizeMode: 'cover', backgroundColor: '#E0E0E0', marginBottom: 16 },
+  posterContainer: { width: '100%', aspectRatio: 3 / 4, borderRadius: 16, overflow: 'hidden', backgroundColor: '#E0E0E0', marginBottom: 16 },
+  posterImage: { width: '100%', height: '100%' },
   detailsContainer: { paddingBottom: 10 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   statusBadge: { backgroundColor: '#FFCA28', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },

@@ -187,7 +187,10 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
       quality: 0.8,
       base64: true,
     });
-    if (!result.canceled) setPhotoBoxeur(result.assets[0]);
+    if (!result.canceled) {
+      setPhotoBoxeur(result.assets[0]);
+      setErrors((p) => ({ ...p, photoBoxeur: false }));
+    }
   };
 
   const handleTakePhotoBoxeur = async () => {
@@ -205,7 +208,10 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
       quality: 0.8,
       base64: true,
     });
-    if (!result.canceled) setPhotoBoxeur(result.assets[0]);
+    if (!result.canceled) {
+      setPhotoBoxeur(result.assets[0]);
+      setErrors((p) => ({ ...p, photoBoxeur: false }));
+    }
   };
 
   const handleChangePhotoBoxeur = () => {
@@ -279,13 +285,34 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
     if (!prenom.trim()) e.prenom = true;
     if (!sexe) e.sexe = true;
     if (!niveau) e.niveau = true;
+    if (!numeroLicence.trim()) e.numeroLicence = true;
+    if (!photoBoxeur) e.photoBoxeur = true;
+    if (!photoLicence) e.photoLicence = true;
     return e;
+  };
+
+  // Libellés affichés dans l'alerte, dans l'ordre du formulaire.
+  const REQUIRED_LABELS = {
+    photoBoxeur: "la photo du boxeur",
+    prenom: "le prénom",
+    nom: "le nom",
+    sexe: "le sexe",
+    numeroLicence: "le numéro de licence",
+    photoLicence: "la photo de la licence",
+    niveau: "le niveau",
   };
 
   const handleSubmit = async () => {
     const e = validate();
     if (Object.keys(e).length > 0) {
       setErrors(e);
+      const missing = Object.keys(REQUIRED_LABELS)
+        .filter((k) => e[k])
+        .map((k) => `• ${REQUIRED_LABELS[k]}`);
+      Alert.alert(
+        "Champs obligatoires manquants",
+        `Merci de compléter :\n${missing.join("\n")}`,
+      );
       return;
     }
 
@@ -458,7 +485,13 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                     style={s.boxeurPhoto}
                   />
                 ) : (
-                  <View style={[s.boxeurPhoto, s.boxeurPhotoEmpty]} />
+                  <View
+                    style={[
+                      s.boxeurPhoto,
+                      s.boxeurPhotoEmpty,
+                      errors.photoBoxeur && s.boxeurPhotoError,
+                    ]}
+                  />
                 )}
                 <TouchableOpacity
                   activeOpacity={0.8}
@@ -468,7 +501,7 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                   <Text style={s.avatarEditIcon}>✏️</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={s.boxeurPhotoLabel}>Photo</Text>
+              <Text style={s.boxeurPhotoLabel}>Photo *</Text>
             </View>
 
             <Text style={s.sectionLabel}>IDENTITÉ</Text>
@@ -568,13 +601,13 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
               ))}
             </View>
 
-            <Text style={s.fieldLabel}>Numéro de licence FFBoxe</Text>
+            <Text style={s.fieldLabel}>Numéro de licence FFBoxe *</Text>
             <TextInput
-              style={[s.input, { marginBottom: 16 }]}
+              style={[s.input, { marginBottom: 16 }, errors.numeroLicence && s.inputError]}
               placeholder="ex : 651289"
               placeholderTextColor="#C0C0C0"
               value={numeroLicence}
-              onChangeText={setNumeroLicence}
+              onChangeText={(v) => { setNumeroLicence(v); setErrors((p) => ({ ...p, numeroLicence: false })); }}
               keyboardType="numeric"
               inputAccessoryViewID={Platform.OS === "ios" ? INPUT_ACCESSORY_ID : undefined}
               ref={numeroLicenceRef}
@@ -582,11 +615,12 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
  onSubmitEditing={() => poidsRef.current?.focus()}
             />
 
-            <Text style={s.fieldLabel}>Photo de la licence</Text>
+            <Text style={s.fieldLabel}>Photo de la licence *</Text>
             <TouchableOpacity
               style={[
                 s.input,
                 { height: 80, justifyContent: "center", alignItems: "center" },
+                errors.photoLicence && s.inputError,
               ]}
               onPress={async () => {
                 const permission =
@@ -604,7 +638,10 @@ function AddBoxeurSheet({ visible, onClose, onAdd }) {
                   quality: 0.7,
                   base64: true,
                 });
-                if (!result.canceled) setPhotoLicence(result.assets[0]);
+                if (!result.canceled) {
+                  setPhotoLicence(result.assets[0]);
+                  setErrors((p) => ({ ...p, photoLicence: false }));
+                }
               }}
             >
               {photoLicence ? (
@@ -1314,6 +1351,7 @@ const s = StyleSheet.create({
     backgroundColor: "#E0E0E0",
   },
   boxeurPhotoEmpty: { backgroundColor: "#E0E0E0" },
+  boxeurPhotoError: { borderWidth: 2, borderColor: "#EF5350", backgroundColor: "#FFF5F5" },
   boxeurPhotoEditBadge: {
     position: "absolute",
     bottom: 0,
